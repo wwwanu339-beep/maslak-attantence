@@ -36,20 +36,20 @@ app.set('views', path.join(__dirname, 'views'));
 // ================= GOOGLE SHEETS SETUP =================
 
 // Private Key ഫോർമാറ്റ് കൃത്യമാക്കാനുള്ള ഫംഗ്ഷൻ (DECODER routines::unsupported എറർ ഒഴിവാക്കാൻ)
+
+// ================= GOOGLE SHEETS SETUP =================
+// പുതിയത് (Environment Variables വഴി പ്രവർത്തിക്കുന്നത്):
 function formatPrivateKey(key) {
   if (!key) return '';
   return key
-    .replace(/^["']|["']$/g, '')          // ചുറ്റുമുള്ള ഇരട്ട/ഒറ്റ ഉദ്ധരണികൾ ഒഴിവാക്കുന്നു
-    .replace(/\\n/g, '\n')                 // ലിറ്ററൽ \n മാറ്റി ശരിയായ ന്യൂലൈൻ ആക്കുന്നു
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\n/g, '\n')
     .trim();
 }
 
-// ================= GOOGLE SHEETS SETUP =================
-const creds = require('./google-creds.json');
-
 const serviceAccountAuth = new JWT({
-  email: creds.client_email,
-  key: creds.private_key,
+  email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+  key: formatPrivateKey(process.env.GOOGLE_PRIVATE_KEY),
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
