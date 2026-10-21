@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Report & Matrix</title>
+  <link rel="stylesheet" href="/veiw.css">
+</head>
+<body>
+
+  <!-- 1. ഇൻഡിവിജ്വൽ സ്റ്റുഡന്റ് ഡീറ്റെയിൽ കാർഡ് (മാട്രിക്സിൽ പേര് ക്ലിക്ക് ചെയ്യുമ്പോൾ ഇവിടെ അപ്‌ഡേറ്റ് ആകും) -->
+  <div class="student-detail-card" id="studentDetailBox" style="display: none;">
+    <div class="student-header">
+      <div class="avatar" id="detailAvatar">01</div>
+      <div>
+        <h4 id="detailName">Student Name</h4>
+        <p id="detailSub">Batch: - | Date: -</p>
+      </div>
+      <div class="summary-badge" id="detailSummary">0 / 0 Attended</div>
+    </div>
+
+    <table class="session-table">
+      <thead>
+        <tr>
+          <th>Session</th>
+          <th>Subject</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="sessionTableBody">
+        <!-- ഡൈനാമിക് ആയി ഇവിടെ റോകൾ വരും -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 2. മന്ത്ലി മാട്രിക്സ് സെക്ഷൻ -->
+  <div class="matrix-container">
+    <h2>Monthly Attendance Matrix</h2>
+
+    <!-- ഫിൽട്ടർ സെലക്ഷൻ ഏരിയ -->
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>Batch</label>
+        <select id="filterBatch">
+          <option value="all">All Classes</option>
+          <option value="" disabled selected>Select Batch</option>
+          <% batches.forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="filter-item">
+        <label>Subject</label>
+        <select id="filterSubject">
+          <option value="all">All Subjects (Overall)</option>
+          <% subjects.forEach(s => { %>
+            <option value="<%= s.id %>"><%= s.name %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="filter-item">
+        <label>Month</label>
+        <select id="filterMonth">
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+
+      <div class="filter-item">
+        <label>Year</label>
+        <select id="filterYear">
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+          <option value="2027">2027</option>
+        </select>
+      </div>
+
+      <button type="button" class="btn-filter" onclick="loadAttendance()">Filter</button>
+    </div>
+
+    <!-- റിപ്പോർട്ട് ടേബിൾ മാട്രിക്സ് -->
+    <div class="table-wrapper">
+      <table class="matrix-table">
+        <thead id="matrixHead">
+          <!-- ഹെഡർ തീയതികൾ ഇവിടെ ഡൈനാമിക് ആയി വരും -->
+        </thead>
+        <tbody id="matrixBody">
+          <tr>
+            <td colspan="35" style="padding: 25px; color: #64748b;">ഫിൽട്ടർ നൽകി 'Filter' ബട്ടൺ ക്ലിക്ക് ചെയ്യുക.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const now = new Date();
+      document.getElementById('filterMonth').value = now.getMonth() + 1;
+      document.getElementById('filterYear').value = now.getFullYear();
+    });
+
+    async function loadAttendance() {
+      const batch_id = document.getElementById('filterBatch').value;
+      const subject_id = document.getElementById('filterSubject').value;
+      const month = document.getElementById('filterMonth').value;
+      const year = document.getElementById('filterYear').value;
+
+      if (!batch_id) return alert('ബാച്ച് തിരഞ്ഞെടുക്കുക!');
+
+      const mHead = document.getElementById('matrixHead');
+      const mBody = document.getElementById('matrixBody');
+      mBody.innerHTML = '<tr><td colspan="40" style="padding: 20px;">Loading data...</td></tr>';
+
+      try {
+        const res = await fetch(`/api/monthly-matrix?batch_id=${batch_id}&subject_id=${subject_id}&month=${month}&year=${year}`);
+        const data = await res.json();
+
+        if (!data.success || data.students.length === 0) {
+          mBody.innerHTML = '<tr><td colspan="40" style="padding: 20px; color: #64748b;">വിദ്യാർത്ഥികളോ വിവരങ്ങളോ ലഭ്യമല്ല.</td></tr>';
+          return;
+        }
+
+        const isAllBatch = batch_id === 'all';
+
+        // 1. ഹെഡർ നിർമ്മാണം
+        let headHtml = `<tr>
+          <th class="col-roll">Roll</th>
+          <th class="col-name">Student Name</th>
+          ${isAllBatch ? '<th class="col-batch">Class</th>' : ''}`;
+
+        for (let d = 1; d <= data.daysInMonth; d++) {
+          headHtml += `<th>${d}</th>`;
+        }
+        headHtml += `<th class="col-summary">P</th><th class="col-summary">A</th><th class="col-summary">%</th></tr>`;
+        mHead.innerHTML = headHtml;
+
+        // 2. ബോഡി നിർമ്മാണം
+        let bodyHtml = '';
+        data.students.forEach((st, idx) => {
+          let p = 0;
+          let a = 0;
+          const rollNo = st.admission_no || String(idx + 1).padStart(2, '0');
+
+          let row = `<tr>
+            <td class="col-roll">${rollNo}</td>
+            <td class="col-name" style="cursor: pointer; font-weight: 600;" onclick="openLatestStudentDay('${st.id}')">
+              ${st.full_name}
+            </td>
+            ${isAllBatch ? `<td><small style="color: #64748b;">${st.batch_name || '-'}</small></td>` : ''}`;
+
+          for (let d = 1; d <= data.daysInMonth; d++) {
+            const status = data.attMap[st.id] ? data.attMap[st.id][d] : null;
+            const fullDate = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+            if (status === 'present') {
+              p++;
+              row += `<td class="status-p" style="cursor: pointer;" onclick="showStudentDay('${st.id}', '${fullDate}')" title="Click to view details">P</td>`;
+            } else if (status === 'absent') {
+              a++;
+              row += `<td class="status-a" style="cursor: pointer;" onclick="showStudentDay('${st.id}', '${fullDate}')" title="Click to view details">A</td>`;
+            } else {
+              row += `<td>-</td>`;
+            }
+          }
+
+          const totalMarked = p + a;
+          const pct = totalMarked > 0 ? Math.round((p / totalMarked) * 100) : 0;
+
+          row += `
+            <td class="total-p">${p}</td>
+            <td class="total-a">${a}</td>
+            <td class="total-pct">${pct}%</td>
+          </tr>`;
+          bodyHtml += row;
+        });
+
+        mBody.innerHTML = bodyHtml;
+      } catch (err) {
+        console.error(err);
+        mBody.innerHTML = '<tr><td colspan="40" style="padding: 20px; color: red;">ഡാറ്റ ലോഡ് ചെയ്യാൻ സാധിച്ചില്ല.</td></tr>';
+      }
+    }
+
+    // കുട്ടിയുടെ പേരിൽ ക്ലിക്ക് ചെയ്യുമ്പോൾ അന്നത്തെ ദിവസമോ അല്ലെങ്കിൽ നിലവിലെ ദിവസമോ ലോഡ് ചെയ്യാൻ
+    function openLatestStudentDay(studentId) {
+      const month = document.getElementById('filterMonth').value;
+      const year = document.getElementById('filterYear').value;
+      const today = new Date();
+      let day = '01';
+
+      if (today.getFullYear() == year && (today.getMonth() + 1) == month) {
+        day = String(today.getDate()).padStart(2, '0');
+      }
+      showStudentDay(studentId, `${year}-${String(month).padStart(2, '0')}-${day}`);
+    }
+
+    // കൃത്യമായ തീയതിയിലെ സെഷൻ ഡീറ്റെയിൽസ് കാണിക്കാൻ
+    async function showStudentDay(studentId, date) {
+      const box = document.getElementById('studentDetailBox');
+      const tbody = document.getElementById('sessionTableBody');
+
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 15px;">വിവരങ്ങൾ ലോഡ് ചെയ്യുന്നു...</td></tr>';
+      box.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      try {
+        const res = await fetch(`/api/student-day-details?student_id=${studentId}&date=${date}`);
+        const data = await res.json();
+
+        if (!data.success || !data.student) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: red; padding: 15px;">വിവരങ്ങൾ ലഭ്യമല്ല.</td></tr>';
+          return;
+        }
+
+        document.getElementById('detailAvatar').innerText = data.student.admission_no || 'ST';
+        document.getElementById('detailName').innerText = data.student.full_name;
+        document.getElementById('detailSub').innerText = `Batch: ${data.student.batch_name || '-'} | Date: ${date}`;
+
+        tbody.innerHTML = '';
+
+        if (!data.sessions || data.sessions.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 15px;">${date} തീയതിയിൽ ഹാജർ രേഖപ്പെടുത്തിയിട്ടില്ല.</td></tr>`;
+          document.getElementById('detailSummary').innerText = 'No Sessions';
+          return;
+        }
+
+        let presentCount = 0;
+        data.sessions.forEach((s, i) => {
+          if (s.status === 'present') presentCount++;
+          tbody.innerHTML += `
+            <tr>
+              <td>Period ${i + 1}</td>
+              <td>${s.subject_name}</td>
+              <td><span class="badge ${s.status === 'present' ? 'p' : 'a'}">${s.status.toUpperCase()}</span></td>
+            </tr>
+          `;
+        });
+
+        document.getElementById('detailSummary').innerText = `${presentCount} / ${data.sessions.length} Attended`;
+      } catch (err) {
+        console.error(err);
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: red; padding: 15px;">ഡാറ്റ ലഭ്യമാക്കുന്നതിൽ തകരാർ സംഭവിച്ചു.</td></tr>';
+      }
+    }
+  </script>
+</body>
+</html>

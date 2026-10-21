@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Attendance System</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 30px 20px;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    /* ഹെഡ്ഡറും ലോഗ് ഔട്ട് ബട്ടണും */
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    .header-section h1 {
+      font-size: 24px;
+      margin: 0;
+    }
+    .btn-logout {
+      background: #ef4444; /* ലോഗ് ഔട്ടിനായുള്ള ചുവപ്പ് നിറം */
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background 0.2s ease;
+    }
+    .btn-logout:hover {
+      background: #dc2626;
+    }
+    
+    /* 1. സ്റ്റാറ്റിസ്റ്റിക്സ് കാർഡുകൾ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .stat-card h3 {
+      margin: 0;
+      font-size: 13px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .stat-card p {
+      margin: 8px 0 0 0;
+      font-size: 28px;
+      font-weight: 700;
+      color: #2563eb;
+    }
+
+    /* 2. മെനു ആങ്കർ ടാഗ് ലിങ്കുകൾ */
+    .menu-section h2 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #334155;
+    }
+    .links-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .nav-card {
+      display: block;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px 20px;
+      text-decoration: none;
+      color: #0f172a;
+      font-weight: 600;
+      font-size: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      transition: all 0.2s ease;
+    }
+    .nav-card:hover {
+      border-color: #2563eb;
+      background-color: #eff6ff;
+      color: #2563eb;
+      transform: translateY(-2px);
+    }
+    .nav-card span {
+      display: block;
+      font-size: 12px;
+      font-weight: 400;
+      color: #64748b;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- ഹെഡ്ഡർ: ടൈറ്റിലും ലോഗ് ഔട്ട് ലിങ്കും -->
+    <div class="header-section">
+      <h1>Hajar Dashboard</h1>
+      <a href="/logout" class="btn-logout">Logout</a>
+    </div>
+
+    <!-- സ്റ്റാറ്റിസ്റ്റിക്സ് ബോക്സുകൾ -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Students</h3>
+        <p><%= totalStudents %></p>
+      </div>
+      <div class="stat-card">
+        <h3>Total Users</h3>
+        <p><%= totalUsers %></p>
+      </div>
+      <div class="stat-card">
+        <h3>Attendance Marked</h3>
+        <p><%= totalAttendance %></p>
+      </div>
+    </div>
+
+    <!-- പ്രധാന പേജുകളിലേക്കുള്ള ആങ്കർ ലിങ്കുകൾ -->
+    <div class="menu-section">
+      <h2>Quick Navigation</h2>
+      <div class="links-grid">
+
+        <!-- 1. Mark Attendance -->
+        <% if (user && user.can_attendance == 1) { %>
+          <a href="/attendance" class="nav-card">
+            Mark Attendance
+            <span>Take daily / period attendance</span>
+          </a>
+        <% } %>
+
+        <!-- 2. Monthly Sheet -->
+        <% if (user && user.can_attendanceveiw == 1) { %>
+          <a href="/monthly-report" class="nav-card">
+            Monthly Sheet
+            <span>View monthly attendance matrix</span>
+          </a>
+        <% } %>
+
+        <!-- 3. Manage Students -->
+        <% if (user && user.can_studet == 1) { %>
+          <a href="/students" class="nav-card">
+            Manage Students
+            <span>Add, update, or remove students</span>
+          </a>
+        <% } %>
+
+        <!-- 4. Settings & Batches -->
+        <% if (user && user.can_manage == 1) { %>
+          <a href="/settings" class="nav-card">
+            Settings & Batches
+            <span>Manage batches, subjects & users</span>
+          </a>
+        <% } %>
+
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

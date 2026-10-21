@@ -1,0 +1,267 @@
+.student-detail-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  max-width: 650px;
+  margin: 15px auto;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.student-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+
+.avatar {
+  width: 45px;
+  height: 45px;
+  background: #2563eb;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.student-header h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.student-header p {
+  margin: 3px 0 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.summary-badge {
+  margin-left: auto;
+  background: #ecfdf5;
+  color: #047857;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #a7f3d0;
+}
+
+.session-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.session-table th {
+  background: #f8fafc;
+  color: #64748b;
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.session-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.badge.p {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badge.a {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+:root {
+  --primary: #2563eb;
+  --bg-color: #f8fafc;
+  --card-bg: #ffffff;
+  --border-color: #e2e8f0;
+  --text-main: #0f172a;
+  
+  --p-bg: #dcfce7;
+  --p-text: #15803d;
+  --a-bg: #fee2e2;
+  --a-text: #b91c1c;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  padding: 20px;
+}
+
+.matrix-container {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+/* ഫിൽട്ടർ ബാർ */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 20px;
+  align-items: flex-end;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-item label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.filter-item select {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: #f8fafc;
+  font-size: 14px;
+  outline: none;
+}
+
+.btn-filter {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ടേബിൾ ലേഔട്ട് & സ്ക്രോൾ */
+.table-wrapper {
+  overflow-x: auto;
+  background: var(--card-bg);
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.matrix-table th,
+.matrix-table td {
+  padding: 8px 6px;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  min-width: 32px;
+}
+
+.matrix-table thead th {
+  background-color: #f1f5f9;
+  font-weight: 700;
+  color: #475569;
+}
+
+/* കുട്ടിയുടെ റോൾ നമ്പറും പേരും സ്ക്രോൾ ചെയ്യുമ്പോൾ ഫിക്സഡ് ആയി നിൽക്കാൻ (Sticky) */
+.col-roll {
+  position: sticky;
+  left: 0;
+  background: #ffffff;
+  z-index: 2;
+  min-width: 45px !important;
+  font-weight: 700;
+}
+
+.col-name {
+  position: sticky;
+  left: 45px;
+  background: #ffffff;
+  z-index: 2;
+  min-width: 140px !important;
+  text-align: left !important;
+  padding-left: 10px !important;
+  font-weight: 600;
+  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1);
+}
+
+thead .col-roll,
+thead .col-name {
+  background-color: #f1f5f9;
+}
+
+/* സ്റ്റാറ്റസ് ബോക്സുകൾ */
+.status-p {
+  background-color: var(--p-bg);
+  color: var(--p-text);
+  font-weight: 700;
+}
+
+.status-a {
+  background-color: var(--a-bg);
+  color: var(--a-text);
+  font-weight: 700;
+}
+
+/* സമ്മറി കോളങ്ങൾ (Total P, A, %) */
+.col-summary {
+  background-color: #f8fafc;
+  font-weight: 700;
+  min-width: 45px !important;
+}
+
+.total-p {
+  font-weight: 700;
+  color: var(--p-text);
+  background: #f0fdf4;
+}
+
+.total-a {
+  font-weight: 700;
+  color: var(--a-text);
+  background: #fef2f2;
+}
+
+.total-pct {
+  font-weight: 800;
+  color: var(--primary);
+  background: #eff6ff;
+}

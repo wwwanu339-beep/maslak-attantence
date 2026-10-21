@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch & Subject Settings</title>
+  <link rel="stylesheet" href="/add.css">
+</head>
+<body>
+
+  <div class="container">
+    <h2>Manage Batches, Subjects & Users</h2>
+
+    <div class="settings-grid">
+      
+      <!-- ബാച്ച് മാനേജ്‌മെന്റ് കാർഡ് -->
+      <div class="settings-card">
+        <h3>Manage Batches</h3>
+        
+        <div class="input-action-row">
+          <input type="text" id="batchInput" placeholder="Enter Batch Name">
+          <button type="button" class="btn btn-add" onclick="addBatch()">Add</button>
+        </div>
+
+        <div class="select-action-row">
+          <select id="batchSelect">
+            <option value="" disabled selected>Select Batch</option>
+            <% batches.forEach(b => { %>
+              <option value="<%= b.id %>"><%= b.name %></option>
+            <% }) %>
+          </select>
+          <button type="button" class="btn btn-delete" onclick="deleteBatch()">Delete</button>
+        </div>
+      </div>
+
+      <!-- സബ്ജക്റ്റ് മാനേജ്‌മെന്റ് കാർഡ് -->
+      <div class="settings-card">
+        <h3>Manage Subjects</h3>
+        
+        <div class="input-action-row">
+          <input type="text" id="subjectInput" placeholder="Enter Subject Name">
+          <button type="button" class="btn btn-add" onclick="addSubject()">Add</button>
+        </div>
+
+        <div class="select-action-row">
+          <select id="subjectSelect">
+            <option value="" disabled selected>Select Subject</option>
+            <% subjects.forEach(s => { %>
+              <option value="<%= s.id %>"><%= s.name %></option>
+            <% }) %>
+          </select>
+          <button type="button" class="btn btn-delete" onclick="deleteSubject()">Delete</button>
+        </div>
+      </div>
+
+      <!-- യൂസർ മാനേജ്‌മെന്റ് കാർഡ് -->
+      <div class="settings-card settings-card1">
+        <h3>Manage Users</h3>
+        
+        <div class="user-form-grid">
+          <input type="text" id="userInput" placeholder="Enter user Name">
+          <input type="password" id="userPass" placeholder="Enter user pass">
+          
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="userAtt"> Attendance</label>
+            <label><input type="checkbox" id="userManage"> Add / Manage</label>
+             <label><input type="checkbox" id="userview"> Attendance View </label>
+              <label><input type="checkbox" id="userstudet"> student Manage </label> 
+          </div>
+          
+          <button type="button" class="btn btn-add" onclick="addUser()">Add User</button>
+        </div>
+
+        <div class="select-action-row" style="margin-top: 15px;">
+          <select id="userSelect">
+            <option value="" disabled selected>Select User</option>
+            <% users.forEach(u => { %>
+              <option value="<%= u.id %>"><%= u.username %></option>
+            <% }) %>
+          </select>
+          <button type="button" class="btn btn-delete" onclick="deleteUser()">Delete</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 1. ബാച്ച് ആഡ് ചെയ്യൽ & ഡിലീറ്റ് ചെയ്യൽ
+    async function addBatch() {
+      const name = document.getElementById('batchInput').value.trim();
+      if (!name) return alert('ബാച്ച് പേര് നൽകുക!');
+
+      const res = await fetch('/api/batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (data.success) location.reload();
+    }
+
+    async function deleteBatch() {
+      const id = document.getElementById('batchSelect').value;
+      if (!id) return alert('ഡിലീറ്റ് ചെയ്യേണ്ട ബാച്ച് തിരഞ്ഞെടുക്കുക!');
+      if (!confirm('ഈ ബാച്ച് ഒഴിവാക്കണമോ?')) return;
+
+      const res = await fetch(`/api/batches/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) location.reload();
+    }
+
+    // 2. സബ്ജക്റ്റ് ആഡ് ചെയ്യൽ & ഡിലീറ്റ് ചെയ്യൽ
+    async function addSubject() {
+      const name = document.getElementById('subjectInput').value.trim();
+      if (!name) return alert('സബ്ജക്റ്റ് പേര് നൽകുക!');
+
+      const res = await fetch('/api/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (data.success) location.reload();
+    }
+
+    async function deleteSubject() {
+      const id = document.getElementById('subjectSelect').value;
+      if (!id) return alert('ഡിലീറ്റ് ചെയ്യേണ്ട സബ്ജക്റ്റ് തിരഞ്ഞെടുക്കുക!');
+      if (!confirm('ഈ സബ്ജക്റ്റ് ഒഴിവാക്കണമോ?')) return;
+
+      const res = await fetch(`/api/subjects/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) location.reload();
+    }
+
+    // 3. യൂസർ ആഡ് ചെയ്യൽ & ഡിലീറ്റ് ചെയ്യൽ
+    async function addUser() {
+      const username = document.getElementById('userInput').value.trim();
+      const password = document.getElementById('userPass').value.trim();
+      const can_attendance = document.getElementById('userAtt').checked;
+      const can_manage = document.getElementById('userManage').checked;
+      const can_attendanceveiw = document.getElementById('userview').checked;
+      const can_studet = document.getElementById('userstudet').checked;
+      
+
+      if (!username || !password) return alert('യൂസർനെയിമും പാസ്‌വേഡും നൽകുക!');
+
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, can_attendance, can_manage, can_attendanceveiw, can_studet })
+      });
+      const data = await res.json();
+      if (data.success) {
+        location.reload();
+      } else {
+        alert(data.error || 'യൂസറെ ചേർക്കാൻ സാധിച്ചില്ല!');
+      }
+    }
+
+    async function deleteUser() {
+      const id = document.getElementById('userSelect').value;
+      if (!id) return alert('ഡിലീറ്റ് ചെയ്യേണ്ട യൂസറെ തിരഞ്ഞെടുക്കുക!');
+      if (!confirm('ഈ യൂസറെ ഒഴിവാക്കണമോ?')) return;
+
+      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) location.reload();
+    }
+  </script>
+</body>
+</html>

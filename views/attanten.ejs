@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Attendance</title>
+  <link rel="stylesheet" href="/attentenc.css">
+</head>
+<body>
+
+  <!-- 1. ഹെഡർ: ഡേറ്റും സേവ് ബട്ടണും -->
+  <div class="attendance-header">
+    <div class="date-box">
+      <label for="attendanceDate">Date:</label>
+      <input type="date" id="attendanceDate" onchange="fetchStudents()">
+    </div>
+    <button type="button" class="btn-save" onclick="saveAttendanceWithDate()">Save Attendance</button>
+  </div>
+
+  <!-- 2. ഫിൽട്ടർ സെലക്ടുകൾ (ഡാറ്റാബേസിൽ നിന്നുള്ള ഡ്രോപ്പ്ഡൗൺ) -->
+  <div class="filter-controls">
+    <select name="batchselect" id="batchSelect" onchange="fetchStudents()">
+      <option value="all">All Classes</option>
+      <option value="" disabled selected>Select Batch</option>
+      <% batches.forEach(b => { %>
+        <option value="<%= b.id %>"><%= b.name %></option>
+      <% }) %>
+    </select>
+
+    <select id="subjectSelect" onchange="fetchStudents()">
+      <option value="" disabled selected>Select Subject</option>
+      <% subjects.forEach(s => { %>
+        <option value="<%= s.id %>"><%= s.name %></option>
+      <% }) %>
+    </select>
+  </div>
+
+  <!-- 3. അറ്റൻഡൻസ് കാർഡുകളും ടോഗിൾ ബട്ടണും -->
+  <div class="attendance-container">
+    <div class="top-controls">
+      <h3>Quick Attendance</h3>
+      <button type="button" id="toggleAllBtn" class="btn-action btn-all-present" onclick="toggleAllAttendance()">
+        All Absent ആക്കുക
+      </button>
+    </div>
+
+    <!-- കാർഡുകൾ ഡൈനാമിക് ആയി ഇവിടെ ലോഡ് ചെയ്യപ്പെടുന്നു -->
+    <div class="cards-grid" id="studentsGrid">
+      <p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 20px;">
+        കുട്ടികളെ കാണുന്നതിനായി ബാച്ചും സബ്ജക്റ്റും തിരഞ്ഞെടുക്കുക.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // പേജ് ലോഡ് ആകുമ്പോൾ ഇന്നത്തെ തീയതി സെറ്റ് ചെയ്യുന്നു
+    document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('attendanceDate').value = today;
+    });
+
+    // ബാച്ചും സബ്ജക്റ്റും സെലക്ട് ചെയ്യുമ്പോൾ വിദ്യാർത്ഥികളെ കൊണ്ടുവരുന്നു
+ // 1. fetchStudents മാറ്റുക:
+async function fetchStudents() {
+  const batch_id = document.getElementById('batchSelect').value;
+  const subject_id = document.getElementById('subjectSelect').value;
+  const date = document.getElementById('attendanceDate').value;
+  const grid = document.getElementById('studentsGrid');
+
+  if (!batch_id || !subject_id || !date) return;
+
+  grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #64748b;">Loading students...</p>';
+
+  try {
+    const res = await fetch(`/api/attendance-data?batch_id=${batch_id}&subject_id=${subject_id}&date=${date}`);
+    const data = await res.json();
+
+    if (!data.success || data.students.length === 0) {
+      grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 20px;">ഈ ബാച്ചിൽ വിദ്യാർത്ഥികളൊന്നും ചേർക്കപ്പെട്ടിട്ടില്ല.</p>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    data.students.forEach((st, idx) => {
+      const currentStatus = data.statusMap[st.id] || 'present';
+      const isPresent = currentStatus === 'present';
+      const rollNo = st.admission_no || String(idx + 1).padStart(2, '0');
+
+      // ശ്രദ്ധിക്കുക: data-batch-id="${st.batch_id}" ഇവിടെ ചേർത്തു
+      grid.innerHTML += `
+        <div class="student-card ${isPresent ? 'present' : 'absent'}" 
+             onclick="toggleAttendance(this)" 
+             data-id="${st.id}" 
+             data-batch-id="${st.batch_id}">
+          <span class="status-badge">${isPresent ? 'P' : 'A'}</span>
+          <div class="roll-no">${rollNo}</div>
+          <div class="student-name">${st.full_name}</div>
+          ${st.batch_name ? `<div style="font-size: 11px; color: #64748b;">${st.batch_name}</div>` : ''}
+        </div>
+      `;
+    });
+
+    resetToggleAllButton();
+  } catch (err) {
+    console.error(err);
+    grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: red;">ഡാറ്റ ലോഡ് ചെയ്യാൻ സാധിച്ചില്ല.</p>';
+  }
+}
+
+    // കാർഡിൽ ക്ലിക്ക് ചെയ്യുമ്പോൾ P / A മാറാൻ
+    function toggleAttendance(card) {
+      const badge = card.querySelector('.status-badge');
+
+      if (card.classList.contains('present')) {
+        card.classList.replace('present', 'absent');
+        badge.innerText = 'A';
+      } else {
+        card.classList.replace('absent', 'present');
+        badge.innerText = 'P';
+      }
+    }
+
+    // എല്ലാവരെയും ഒന്നിച്ച് Absent / Present ആക്കാൻ
+    function toggleAllAttendance() {
+      const btn = document.getElementById('toggleAllBtn');
+      const cards = document.querySelectorAll('.student-card');
+      if (cards.length === 0) return;
+
+      const isSettingAbsent = btn.classList.contains('btn-all-present');
+
+      cards.forEach(card => {
+        const badge = card.querySelector('.status-badge');
+        if (isSettingAbsent) {
+          card.className = 'student-card absent';
+          badge.innerText = 'A';
+        } else {
+          card.className = 'student-card present';
+          badge.innerText = 'P';
+        }
+      });
+
+      if (isSettingAbsent) {
+        btn.innerText = 'All Present ആക്കുക';
+        btn.classList.replace('btn-all-present', 'btn-all-absent');
+      } else {
+        btn.innerText = 'All Absent ആക്കുക';
+        btn.classList.replace('btn-all-absent', 'btn-all-present');
+      }
+    }
+
+    function resetToggleAllButton() {
+      const btn = document.getElementById('toggleAllBtn');
+      btn.innerText = 'All Absent ആക്കുക';
+      btn.className = 'btn-action btn-all-present';
+    }
+
+    // ഡാറ്റാബേസിലേക്ക് ഹാജർ സേവ് ചെയ്യൽ
+  async function saveAttendanceWithDate() {
+  const batch_id = document.getElementById('batchSelect').value;
+  const subject_id = document.getElementById('subjectSelect').value;
+  const date = document.getElementById('attendanceDate').value;
+  const cards = document.querySelectorAll('.student-card');
+
+  if (!batch_id || !subject_id) {
+    alert('ബാച്ചും സബ്ജക്റ്റും തിരഞ്ഞെടുക്കണം!');
+    return;
+  }
+
+  if (!date) {
+    alert('തീയതി നൽകുക!');
+    return;
+  }
+
+  if (cards.length === 0) {
+    alert('ലിസ്റ്റിൽ കുട്ടികളില്ല!');
+    return;
+  }
+
+  const records = [];
+  cards.forEach(card => {
+    records.push({
+      student_id: card.getAttribute('data-id'),
+      batch_id: card.getAttribute('data-batch-id'), // ഇവിടെ കുട്ടിയുടെ സ്വന്തം ബാച്ച് നമ്പർ വരുന്നു
+      status: card.classList.contains('present') ? 'present' : 'absent'
+    });
+  });
+
+  try {
+    const res = await fetch('/api/save-attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ batch_id, subject_id, date, records })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      alert(data.message || 'അറ്റൻഡൻസ് സേവ് ചെയ്തു!');
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (err) {
+    console.error(err);
+    alert('സേവ് ചെയ്യാൻ സാധിച്ചില്ല!');
+  }
+}
+  </script>
+</body>
+</html>

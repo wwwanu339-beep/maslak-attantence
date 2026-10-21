@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Board</title>
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 24px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 450px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .badge-roll {
+      background: #e2e8f0;
+      color: #0f172a;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Student Board</h1>
+
+    <!-- വിദ്യാർത്ഥിയെ ചേർക്കാനുള്ള ഫോം -->
+    <div id="student-add" class="card">
+      <h3>Add New Student</h3>
+      <div class="form-grid">
+        <!-- റോൾ നമ്പർ നൽകാനുള്ള ഇൻപുട്ട് -->
+        <input type="number" id="stRoll" placeholder="Roll No (ഉദാ: 5)" min="1">
+        <input type="text" id="stName" placeholder="Student Name" required>
+        <input type="number" id="stAge" placeholder="Age" min="1" max="100">
+        <input type="text" id="stPhone" placeholder="Phone Number">
+        
+        <select id="stBatch" required>
+          <option value="" disabled selected>Select Batch</option>
+          <% batches.forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+        
+        <button type="button" class="btn btn-add" onclick="addStudent()">Add Student</button>
+      </div>
+    </div>
+
+    <!-- വിദ്യാർത്ഥികളുടെ ലിസ്റ്റ് ടേബിൾ -->
+    <div id="studentlist" class="card">
+      <h3>Student List (<%= students.length %>)</h3>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 80px;">Roll No</th>
+              <th>Student Name</th>
+              <th>Age</th>
+              <th>Phone Number</th>
+              <th>Batch</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (students.length === 0) { %>
+              <tr>
+                <td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">
+                  വിദ്യാർത്ഥികളൊന്നും ചേർക്കപ്പെട്ടിട്ടില്ല.
+                </td>
+              </tr>
+            <% } %>
+
+            <% students.forEach(s => { %>
+              <tr>
+                <td><span class="badge-roll"><%= s.admission_no || '-' %></span></td>
+                <td><strong><%= s.full_name %></strong></td>
+                <td><%= s.age || '-' %></td>
+                <td><%= s.phone || '-' %></td>
+                <td><span class="badge"><%= s.batch_name || 'No Batch' %></span></td>
+                <td class="action-btns">
+                  <!-- Update ക്ലിക്ക് ചെയ്യുമ്പോൾ admission_no കൂടി അയക്കുന്നു -->
+                  <button type="button" class="btn btn-edit" 
+                    onclick="openEditModal('<%= s.id %>', '<%= s.full_name %>', '<%= s.age %>', '<%= s.phone %>', '<%= s.batch_id %>', '<%= s.admission_no %>')">
+                    Update
+                  </button>
+                  <button type="button" class="btn btn-delete" onclick="deleteStudent('<%= s.id %>')">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- എഡിറ്റ് മോഡൽ പോപ്പ്-അപ്പ് -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 15px;">Update Student</h3>
+      <input type="hidden" id="editId">
+      
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <label style="font-size: 13px; font-weight: 600;">Roll Number (ലിസ്റ്റിലെ സ്ഥാനം മാറ്റാൻ ഇവിടെ നമ്പർ മാറ്റുക):</label>
+        <input type="number" id="editRoll" placeholder="Roll Number">
+        
+        <input type="text" id="editName" placeholder="Student Name" required>
+        <input type="number" id="editAge" placeholder="Age">
+        <input type="text" id="editPhone" placeholder="Phone Number">
+        
+        <select id="editBatch">
+          <option value="" disabled>Select Batch</option>
+          <% batches.forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-delete" onclick="closeEditModal()">Cancel</button>
+        <button type="button" class="btn btn-add" onclick="saveStudentUpdate()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. വിദ്യാർത്ഥിയെ ചേർക്കൽ
+    async function addStudent() {
+      const admission_no = document.getElementById('stRoll').value.trim();
+      const full_name = document.getElementById('stName').value.trim();
+      const age = document.getElementById('stAge').value;
+      const phone = document.getElementById('stPhone').value.trim();
+      const batch_id = document.getElementById('stBatch').value;
+
+      if (!full_name || !batch_id) {
+        alert('പേരും ബാച്ചും നിർബന്ധമായും തിരഞ്ഞെടുക്കണം!');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/students', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name, age, phone, batch_id, admission_no })
+        });
+        const data = await res.json();
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('സേവ് ചെയ്യാൻ സാധിച്ചില്ല!');
+      }
+    }
+
+    // 2. എഡിറ്റ് മോഡൽ തുറക്കൽ
+    function openEditModal(id, name, age, phone, batchId, admissionNo) {
+      document.getElementById('editId').value = id;
+      document.getElementById('editRoll').value = (admissionNo && admissionNo !== 'null') ? admissionNo : '';
+      document.getElementById('editName').value = name;
+      document.getElementById('editAge').value = (age && age !== 'null') ? age : '';
+      document.getElementById('editPhone').value = (phone && phone !== 'null') ? phone : '';
+      document.getElementById('editBatch').value = batchId;
+
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    // 3. എഡിറ്റ് ചെയ്ത ഡാറ്റ സേവ് ചെയ്യൽ (Update)
+    async function saveStudentUpdate() {
+      const id = document.getElementById('editId').value;
+      const admission_no = document.getElementById('editRoll').value.trim();
+      const full_name = document.getElementById('editName').value.trim();
+      const age = document.getElementById('editAge').value;
+      const phone = document.getElementById('editPhone').value.trim();
+      const batch_id = document.getElementById('editBatch').value;
+
+      if (!full_name || !batch_id) {
+        alert('പേരും ബാച്ചും നിർബന്ധമായും നൽകണം!');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/students/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name, age, phone, batch_id, admission_no })
+        });
+        const data = await res.json();
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('അപ്‌ഡേറ്റ് ചെയ്യാൻ സാധിച്ചില്ല!');
+      }
+    }
+
+    // 4. ഒഴിവാക്കൽ (Delete)
+    async function deleteStudent(id) {
+      if (!confirm('ഈ വിദ്യാർത്ഥിയെ ലിസ്റ്റിൽ നിന്ന് ഒഴിവാക്കണമോ?')) return;
+
+      try {
+        const res = await fetch(`/api/students/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('ഡിലീറ്റ് ചെയ്യാൻ സാധിച്ചില്ല!');
+      }
+    }
+    
+  </script>
+</body>
+</html>

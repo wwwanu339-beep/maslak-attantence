@@ -1,0 +1,313 @@
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --bg-body: #f8fafc;
+  --card-bg: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+
+  /* Present Colors (Green) */
+  --p-bg: #ecfdf5;
+  --p-border: #10b981;
+  --p-text: #065f46;
+  --p-badge: #10b981;
+
+  /* Absent Colors (Red) */
+  --a-bg: #fef2f2;
+  --a-border: #ef4444;
+  --a-text: #991b1b;
+  --a-badge: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  padding: 24px 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* 1. മുകൾഭാഗത്തെ ഹെഡറും ഡേറ്റ് പിക്കറും */
+.attendance-header {
+  background: var(--card-bg);
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.date-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.date-box label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.date-box input[type="date"] {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #f8fafc;
+  outline: none;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.date-box input[type="date"]:focus {
+  border-color: var(--primary);
+  background-color: #ffffff;
+}
+
+.btn-save {
+  background-color: var(--primary);
+  color: #ffffff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-save:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-save:active {
+  transform: scale(0.98);
+}
+
+/* 2. ഡ്രോപ്പ്ഡൗൺ സെലക്ടുകൾ (Batch, Subject) */
+#batchSelect,
+#subjectSelect {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: var(--card-bg);
+  color: var(--text-main);
+  outline: none;
+  cursor: pointer;
+  margin-right: 8px;
+  margin-bottom: 16px;
+  min-width: 160px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+#batchSelect:focus,
+#subjectSelect:focus {
+  border-color: var(--primary);
+}
+
+/* 3. മെയിൻ കാർഡുകളുടെ കണ്ടെയ്നർ */
+.attendance-container {
+  background: var(--card-bg);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+}
+
+.top-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.top-controls h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.btn-all {
+  background-color: #eff6ff;
+  color: var(--primary);
+  border: 1px solid #bfdbfe;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-all:hover {
+  background-color: var(--primary);
+  color: #ffffff;
+}
+
+/* 4. റെസ്പോൺസീവ് ഗ്രിഡ് സിസ്റ്റം */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 14px;
+}
+
+/* 5. കുട്ടികളുടെ ഇൻഡിവിജ്വൽ കാർഡുകൾ */
+.student-card {
+  position: relative;
+  border-radius: 10px;
+  padding: 18px 10px 14px 10px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid transparent;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.student-card:active {
+  transform: scale(0.96);
+}
+
+/* റോൾ നമ്പർ */
+.student-card .roll-no {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+/* പേര് */
+.student-card .student-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* P / A ബാഡ്ജ് */
+.student-card .status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #ffffff;
+}
+
+/* PRESENT STATE */
+.student-card.present {
+  background-color: var(--p-bg);
+  border-color: var(--p-border);
+}
+
+.student-card.present .roll-no {
+  color: var(--p-text);
+}
+
+.student-card.present .student-name {
+  color: #047857;
+}
+
+.student-card.present .status-badge {
+  background-color: var(--p-badge);
+}
+
+/* ABSENT STATE */
+.student-card.absent {
+  background-color: var(--a-bg);
+  border-color: var(--a-border);
+}
+
+.student-card.absent .roll-no {
+  color: var(--a-text);
+}
+
+.student-card.absent .student-name {
+  color: #b91c1c;
+}
+
+.student-card.absent .status-badge {
+  background-color: var(--a-badge);
+}
+
+/* മൊബൈൽ ക്രമീകരണം */
+@media (max-width: 600px) {
+  .cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .student-card {
+    padding: 14px 6px 10px 6px;
+  }
+
+  .student-card .roll-no {
+    font-size: 22px;
+  }
+
+  .student-card .student-name {
+    font-size: 11px;
+  }
+
+  #batchselect,
+  #subjectSelect {
+    width: 100%;
+    margin-right: 0;
+  }
+}
+
+.btn-action {
+  border: 1px solid transparent;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* All Absent ആക്കാനുള്ള പച്ച നിറത്തിലുള്ള ബട്ടൺ */
+.btn-all-present {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.btn-all-present:hover {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+/* All Present ആക്കാനുള്ള ചുവപ്പ് നിറത്തിലുള്ള ബട്ടൺ */
+.btn-all-absent {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+.btn-all-absent:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+}
