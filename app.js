@@ -1,8 +1,9 @@
 require('dotenv').config();
 const express = require('express');
-const { Pool } = require('pg');
 const path = require('path');
 const session = require('express-session');
+const { GoogleSpreadsheet } = require('google-spreadsheet');
+const { JWT } = require('google-auth-library');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,7 +23,7 @@ app.use(session({
   }
 }));
 
-// 3. എല്ലാ EJS പേജുകളിലും user വേരിയബിൾ എപ്പോഴും ലഭ്യമാക്കാൻ
+// 3. EJS പേജുകളിൽ user വേരിയബിൾ ലഭ്യമാക്കാൻ
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   next();
@@ -32,13 +33,32 @@ app.use((req, res, next) => {
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Neon PostgreSQL ഡാറ്റാബേസ് കണക്ഷൻ
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+// ================= GOOGLE SHEETS SETUP =================
+
+// Private Key ഫോർമാറ്റ് കൃത്യമാക്കാനുള്ള ഫംഗ്ഷൻ (DECODER routines::unsupported എറർ ഒഴിവാക്കാൻ)
+function formatPrivateKey(key) {
+  if (!key) return '';
+  return key
+    .replace(/^["']|["']$/g, '')          // ചുറ്റുമുള്ള ഇരട്ട/ഒറ്റ ഉദ്ധരണികൾ ഒഴിവാക്കുന്നു
+    .replace(/\\n/g, '\n')                 // ലിറ്ററൽ \n മാറ്റി ശരിയായ ന്യൂലൈൻ ആക്കുന്നു
+    .trim();
+}
+
+// ================= GOOGLE SHEETS SETUP =================
+const creds = require('./google-creds.json');
+
+const serviceAccountAuth = new JWT({
+  email: creds.client_email,
+  key: creds.private_key,
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
+
+const doc = new GoogleSpreadsheet(process.env.SPREADSHEET_ID, serviceAccountAuth);
+
+async function getSheet(sheetTitle) {
+  await doc.loadInfo();
+  return doc.sheetsByTitle[sheetTitle];
+}
 
 // ================= പെർമിഷൻ ഫംഗ്ഷനുകൾ (Middlewares) =================
 
@@ -90,13 +110,17 @@ app.get('/', (req, res) => {
 // ഡാഷ്‌ബോർഡ്
 app.get('/dashboard', requireAuth, async (req, res) => {
   try {
-    const studentRes = await pool.query("SELECT COUNT(*) AS totalstudents FROM students WHERE status = 'active'");
-    const userRes = await pool.query("SELECT COUNT(*) AS totalusers FROM users");
-    const attRes = await pool.query("SELECT COUNT(*) AS totalattendance FROM attendance");
+    const studentSheet = await getSheet('students');
+    const userSheet = await getSheet('users');
+    const attSheet = await getSheet('attendance');
 
-    const totalStudents = studentRes.rows[0].totalstudents;
-    const totalUsers = userRes.rows[0].totalusers;
-    const totalAttendance = attRes.rows[0].totalattendance;
+    const studentRows = await studentSheet.getRows();
+    const userRows = await userSheet.getRows();
+    const attRows = await attSheet.getRows();
+
+    const totalStudents = studentRows.filter(r => (r.get('status') || '').trim().toLowerCase() === 'active').length;
+    const totalUsers = userRows.length;
+    const totalAttendance = attRows.length;
 
     res.render('dashboard', { totalStudents, totalUsers, totalAttendance });
   } catch (err) {
@@ -115,19 +139,22 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const { rows } = await pool.query(
-      "SELECT * FROM users WHERE username = $1 AND password = $2",
-      [username, password]
+    const sheet = await getSheet('users');
+    const rows = await sheet.getRows();
+
+    const matchedUser = rows.find(r => 
+      String(r.get('username')).trim() === String(username).trim() && 
+      String(r.get('password')).trim() === String(password).trim()
     );
 
-    if (rows.length > 0) {
+    if (matchedUser) {
       req.session.user = {
-        id: rows[0].id,
-        username: rows[0].username,
-        can_attendance: rows[0].can_attendance,
-        can_manage: rows[0].can_manage,
-        can_attendanceveiw: rows[0].can_attendanceveiw,
-        can_studet: rows[0].can_studet
+        id: matchedUser.get('id'),
+        username: matchedUser.get('username'),
+        can_attendance: parseInt(matchedUser.get('can_attendance') || 0),
+        can_manage: parseInt(matchedUser.get('can_manage') || 0),
+        can_attendanceveiw: parseInt(matchedUser.get('can_attendanceveiw') || 0),
+        can_studet: parseInt(matchedUser.get('can_studet') || 0)
       };
       res.redirect('/dashboard');
     } else {
@@ -148,9 +175,18 @@ app.get('/logout', (req, res) => {
 // ================= 2. SETTINGS =================
 app.get('/settings', requireAuth, checkManage, async (req, res) => {
   try {
-    const batches = (await pool.query("SELECT * FROM batches ORDER BY id DESC")).rows;
-    const subjects = (await pool.query("SELECT * FROM subjects ORDER BY id DESC")).rows;
-    const users = (await pool.query("SELECT id, username FROM users ORDER BY id DESC")).rows;
+    const batchSheet = await getSheet('batches');
+    const subjectSheet = await getSheet('subjects');
+    const userSheet = await getSheet('users');
+
+    const bRows = await batchSheet.getRows();
+    const sRows = await subjectSheet.getRows();
+    const uRows = await userSheet.getRows();
+
+    const batches = bRows.map(r => ({ id: r.get('id'), name: r.get('name') })).reverse();
+    const subjects = sRows.map(r => ({ id: r.get('id'), name: r.get('name') })).reverse();
+    const users = uRows.map(r => ({ id: r.get('id'), username: r.get('username') })).reverse();
+
     res.render('add', { batches, subjects, users });
   } catch (err) {
     res.status(500).send(err.message);
@@ -162,7 +198,8 @@ app.post('/api/batches', requireAuth, checkManage, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Name required' });
-    await pool.query("INSERT INTO batches (name) VALUES ($1)", [name]);
+    const sheet = await getSheet('batches');
+    await sheet.addRow({ id: Date.now().toString(), name: name.trim() });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -171,7 +208,10 @@ app.post('/api/batches', requireAuth, checkManage, async (req, res) => {
 
 app.delete('/api/batches/:id', requireAuth, checkManage, async (req, res) => {
   try {
-    await pool.query("DELETE FROM batches WHERE id = $1", [req.params.id]);
+    const sheet = await getSheet('batches');
+    const rows = await sheet.getRows();
+    const row = rows.find(r => String(r.get('id')) === String(req.params.id));
+    if (row) await row.delete();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -183,7 +223,8 @@ app.post('/api/subjects', requireAuth, checkManage, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Name required' });
-    await pool.query("INSERT INTO subjects (name) VALUES ($1)", [name]);
+    const sheet = await getSheet('subjects');
+    await sheet.addRow({ id: Date.now().toString(), name: name.trim() });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -192,7 +233,10 @@ app.post('/api/subjects', requireAuth, checkManage, async (req, res) => {
 
 app.delete('/api/subjects/:id', requireAuth, checkManage, async (req, res) => {
   try {
-    await pool.query("DELETE FROM subjects WHERE id = $1", [req.params.id]);
+    const sheet = await getSheet('subjects');
+    const rows = await sheet.getRows();
+    const row = rows.find(r => String(r.get('id')) === String(req.params.id));
+    if (row) await row.delete();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -204,10 +248,16 @@ app.post('/api/users', requireAuth, checkManage, async (req, res) => {
   const { username, password, can_attendance, can_manage, can_attendanceveiw, can_studet } = req.body;
   if (!username || !password) return res.status(400).json({ success: false, error: 'All fields required' });
   try {
-    await pool.query(
-      "INSERT INTO users (username, password, can_attendance, can_manage, can_attendanceveiw, can_studet) VALUES ($1, $2, $3, $4, $5, $6)",
-      [username, password, can_attendance ? 1 : 0, can_manage ? 1 : 0, can_attendanceveiw ? 1 : 0, can_studet ? 1 : 0]
-    );
+    const sheet = await getSheet('users');
+    await sheet.addRow({
+      id: Date.now().toString(),
+      username: username.trim(),
+      password: password.trim(),
+      can_attendance: can_attendance ? '1' : '0',
+      can_manage: can_manage ? '1' : '0',
+      can_attendanceveiw: can_attendanceveiw ? '1' : '0',
+      can_studet: can_studet ? '1' : '0'
+    });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -216,7 +266,10 @@ app.post('/api/users', requireAuth, checkManage, async (req, res) => {
 
 app.delete('/api/users/:id', requireAuth, checkManage, async (req, res) => {
   try {
-    await pool.query("DELETE FROM users WHERE id = $1", [req.params.id]);
+    const sheet = await getSheet('users');
+    const rows = await sheet.getRows();
+    const row = rows.find(r => String(r.get('id')) === String(req.params.id));
+    if (row) await row.delete();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -226,15 +279,37 @@ app.delete('/api/users/:id', requireAuth, checkManage, async (req, res) => {
 // ================= 3. STUDENTS =================
 app.get('/students', requireAuth, checkStudent, async (req, res) => {
   try {
-    const studentsQuery = `
-      SELECT s.*, b.name AS batch_name 
-      FROM students s 
-      LEFT JOIN batches b ON s.batch_id = b.id 
-      WHERE s.status = 'active' 
-      ORDER BY s.batch_id ASC, NULLIF(regexp_replace(s.admission_no, '\\D', '', 'g'), '')::INT ASC NULLS LAST, s.id ASC
-    `;
-    const { rows: students } = await pool.query(studentsQuery);
-    const { rows: batches } = await pool.query("SELECT * FROM batches ORDER BY name ASC");
+    const studentSheet = await getSheet('students');
+    const batchSheet = await getSheet('batches');
+
+    const sRows = await studentSheet.getRows();
+    const bRows = await batchSheet.getRows();
+
+    const batchMap = {};
+    const batches = bRows.map(r => {
+      batchMap[r.get('id')] = r.get('name');
+      return { id: r.get('id'), name: r.get('name') };
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    const students = sRows
+      .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active')
+      .map(r => ({
+        id: r.get('id'),
+        admission_no: r.get('admission_no'),
+        full_name: r.get('full_name'),
+        age: r.get('age'),
+        phone: r.get('phone'),
+        batch_id: r.get('batch_id'),
+        batch_name: batchMap[r.get('batch_id')] || 'N/A',
+        status: r.get('status')
+      }))
+      .sort((a, b) => {
+        if (a.batch_id !== b.batch_id) return (a.batch_id || '').localeCompare(b.batch_id || '');
+        const admA = parseInt(String(a.admission_no).replace(/\D/g, '')) || 0;
+        const admB = parseInt(String(b.admission_no).replace(/\D/g, '')) || 0;
+        return admA - admB;
+      });
+
     res.render('studet', { students, batches });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
@@ -244,16 +319,16 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
 app.post('/api/students', requireAuth, checkStudent, async (req, res) => {
   try {
     const { full_name, age, phone, batch_id, admission_no } = req.body;
-    await pool.query(
-      "INSERT INTO students (full_name, age, phone, batch_id, admission_no) VALUES ($1, $2, $3, $4, $5)",
-      [
-        full_name, 
-        age ? parseInt(age) : null, 
-        phone || null, 
-        batch_id, 
-        admission_no ? admission_no.trim() : null
-      ]
-    );
+    const sheet = await getSheet('students');
+    await sheet.addRow({
+      id: Date.now().toString(),
+      full_name: full_name ? full_name.trim() : '',
+      admission_no: admission_no ? admission_no.trim() : '',
+      age: age ? String(age) : '',
+      phone: phone ? String(phone) : '',
+      batch_id: batch_id ? String(batch_id) : '',
+      status: 'active'
+    });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -263,17 +338,18 @@ app.post('/api/students', requireAuth, checkStudent, async (req, res) => {
 app.put('/api/students/:id', requireAuth, checkStudent, async (req, res) => {
   try {
     const { full_name, age, phone, batch_id, admission_no } = req.body;
-    await pool.query(
-      "UPDATE students SET full_name = $1, age = $2, phone = $3, batch_id = $4, admission_no = $5 WHERE id = $6",
-      [
-        full_name, 
-        age ? parseInt(age) : null, 
-        phone || null, 
-        batch_id, 
-        admission_no ? admission_no.trim() : null, 
-        req.params.id
-      ]
-    );
+    const sheet = await getSheet('students');
+    const rows = await sheet.getRows();
+    const row = rows.find(r => String(r.get('id')) === String(req.params.id));
+
+    if (row) {
+      row.set('full_name', full_name ? full_name.trim() : '');
+      row.set('admission_no', admission_no ? admission_no.trim() : '');
+      row.set('age', age ? String(age) : '');
+      row.set('phone', phone ? String(phone) : '');
+      row.set('batch_id', batch_id ? String(batch_id) : '');
+      await row.save();
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -283,8 +359,15 @@ app.put('/api/students/:id', requireAuth, checkStudent, async (req, res) => {
 // ================= 4. ATTENDANCE =================
 app.get('/attendance', requireAuth, checkAttendance, async (req, res) => {
   try {
-    const { rows: batches } = await pool.query("SELECT * FROM batches ORDER BY name ASC");
-    const { rows: subjects } = await pool.query("SELECT * FROM subjects ORDER BY name ASC");
+    const batchSheet = await getSheet('batches');
+    const subjectSheet = await getSheet('subjects');
+
+    const bRows = await batchSheet.getRows();
+    const sRows = await subjectSheet.getRows();
+
+    const batches = bRows.map(r => ({ id: r.get('id'), name: r.get('name') })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const subjects = sRows.map(r => ({ id: r.get('id'), name: r.get('name') })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
     res.render('attanten', { batches, subjects });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
@@ -299,41 +382,49 @@ app.get('/api/attendance-data', requireAuth, checkAttendance, async (req, res) =
   }
 
   try {
-    let studentSql = `
-      SELECT s.id, s.full_name, s.admission_no, s.batch_id, b.name AS batch_name 
-      FROM students s 
-      LEFT JOIN batches b ON s.batch_id = b.id 
-      WHERE s.status = 'active'
-    `;
-    const studentParams = [];
+    const studentSheet = await getSheet('students');
+    const batchSheet = await getSheet('batches');
+    const attSheet = await getSheet('attendance');
+
+    const [sRows, bRows, attRows] = await Promise.all([
+      studentSheet.getRows(),
+      batchSheet.getRows(),
+      attSheet.getRows()
+    ]);
+
+    const batchMap = {};
+    bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
+
+    let students = sRows
+      .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active')
+      .map(r => ({
+        id: r.get('id'),
+        admission_no: r.get('admission_no'),
+        full_name: r.get('full_name'),
+        batch_id: r.get('batch_id'),
+        batch_name: batchMap[r.get('batch_id')] || 'N/A'
+      }));
 
     if (batch_id !== 'all') {
-      studentParams.push(batch_id);
-      studentSql += ` AND s.batch_id = $${studentParams.length}`;
+      students = students.filter(s => String(s.batch_id) === String(batch_id));
     }
 
-    studentSql += " ORDER BY s.batch_id ASC, NULLIF(regexp_replace(s.admission_no, '\\D', '', 'g'), '')::INT ASC NULLS LAST, s.id ASC";
-
-    const { rows: students } = await pool.query(studentSql, studentParams);
-
-    let attSql = "SELECT student_id, status FROM attendance WHERE date = $1";
-    const attParams = [date];
-
-    if (batch_id !== 'all') {
-      attParams.push(batch_id);
-      attSql += ` AND batch_id = $${attParams.length}`;
-    }
-
-    if (subject_id !== 'all') {
-      attParams.push(subject_id);
-      attSql += ` AND subject_id = $${attParams.length}`;
-    }
-
-    const { rows: logs } = await pool.query(attSql, attParams);
+    students.sort((a, b) => {
+      if (a.batch_id !== b.batch_id) return (a.batch_id || '').localeCompare(b.batch_id || '');
+      const admA = parseInt(String(a.admission_no).replace(/\D/g, '')) || 0;
+      const admB = parseInt(String(b.admission_no).replace(/\D/g, '')) || 0;
+      return admA - admB;
+    });
 
     const statusMap = {};
-    logs.forEach(l => {
-      statusMap[l.student_id] = l.status;
+    attRows.forEach(r => {
+      const matchDate = String(r.get('date')).trim() === String(date).trim();
+      const matchBatch = batch_id === 'all' || String(r.get('batch_id')) === String(batch_id);
+      const matchSub = subject_id === 'all' || String(r.get('subject_id')) === String(subject_id);
+
+      if (matchDate && matchBatch && matchSub) {
+        statusMap[r.get('student_id')] = r.get('status');
+      }
     });
 
     res.json({ success: true, students, statusMap });
@@ -350,24 +441,32 @@ app.post('/api/save-attendance', requireAuth, checkAttendance, async (req, res) 
   }
 
   try {
-    // PostgreSQL Bulk Upsert (student_id, date, subject_id എന്നിവയിൽ UNIQUE constraint ഉണ്ടാകണം)
-    const valuePlaceholders = [];
-    const values = [];
-    let counter = 1;
+    const attSheet = await getSheet('attendance');
+    const existingRows = await attSheet.getRows();
 
-    records.forEach(r => {
-      valuePlaceholders.push(`($${counter++}, $${counter++}, $${counter++}, $${counter++}, $${counter++})`);
-      values.push(r.student_id, r.batch_id, subject_id, date, r.status);
-    });
+    for (const r of records) {
+      const matchedRow = existingRows.find(row => 
+        String(row.get('student_id')) === String(r.student_id) &&
+        String(row.get('date')).trim() === String(date).trim() &&
+        String(row.get('subject_id')) === String(subject_id)
+      );
 
-    const sql = `
-      INSERT INTO attendance (student_id, batch_id, subject_id, date, status)
-      VALUES ${valuePlaceholders.join(', ')}
-      ON CONFLICT (student_id, date, subject_id) 
-      DO UPDATE SET status = EXCLUDED.status, batch_id = EXCLUDED.batch_id
-    `;
+      if (matchedRow) {
+        matchedRow.set('status', r.status);
+        matchedRow.set('batch_id', r.batch_id);
+        await matchedRow.save();
+      } else {
+        await attSheet.addRow({
+          id: Date.now().toString() + Math.floor(Math.random() * 1000),
+          student_id: r.student_id,
+          batch_id: r.batch_id,
+          subject_id: subject_id,
+          date: date,
+          status: r.status
+        });
+      }
+    }
 
-    await pool.query(sql, values);
     res.json({ success: true, message: 'ഹാജർ വിജയകരമായി സേവ് ചെയ്തു!' });
   } catch (err) {
     console.error("Save Error:", err);
@@ -378,8 +477,14 @@ app.post('/api/save-attendance', requireAuth, checkAttendance, async (req, res) 
 // ================= 5. MONTHLY MATRIX =================
 app.get('/monthly-report', requireAuth, checkAttendanceView, async (req, res) => {
   try {
-    const { rows: batches } = await pool.query("SELECT * FROM batches ORDER BY name ASC");
-    const { rows: subjects } = await pool.query("SELECT * FROM subjects ORDER BY name ASC");
+    const batchSheet = await getSheet('batches');
+    const subjectSheet = await getSheet('subjects');
+
+    const [bRows, sRows] = await Promise.all([batchSheet.getRows(), subjectSheet.getRows()]);
+
+    const batches = bRows.map(r => ({ id: r.get('id'), name: r.get('name') })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const subjects = sRows.map(r => ({ id: r.get('id'), name: r.get('name') })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
     res.render('attveiw', { batches, subjects });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
@@ -396,46 +501,59 @@ app.get('/api/monthly-matrix', requireAuth, checkAttendanceView, async (req, res
   try {
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    let studentSql = `
-      SELECT s.id, s.admission_no, s.full_name, s.batch_id, b.name AS batch_name 
-      FROM students s 
-      LEFT JOIN batches b ON s.batch_id = b.id 
-      WHERE s.status = 'active'
-    `;
-    const studentParams = [];
+    const studentSheet = await getSheet('students');
+    const batchSheet = await getSheet('batches');
+    const attSheet = await getSheet('attendance');
+
+    const [sRows, bRows, attRows] = await Promise.all([
+      studentSheet.getRows(),
+      batchSheet.getRows(),
+      attSheet.getRows()
+    ]);
+
+    const batchMap = {};
+    bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
+
+    let students = sRows
+      .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active')
+      .map(r => ({
+        id: r.get('id'),
+        admission_no: r.get('admission_no'),
+        full_name: r.get('full_name'),
+        batch_id: r.get('batch_id'),
+        batch_name: batchMap[r.get('batch_id')] || 'N/A'
+      }));
 
     if (batch_id !== 'all') {
-      studentParams.push(batch_id);
-      studentSql += ` AND s.batch_id = $${studentParams.length}`;
+      students = students.filter(s => String(s.batch_id) === String(batch_id));
     }
 
-    studentSql += " ORDER BY s.batch_id ASC, NULLIF(regexp_replace(s.admission_no, '\\D', '', 'g'), '')::INT ASC NULLS LAST, s.id ASC";
-
-    const { rows: students } = await pool.query(studentSql, studentParams);
-
-    let attSql = `
-      SELECT student_id, EXTRACT(DAY FROM date)::INT AS day, status 
-      FROM attendance 
-      WHERE EXTRACT(MONTH FROM date) = $1 AND EXTRACT(YEAR FROM date) = $2
-    `;
-    const params = [parseInt(month), parseInt(year)];
-
-    if (batch_id !== 'all') {
-      params.push(batch_id);
-      attSql += ` AND batch_id = $${params.length}`;
-    }
-
-    if (subject_id && subject_id !== 'all') {
-      params.push(subject_id);
-      attSql += ` AND subject_id = $${params.length}`;
-    }
-
-    const { rows: attRows } = await pool.query(attSql, params);
+    students.sort((a, b) => {
+      if (a.batch_id !== b.batch_id) return (a.batch_id || '').localeCompare(b.batch_id || '');
+      const admA = parseInt(String(a.admission_no).replace(/\D/g, '')) || 0;
+      const admB = parseInt(String(b.admission_no).replace(/\D/g, '')) || 0;
+      return admA - admB;
+    });
 
     const attMap = {};
     attRows.forEach(r => {
-      if (!attMap[r.student_id]) attMap[r.student_id] = {};
-      attMap[r.student_id][r.day] = r.status;
+      const rowDate = new Date(r.get('date'));
+      if (isNaN(rowDate.getTime())) return;
+
+      const rMonth = rowDate.getMonth() + 1;
+      const rYear = rowDate.getFullYear();
+      const rDay = rowDate.getDate();
+
+      const matchMonth = rMonth === parseInt(month);
+      const matchYear = rYear === parseInt(year);
+      const matchBatch = batch_id === 'all' || String(r.get('batch_id')) === String(batch_id);
+      const matchSub = !subject_id || subject_id === 'all' || String(r.get('subject_id')) === String(subject_id);
+
+      if (matchMonth && matchYear && matchBatch && matchSub) {
+        const studentId = r.get('student_id');
+        if (!attMap[studentId]) attMap[studentId] = {};
+        attMap[studentId][rDay] = r.get('status');
+      }
     });
 
     res.json({ success: true, students, attMap, daysInMonth });
@@ -451,24 +569,43 @@ app.get('/api/student-day-details', requireAuth, checkAttendanceView, async (req
   }
 
   try {
-    const { rows: students } = await pool.query(
-      "SELECT s.id, s.admission_no, s.full_name, b.name AS batch_name FROM students s LEFT JOIN batches b ON s.batch_id = b.id WHERE s.id = $1",
-      [student_id]
-    );
+    const studentSheet = await getSheet('students');
+    const batchSheet = await getSheet('batches');
+    const subjectSheet = await getSheet('subjects');
+    const attSheet = await getSheet('attendance');
 
-    if (students.length === 0) {
+    const [sRows, bRows, subRows, attRows] = await Promise.all([
+      studentSheet.getRows(),
+      batchSheet.getRows(),
+      subjectSheet.getRows(),
+      attSheet.getRows()
+    ]);
+
+    const batchMap = {};
+    bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
+
+    const subjectMap = {};
+    subRows.forEach(r => { subjectMap[r.get('id')] = r.get('name'); });
+
+    const studentRow = sRows.find(r => String(r.get('id')) === String(student_id));
+    if (!studentRow) {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
 
-    const student = students[0];
+    const student = {
+      id: studentRow.get('id'),
+      admission_no: studentRow.get('admission_no'),
+      full_name: studentRow.get('full_name'),
+      batch_name: batchMap[studentRow.get('batch_id')] || 'N/A'
+    };
 
-    const { rows: sessions } = await pool.query(`
-      SELECT sub.name AS subject_name, a.status, a.created_at
-      FROM attendance a
-      JOIN subjects sub ON a.subject_id = sub.id
-      WHERE a.student_id = $1 AND a.date = $2
-      ORDER BY a.id ASC
-    `, [student_id, date]);
+    const sessions = attRows
+      .filter(r => String(r.get('student_id')) === String(student_id) && String(r.get('date')).trim() === String(date).trim())
+      .map(r => ({
+        subject_name: subjectMap[r.get('subject_id')] || 'General',
+        status: r.get('status'),
+        created_at: r.get('date')
+      }));
 
     res.json({ success: true, student, sessions });
   } catch (err) {
