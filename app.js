@@ -34,16 +34,12 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // ================= GOOGLE SHEETS SETUP =================
-
-// Private Key ഫോർമാറ്റ് കൃത്യമാക്കാനുള്ള ഫംഗ്ഷൻ (DECODER routines::unsupported എറർ ഒഴിവാക്കാൻ)
-
-// ================= GOOGLE SHEETS SETUP =================
-// പുതിയത് (Environment Variables വഴി പ്രവർത്തിക്കുന്നത്):
 function formatPrivateKey(key) {
   if (!key) return '';
   return key
-    .replace(/^["']|["']$/g, '')
-    .replace(/\\n/g, '\n')
+    .replace(/^["']|["']$/g, '')         // മുന്നിലും പിന്നിലുമുള്ള കൊട്ടേഷനുകൾ നീക്കുന്നു
+    .replace(/\\n/g, '\n')                // സ്ട്രിംഗിലെ '\n' പുതിയ ലൈൻ ആക്കുന്നു
+    .replace(/\r/g, '')                   // വിൻഡോസ് ലൈൻ ബ്രേക്കുകൾ നീക്കുന്നു
     .trim();
 }
 
@@ -292,7 +288,7 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     const students = sRows
-      .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active')
+       .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active' && (r.get('full_name') || '').trim() !== '')
       .map(r => ({
         id: r.get('id'),
         admission_no: r.get('admission_no'),
@@ -304,7 +300,7 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
         status: r.get('status')
       }))
       .sort((a, b) => {
-        if (a.batch_id !== b.batch_id) return (a.batch_id || '').localeCompare(b.batch_id || '');
+       
         const admA = parseInt(String(a.admission_no).replace(/\D/g, '')) || 0;
         const admB = parseInt(String(b.admission_no).replace(/\D/g, '')) || 0;
         return admA - admB;
@@ -396,7 +392,7 @@ app.get('/api/attendance-data', requireAuth, checkAttendance, async (req, res) =
     bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
 
     let students = sRows
-      .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active')
+       .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active' && (r.get('full_name') || '').trim() !== '')
       .map(r => ({
         id: r.get('id'),
         admission_no: r.get('admission_no'),
@@ -410,7 +406,7 @@ app.get('/api/attendance-data', requireAuth, checkAttendance, async (req, res) =
     }
 
     students.sort((a, b) => {
-      if (a.batch_id !== b.batch_id) return (a.batch_id || '').localeCompare(b.batch_id || '');
+     
       const admA = parseInt(String(a.admission_no).replace(/\D/g, '')) || 0;
       const admB = parseInt(String(b.admission_no).replace(/\D/g, '')) || 0;
       return admA - admB;
@@ -515,7 +511,7 @@ app.get('/api/monthly-matrix', requireAuth, checkAttendanceView, async (req, res
     bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
 
     let students = sRows
-      .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active')
+      .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active' && (r.get('full_name') || '').trim() !== '')
       .map(r => ({
         id: r.get('id'),
         admission_no: r.get('admission_no'),
@@ -529,7 +525,7 @@ app.get('/api/monthly-matrix', requireAuth, checkAttendanceView, async (req, res
     }
 
     students.sort((a, b) => {
-      if (a.batch_id !== b.batch_id) return (a.batch_id || '').localeCompare(b.batch_id || '');
+      
       const admA = parseInt(String(a.admission_no).replace(/\D/g, '')) || 0;
       const admB = parseInt(String(b.admission_no).replace(/\D/g, '')) || 0;
       return admA - admB;
