@@ -1,56 +1,201 @@
+/* ================= GLOBAL & LAYOUT ================= */
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+.matrix-container {
+  max-width: 100%;
+  margin: 0 auto;
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #0f172a;
+}
+
+/* ================= FILTER BAR ================= */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: flex-end;
+  margin-bottom: 25px;
+  background: #f1f5f9;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-item label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.filter-item select {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 14px;
+  outline: none;
+  min-width: 150px;
+}
+
+.btn-filter {
+  padding: 9px 18px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: #2563eb;
+  color: #ffffff;
+  transition: opacity 0.2s ease;
+}
+
+.btn-filter:hover {
+  opacity: 0.9;
+}
+
+#btnDownload {
+  background-color: #059669 !important;
+}
+
+/* ================= TABLE WRAPPER & SCREEN STYLES ================= */
+.table-wrapper {
+  overflow-x: auto;
+  margin-top: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 13px;
+}
+
+.matrix-table th, .matrix-table td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 6px;
+}
+
+.matrix-table th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.matrix-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.col-roll {
+  width: 45px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.col-name {
+  text-align: left;
+  padding-left: 12px;
+  white-space: nowrap;
+}
+
+.status-p {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.status-a {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.total-p {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.total-a {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.total-pct {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* ================= STUDENT DETAIL CARD ================= */
 .student-detail-card {
   background: #ffffff;
-  border-radius: 12px;
   border: 1px solid #e2e8f0;
-  padding: 20px;
-  max-width: 650px;
-  margin: 15px auto;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
 }
 
 .student-header {
   display: flex;
   align-items: center;
   gap: 15px;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 15px;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 }
 
-.avatar {
-  width: 45px;
-  height: 45px;
-  background: #2563eb;
-  color: white;
+.student-header .avatar {
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
-  font-size: 18px;
+  font-weight: 700;
 }
 
 .student-header h4 {
   margin: 0;
-  font-size: 16px;
   color: #0f172a;
 }
 
 .student-header p {
-  margin: 3px 0 0 0;
-  font-size: 12px;
+  margin: 2px 0 0;
+  font-size: 13px;
   color: #64748b;
 }
 
 .summary-badge {
   margin-left: auto;
-  background: #ecfdf5;
-  color: #047857;
+  background: #f1f5f9;
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 12px;
-  font-weight: 700;
-  border: 1px solid #a7f3d0;
+  font-weight: 600;
 }
 
 .session-table {
@@ -59,24 +204,17 @@
   font-size: 13px;
 }
 
-.session-table th {
-  background: #f8fafc;
-  color: #64748b;
+.session-table th, .session-table td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 10px;
   text-align: left;
-  padding: 8px 12px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.session-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #f1f5f9;
 }
 
 .badge {
-  padding: 4px 8px;
+  padding: 2px 8px;
   border-radius: 4px;
-  font-weight: 700;
   font-size: 11px;
+  font-weight: 700;
 }
 
 .badge.p {
@@ -89,179 +227,118 @@
   color: #b91c1c;
 }
 
-:root {
-  --primary: #2563eb;
-  --bg-color: #f8fafc;
-  --card-bg: #ffffff;
-  --border-color: #e2e8f0;
-  --text-main: #0f172a;
-  
-  --p-bg: #dcfce7;
-  --p-text: #15803d;
-  --a-bg: #fee2e2;
-  --a-text: #b91c1c;
+.print-header {
+  display: none;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* ================= PRINT / PDF (A4 LANDSCAPE & 30 PER PAGE) ================= */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 5mm 6mm; /* മുകളിൽ നിന്നുള്ള മാർജിൻ കുറച്ചു */
+  }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-main);
-  padding: 20px;
-}
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 
-.matrix-container {
-  max-width: 100%;
-  margin: 0 auto;
-}
+  .filter-bar, 
+  .student-detail-card, 
+  .btn-filter, 
+  h2 {
+    display: none !important;
+  }
 
-h2 {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 16px;
-}
+  .table-wrapper {
+    overflow: visible !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 
-/* ഫിൽട്ടർ ബാർ */
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  background: var(--card-bg);
-  padding: 16px;
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-  margin-bottom: 20px;
-  align-items: flex-end;
-}
+  /* നമ്മൾ കോഡിൽ കൊടുക്കുന്ന 30 പേരുടെ ഡിവിഷൻ മാത്രം പേജ് ബ്രേക്ക് ചെയ്യുക */
+  .page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
 
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+  .print-page {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    height: 100% !important;
+  }
 
-.filter-item label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-}
+  .print-header {
+    display: block !important;
+    margin-bottom: 4px !important;
+    text-align: center;
+  }
 
-.filter-item select {
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  background: #f8fafc;
-  font-size: 14px;
-  outline: none;
-}
+  .print-header h3 {
+    margin: 0 !important;
+    font-size: 13px !important;
+    text-transform: uppercase;
+  }
 
-.btn-filter {
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 9px 18px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
+  .print-header p {
+    margin: 1px 0 4px !important;
+    font-size: 10px !important;
+    color: #222;
+  }
 
-/* ടേബിൾ ലേഔട്ട് & സ്ക്രോൾ */
-.table-wrapper {
-  overflow-x: auto;
-  background: var(--card-bg);
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
+  .matrix-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+  }
 
-.matrix-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 13px;
-  text-align: center;
-}
+  /* വരികളുടെ ഹൈറ്റും പാഡിംഗും കുറച്ച് 30 വരികൾ ഒറ്റ ഷീറ്റിൽ നിർത്തുന്നു */
+  .matrix-table th, 
+  .matrix-table td {
+    border: 1px solid #333 !important;
+    padding: 1.5px 0.5px !important; /* പാഡിംഗ് പരമാവധി കുറച്ചു */
+    font-size: 7.5px !important;     /* ഫോണ്ട് സൈസ് കൃത്യമാക്കി */
+    line-height: 1.1 !important;
+    text-align: center;
+    height: 5.2mm !important;        /* ഓരോ വരിക്കും തുല്യമായ ഉയരം നിശ്ചയിച്ചു */
+    box-sizing: border-box !important;
+  }
 
-.matrix-table th,
-.matrix-table td {
-  padding: 8px 6px;
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  min-width: 32px;
-}
+  /* ടേബിൾ റോകൾ ഉള്ളിൽ വെച്ച് മുറിഞ്ഞുപോകാതിരിക്കാൻ */
+  .matrix-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 
-.matrix-table thead th {
-  background-color: #f1f5f9;
-  font-weight: 700;
-  color: #475569;
-}
+  .col-roll {
+    width: 22px !important;
+    color: #000 !important;
+  }
 
-/* കുട്ടിയുടെ റോൾ നമ്പറും പേരും സ്ക്രോൾ ചെയ്യുമ്പോൾ ഫിക്സഡ് ആയി നിൽക്കാൻ (Sticky) */
-.col-roll {
-  position: sticky;
-  left: 0;
-  background: #ffffff;
-  z-index: 2;
-  min-width: 45px !important;
-  font-weight: 700;
-}
+  .col-name {
+    width: 135px !important;
+    text-align: left !important;
+    padding-left: 3px !important;
+    font-size: 8px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
 
-.col-name {
-  position: sticky;
-  left: 45px;
-  background: #ffffff;
-  z-index: 2;
-  min-width: 140px !important;
-  text-align: left !important;
-  padding-left: 10px !important;
-  font-weight: 600;
-  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1);
-}
+  .col-summary {
+    width: 18px !important;
+  }
 
-thead .col-roll,
-thead .col-name {
-  background-color: #f1f5f9;
-}
+  .status-p {
+    color: #000 !important;
+    font-weight: bold;
+  }
 
-/* സ്റ്റാറ്റസ് ബോക്സുകൾ */
-.status-p {
-  background-color: var(--p-bg);
-  color: var(--p-text);
-  font-weight: 700;
-}
-
-.status-a {
-  background-color: var(--a-bg);
-  color: var(--a-text);
-  font-weight: 700;
-}
-
-/* സമ്മറി കോളങ്ങൾ (Total P, A, %) */
-.col-summary {
-  background-color: #f8fafc;
-  font-weight: 700;
-  min-width: 45px !important;
-}
-
-.total-p {
-  font-weight: 700;
-  color: var(--p-text);
-  background: #f0fdf4;
-}
-
-.total-a {
-  font-weight: 700;
-  color: var(--a-text);
-  background: #fef2f2;
-}
-
-.total-pct {
-  font-weight: 800;
-  color: var(--primary);
-  background: #eff6ff;
+  .status-a {
+    color: #dc2626 !important;
+    font-weight: bold;
+  }
 }
