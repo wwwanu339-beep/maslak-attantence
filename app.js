@@ -440,20 +440,29 @@ app.post('/api/save-attendance', requireAuth, checkAttendance, async (req, res) 
     const attSheet = await getSheet('attendance');
     const existingRows = await attSheet.getRows();
 
+    // വേഗത്തിൽ സെർച്ച് ചെയ്യാൻ Map ഉപയോഗിക്കുന്നു (Performance മെച്ചപ്പെടും)
+    const rowMap = new Map();
+    existingRows.forEach(row => {
+      const key = `${String(row.get('student_id'))}_${String(row.get('date')).trim()}_${String(row.get('subject_id'))}`;
+      rowMap.set(key, row);
+    });
+
+    const rowsToAdd = [];
+    let hasUpdates = false;
+
     for (const r of records) {
-      const matchedRow = existingRows.find(row => 
-        String(row.get('student_id')) === String(r.student_id) &&
-        String(row.get('date')).trim() === String(date).trim() &&
-        String(row.get('subject_id')) === String(subject_id)
-      );
+      const searchKey = `${String(r.student_id)}_${String(date).trim()}_${String(subject_id)}`;
+      const matchedRow = rowMap.get(searchKey);
 
       if (matchedRow) {
+        // മാറ്റങ്ങൾ ഉണ്ടെങ്കിൽ മാത്രം സെറ്റ് ചെയ്യുക (സേവ് ചെയ്യരുത്)
         matchedRow.set('status', r.status);
         matchedRow.set('batch_id', r.batch_id);
-        await matchedRow.save();
+        hasUpdates = true;
       } else {
-        await attSheet.addRow({
-          id: Date.now().toString() + Math.floor(Math.random() * 1000),
+        // പുതിയ റോകൾ ലിസ്റ്റിലേക്ക് ചേർക്കുക
+        rowsToAdd.push({
+          id: `${Date.now()}_${Math.floor(Math.random() * 10000)}`,
           student_id: r.student_id,
           batch_id: r.batch_id,
           subject_id: subject_id,
@@ -463,10 +472,23 @@ app.post('/api/save-attendance', requireAuth, checkAttendance, async (req, res) 
       }
     }
 
-    res.json({ success: true, message: 'ഹാജർ വിജയകരമായി സേവ് ചെയ്തു!' });
-  } catch (err) {
-    console.error("Save Error:", err);
-    res.status(500).json({ success: false, error: err.message });
+    // 1. പുതിയ എല്ലാ റോകളും ഒറ്റ റിക്വസ്റ്റിൽ ആഡ് ചെയ്യുന്നു
+    if (rowsToAdd.length > 0) {
+      await attSheet.addRows(rowsToAdd);
+    }
+
+    // 2. അപ്‌ഡേറ്റ് ചെയ്ത റോകൾ ഓരോന്നായി സേവ് ചെയ്യാൻ Promise.all ഉപയോഗിക്കാം
+    // (അല്ലെങ്കിൽ ബാച്ച് സേവിംഗ് സപ്പോർട്ട് ചെയ്യുന്ന ലൈബ്രറി മെത്തേഡ്)
+    if (hasUpdates) {
+      const updatedRows = existingRows.filter(row => row._rowHasChanged);
+      await Promise.all(updatedRows.map(row => row.save()));
+    }
+
+    return res.status(200).json({ success: true, message: 'ഹാജർ വിജയകരമായി രേഖപ്പെടുത്തി!' });
+
+  } catch (error) {
+    console.error('Error saving attendance:', error);
+    return res.status(500).json({ success: false, error: 'ഡാറ്റ സേവ് ചെയ്യുന്നതിൽ തടസ്സം നേരിട്ടു!' });
   }
 });
 
