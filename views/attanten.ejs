@@ -155,7 +155,8 @@ async function fetchStudents() {
     }
 
     // ഡാറ്റാബേസിലേക്ക് ഹാജർ സേവ് ചെയ്യൽ
-  async function saveAttendanceWithDate() {
+async function saveAttendanceWithDate() {
+  const saveBtn = document.getElementById('saveAttendanceBtn'); // നിങ്ങളുടെ സേവ് ബട്ടന്റെ ID നൽകുക
   const batch_id = document.getElementById('batchSelect').value;
   const subject_id = document.getElementById('subjectSelect').value;
   const date = document.getElementById('attendanceDate').value;
@@ -178,12 +179,27 @@ async function fetchStudents() {
 
   const records = [];
   cards.forEach(card => {
-    records.push({
-      student_id: card.getAttribute('data-id'),
-      batch_id: card.getAttribute('data-batch-id'), // ഇവിടെ കുട്ടിയുടെ സ്വന്തം ബാച്ച് നമ്പർ വരുന്നു
-      status: card.classList.contains('present') ? 'present' : 'absent'
-    });
+    const studentId = card.getAttribute('data-id');
+    if (studentId) {
+      records.push({
+        student_id: studentId,
+        // കാർഡിൽ data-batch-id ഇല്ലെങ്കിൽ ഡ്രോപ്പ്ഡൗണിലെ batch_id ബാക്കപ്പായി എടുക്കും
+        batch_id: card.getAttribute('data-batch-id') || batch_id,
+        status: card.classList.contains('present') ? 'present' : 'absent'
+      });
+    }
   });
+
+  if (records.length === 0) {
+    alert('വിദ്യാർത്ഥികളുടെ ഡാറ്റ ശരിയായി ലഭിച്ചില്ല!');
+    return;
+  }
+
+  // രണ്ട് തവണ ഒരേസമയം ക്ലിക്ക് ചെയ്യുന്നത് തടയാൻ ബട്ടൺ ഡിസേബിൾ ചെയ്യുന്നു
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerText = 'സേവ് ചെയ്യുന്നു...';
+  }
 
   try {
     const res = await fetch('/api/save-attendance', {
@@ -200,7 +216,13 @@ async function fetchStudents() {
     }
   } catch (err) {
     console.error(err);
-    alert('സേവ് ചെയ്യാൻ സാധിച്ചില്ല!');
+    alert('സേവ് ചെയ്യാൻ സാധിച്ചില്ല! നെറ്റ്‌വർക്ക് കണക്ഷൻ പരിശോധിക്കുക.');
+  } finally {
+    // റിക്വസ്റ്റ് പൂർത്തിയായ ശേഷം ബട്ടൺ പഴയപടിയാക്കുന്നു
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerText = 'സേവ് ചെയ്യുക';
+    }
   }
 }
   </script>
