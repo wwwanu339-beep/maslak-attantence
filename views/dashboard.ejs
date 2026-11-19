@@ -42,7 +42,7 @@
       margin: 0;
     }
     .btn-logout {
-      background: #ef4444; /* ലോഗ് ഔട്ടിനായുള്ള ചുവപ്പ് നിറം */
+      background: #ef4444;
       color: white;
       text-decoration: none;
       padding: 8px 16px;
@@ -128,6 +128,9 @@
     <!-- ഹെഡ്ഡർ: ടൈറ്റിലും ലോഗ് ഔട്ട് ലിങ്കും -->
     <div class="header-section">
       <h1>Hajar Dashboard</h1>
+      <div class="user-info">
+        <span>User: <strong><%= user.username || user.name || 'Guest' %></strong></span>
+      </div>
       <a href="/logout" class="btn-logout">Logout</a>
     </div>
 
@@ -138,12 +141,12 @@
         <p><%= totalStudents %></p>
       </div>
       <div class="stat-card">
-        <h3>Total Users</h3>
-        <p><%= totalUsers %></p>
+        <h3>Total Subjects</h3>
+        <p><%= totalSubjects %></p>
       </div>
       <div class="stat-card">
-        <h3>Attendance Marked</h3>
-        <p><%= totalAttendance %></p>
+        <h3>Attendance Conducted</h3>
+        <p><%= totalClassesConducted %></p>
       </div>
     </div>
 
@@ -184,14 +187,18 @@
           </a>
         <% } %>
 
+
+        <% if (user && user.can_studet == 1) { %>
+  <a href="/admissions" class="nav-card">
+    Student Admissions
+    <span>New admission & activate students</span>
+  </a>
+<% } %>
+
       </div>
     </div>
 
   </div>
-
-
-
-
 
 </body>
 </html>

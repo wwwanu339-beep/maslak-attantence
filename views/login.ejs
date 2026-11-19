@@ -89,6 +89,22 @@
       margin-bottom: 16px;
       text-align: center;
     }
+    .student-link-box {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+    }
+    .student-link-box a {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .student-link-box a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -114,7 +130,11 @@
 
       <button type="submit" class="btn-submit">Sign In</button>
     </form>
-  </div>
 
+    <div class="student-link-box">
+      Are you a student? <a href="/student-login">Check Your Attendance →</a>
+    </div>
+  </div>
+ 
 </body>
 </html>

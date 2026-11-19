@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Admissions</title>
+  <link rel="stylesheet" href="/student.css">
+  <style>
+    .status-badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .status-active { background: #dcfce7; color: #15803d; }
+    .status-pending { background: #fef08a; color: #854d0e; }
+    .status-draft { background: #e2e8f0; color: #475569; }
+    .readonly-adm { background-color: #e2e8f0 !important; font-weight: 700; color: #0f172a; cursor: not-allowed; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .btn-back { background: #475569; color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+    .field-box label { font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px; }
+    .field-box input, .field-box textarea { width: 100%; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-family: inherit; }
+    .full-span { grid-column: 1 / -1; }
+    .btn-draft { background-color: #64748b; color: #fff; }
+    .btn-draft:hover { background-color: #475569; }
+    .doc-link { color: #2563eb; text-decoration: none; font-size: 12px; font-weight: 600; }
+    .student-thumb { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); justify-content: center; align-items: center; z-index: 1000; padding: 15px; overflow-y: auto; }
+    .modal-content { background: #fff; padding: 24px; border-radius: 12px; width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="top-bar">
+      <h1 style="margin: 0;">Student Admission Portal</h1>
+      <div style="display: flex; gap: 10px;">
+        <a href="/students" class="btn-back" style="background: #2563eb;">Active Student List →</a>
+        <a href="/dashboard" class="btn-back">Dashboard</a>
+      </div>
+    </div>
+
+    <!-- 1. New Admission Form -->
+    <div class="card">
+      <h3>New Student Admission</h3>
+      <form id="admissionForm" enctype="multipart/form-data">
+        <div class="form-grid">
+          <div class="field-box">
+            <label>Auto Admission No:</label>
+            <input type="text" id="admNo" value="<%= nextAdmissionNo %>" class="readonly-adm" readonly>
+          </div>
+
+          <div class="field-box">
+            <label>Roll No (Optional):</label>
+            <input type="number" id="stRoll" name="roll_no" placeholder="Roll No (e.g., 1)" min="1">
+          </div>
+
+          <div class="field-box">
+            <label>Full Name: <span style="color:red;">*</span></label>
+            <input type="text" id="stName" name="full_name" placeholder="Student Full Name" required>
+          </div>
+
+          <div class="field-box">
+            <label>Date of Birth: <span style="color:red;">*</span></label>
+            <input type="date" id="stDob" name="dob" required>
+          </div>
+
+          <div class="field-box">
+            <label>Father's Name:</label>
+            <input type="text" id="stFather" name="father_name" placeholder="Father's Name">
+          </div>
+
+          <div class="field-box">
+            <label>Phone Number:</label>
+            <input type="text" id="stPhone" name="phone" placeholder="Phone Number">
+          </div>
+
+          <div class="field-box">
+            <label>Aadhaar Number:</label>
+            <input type="text" id="stAadhaar" name="aadhaar_no" placeholder="12-digit ID Number" maxlength="14">
+          </div>
+
+          <div class="field-box">
+            <label>Login Password:</label>
+            <input type="password" id="stPass" name="password" placeholder="Defaults to Admission No if empty">
+          </div>
+
+          <div class="field-box full-span">
+            <label>Full Address:</label>
+            <textarea id="stAddress" name="address" rows="2" placeholder="House Name, Place, Post, District, PIN"></textarea>
+          </div>
+
+          <div class="field-box">
+            <label>Student Photo Upload:</label>
+            <input type="file" id="stPhoto" name="photo" accept="image/*">
+          </div>
+
+          <div class="field-box">
+            <label>Aadhaar Card Upload (Image/PDF):</label>
+            <input type="file" id="stAadhaarFile" name="aadhaar_doc" accept="image/*,.pdf">
+          </div>
+
+          <div class="batch-selection-wrapper full-span">
+            <span class="batch-selection-title">Select Batches (Optional for Draft):</span>
+            <div class="batch-checkbox-group">
+              <% batches.forEach(b => { %>
+                <label class="batch-chip">
+                  <input type="checkbox" name="admBatches" value="<%= b.id %>">
+                  <span><%= b.name %></span>
+                </label>
+              <% }) %>
+            </div>
+          </div>
+
+          <div class="full-span" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px;">
+            <button type="button" class="btn btn-draft" onclick="submitAdmission('draft')">
+              Save Draft (Name & DOB only)
+            </button>
+            <button type="button" class="btn btn-add" onclick="submitAdmission('pending')">
+              Submit Admission
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 2. All Admissions Table -->
+    <div class="card">
+      <h3>All Admissions (<%= allStudents.length %>) — Only active students appear in Student List & Attendance</h3>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Photo</th>
+              <th>Adm No</th>
+              <th>Student & Father</th>
+              <th>DOB</th>
+              <th>Aadhaar / Docs</th>
+              <th>Batch</th>
+              <th>Status</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (allStudents.length === 0) { %>
+              <tr>
+                <td colspan="8" style="text-align: center; color: #64748b; padding: 20px;">
+                  No admission records found.
+                </td>
+              </tr>
+            <% } %>
+
+            <% allStudents.forEach(s => { %>
+              <tr>
+                <td>
+                  <% if (s.photo_file) { %>
+                    <a href="<%= s.photo_file %>" target="_blank">
+                      <img src="<%= s.photo_file %>" alt="Photo" class="student-thumb">
+                    </a>
+                  <% } else { %>
+                    <span style="font-size: 11px; color: #94a3b8;">No Photo</span>
+                  <% } %>
+                </td>
+                <td><strong><%= s.admission_no || '-' %></strong></td>
+                <td>
+                  <strong><%= s.full_name %></strong><br>
+                  <small style="color: #64748b;">Father: <%= s.father_name || '-' %></small>
+                </td>
+                <td><%= s.dob || '-' %></td>
+                <td>
+                  <div style="font-size: 12px;"><%= s.aadhaar_no || '-' %></div>
+                  <% if (s.aadhaar_file) { %>
+                    <a href="<%= s.aadhaar_file %>" target="_blank" class="doc-link">View Document ↗</a>
+                  <% } %>
+                </td>
+                <td><span class="badge"><%= s.batch_name || 'No Batch' %></span></td>
+                <td>
+                  <span class="status-badge status-<%= s.status %>">
+                    <%= s.status %>
+                  </span>
+                </td>
+                <td class="action-btns">
+                  <button type="button" class="btn btn-edit"
+                    data-adm="<%= s.admission_no %>"
+                    data-roll="<%= s.roll_no %>"
+                    data-name="<%= s.full_name %>"
+                    data-dob="<%= s.dob %>"
+                    data-father="<%= s.father_name %>"
+                    data-phone="<%= s.phone %>"
+                    data-aadhaar="<%= s.aadhaar_no %>"
+                    data-address="<%= s.address %>"
+                    data-batch="<%= s.batch_id %>"
+                    data-status="<%= s.status %>"
+                    onclick="openEditAdmModal(this)">
+                    Edit
+                  </button>
+
+                  <% if (s.status !== 'active') { %>
+                    <button type="button" class="btn" style="background-color: #16a34a; color: #fff;"
+                      onclick="toggleStudentStatus('<%= s.admission_no %>', 'active')">
+                      Make Active ✓
+                    </button>
+                  <% } else { %>
+                    <button type="button" class="btn" style="background-color: #d97706; color: #fff;"
+                      onclick="toggleStudentStatus('<%= s.admission_no %>', 'pending')">
+                      Deactivate
+                    </button>
+                  <% } %>
+
+                  <button type="button" class="btn btn-delete" onclick="deleteAdmission('<%= s.admission_no %>')">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Edit Admission Modal -->
+  <div id="editAdmModal" class="modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 15px;">Edit Admission Details</h3>
+      <input type="hidden" id="editAdmStatus">
+
+      <div class="form-grid">
+        <div class="field-box">
+          <label>Admission No (Read-only):</label>
+          <input type="text" id="editAdmNo" class="readonly-adm" readonly>
+        </div>
+
+        <div class="field-box">
+          <label>Roll No:</label>
+          <input type="number" id="editAdmRoll" min="1">
+        </div>
+
+        <div class="field-box">
+          <label>Full Name: <span style="color:red;">*</span></label>
+          <input type="text" id="editAdmName" required>
+        </div>
+
+        <div class="field-box">
+          <label>Date of Birth: <span style="color:red;">*</span></label>
+          <input type="date" id="editAdmDob" required>
+        </div>
+
+        <div class="field-box">
+          <label>Father's Name:</label>
+          <input type="text" id="editAdmFather">
+        </div>
+
+        <div class="field-box">
+          <label>Phone Number:</label>
+          <input type="text" id="editAdmPhone">
+        </div>
+
+        <div class="field-box">
+          <label>Aadhaar Number:</label>
+          <input type="text" id="editAdmAadhaar" maxlength="14">
+        </div>
+
+        <div class="field-box">
+          <label>New Password (Leave blank to keep current):</label>
+          <input type="password" id="editAdmPass" placeholder="Optional">
+        </div>
+
+        <div class="field-box full-span">
+          <label>Full Address:</label>
+          <textarea id="editAdmAddress" rows="2"></textarea>
+        </div>
+
+        <div class="field-box">
+          <label>Update Photo (Optional):</label>
+          <input type="file" id="editAdmPhoto" accept="image/*">
+        </div>
+
+        <div class="field-box">
+          <label>Update Aadhaar Doc (Optional):</label>
+          <input type="file" id="editAdmAadhaarFile" accept="image/*,.pdf">
+        </div>
+
+        <div class="batch-selection-wrapper full-span">
+          <span class="batch-selection-title">Select Batches:</span>
+          <div class="batch-checkbox-group">
+            <% batches.forEach(b => { %>
+              <label class="batch-chip">
+                <input type="checkbox" name="editAdmBatches" value="<%= b.id %>">
+                <span><%= b.name %></span>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-delete" onclick="closeEditAdmModal()">Cancel</button>
+        <button type="button" class="btn btn-draft" onclick="saveAdmissionEdit('draft')">Save as Draft</button>
+        <button type="button" class="btn btn-add" onclick="saveAdmissionEdit('submit')">Update & Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function submitAdmission(saveMode) {
+      const full_name = document.getElementById('stName').value.trim();
+      const dob = document.getElementById('stDob').value.trim();
+
+      if (!full_name || !dob) {
+        return alert('Please enter both Full Name and Date of Birth!');
+      }
+
+      const batch_id = Array.from(document.querySelectorAll('input[name="admBatches"]:checked'))
+        .map(cb => cb.value)
+        .join(',');
+
+      if (saveMode === 'pending' && !batch_id) {
+        return alert('Please select at least one batch to submit! (Or click Save Draft)');
+      }
+
+      const formData = new FormData();
+      formData.append('full_name', full_name);
+      formData.append('dob', dob);
+      formData.append('roll_no', document.getElementById('stRoll').value.trim());
+      formData.append('father_name', document.getElementById('stFather').value.trim());
+      formData.append('phone', document.getElementById('stPhone').value.trim());
+      formData.append('aadhaar_no', document.getElementById('stAadhaar').value.trim());
+      formData.append('address', document.getElementById('stAddress').value.trim());
+      formData.append('password', document.getElementById('stPass').value.trim());
+      formData.append('batch_id', batch_id);
+      formData.append('status', saveMode);
+
+      const photoInput = document.getElementById('stPhoto');
+      if (photoInput.files[0]) formData.append('photo', photoInput.files[0]);
+
+      const aadhaarInput = document.getElementById('stAadhaarFile');
+      if (aadhaarInput.files[0]) formData.append('aadhaar_doc', aadhaarInput.files[0]);
+
+      try {
+        const res = await fetch('/api/admissions', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          const msg = saveMode === 'draft'
+            ? `Saved as Draft! Admission No: ${data.admission_no}`
+            : `Admission submitted! Admission No: ${data.admission_no}\n(Click "Make Active" to move student to the active list)`;
+          alert(msg);
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to save admission!'));
+        }
+      } catch (err) {
+        alert('Server connection failed!');
+      }
+    }
+
+    function openEditAdmModal(btn) {
+      document.getElementById('editAdmStatus').value = btn.dataset.status;
+      document.getElementById('editAdmNo').value = btn.dataset.adm;
+      document.getElementById('editAdmRoll').value = btn.dataset.roll;
+      document.getElementById('editAdmName').value = btn.dataset.name;
+      document.getElementById('editAdmDob').value = btn.dataset.dob;
+      document.getElementById('editAdmFather').value = btn.dataset.father;
+      document.getElementById('editAdmPhone').value = btn.dataset.phone;
+      document.getElementById('editAdmAadhaar').value = btn.dataset.aadhaar;
+      document.getElementById('editAdmAddress').value = btn.dataset.address;
+      document.getElementById('editAdmPass').value = '';
+
+      const assignedBatches = String(btn.dataset.batch || '').split(',').map(b => b.trim());
+      document.querySelectorAll('input[name="editAdmBatches"]').forEach(cb => {
+        cb.checked = assignedBatches.includes(cb.value);
+      });
+
+      document.getElementById('editAdmModal').style.display = 'flex';
+    }
+
+    function closeEditAdmModal() {
+      document.getElementById('editAdmModal').style.display = 'none';
+    }
+
+    async function saveAdmissionEdit(mode) {
+      const admNo = document.getElementById('editAdmNo').value.trim();
+      const currentStatus = document.getElementById('editAdmStatus').value;
+      const full_name = document.getElementById('editAdmName').value.trim();
+      const dob = document.getElementById('editAdmDob').value.trim();
+
+      if (!full_name || !dob) {
+        return alert('Full Name and Date of Birth are required!');
+      }
+
+      const batch_id = Array.from(document.querySelectorAll('input[name="editAdmBatches"]:checked'))
+        .map(cb => cb.value)
+        .join(',');
+
+      let newStatus = currentStatus;
+      if (mode === 'draft') {
+        newStatus = 'draft';
+      } else if (currentStatus === 'draft') {
+        if (!batch_id) return alert('Please select at least one batch before submitting!');
+        newStatus = 'pending';
+      }
+
+      const formData = new FormData();
+      formData.append('full_name', full_name);
+      formData.append('dob', dob);
+      formData.append('roll_no', document.getElementById('editAdmRoll').value.trim());
+      formData.append('father_name', document.getElementById('editAdmFather').value.trim());
+      formData.append('phone', document.getElementById('editAdmPhone').value.trim());
+      formData.append('aadhaar_no', document.getElementById('editAdmAadhaar').value.trim());
+      formData.append('address', document.getElementById('editAdmAddress').value.trim());
+      formData.append('password', document.getElementById('editAdmPass').value.trim());
+      formData.append('batch_id', batch_id);
+      formData.append('status', newStatus);
+
+      const photoInput = document.getElementById('editAdmPhoto');
+      if (photoInput.files[0]) formData.append('photo', photoInput.files[0]);
+
+      const aadhaarInput = document.getElementById('editAdmAadhaarFile');
+      if (aadhaarInput.files[0]) formData.append('aadhaar_doc', aadhaarInput.files[0]);
+
+      try {
+        const res = await fetch(`/api/admissions/${encodeURIComponent(admNo)}`, {
+          method: 'PUT',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else alert('Error: ' + (data.error || 'Failed to update admission!'));
+      } catch (err) {
+        alert('Server error while updating!');
+      }
+    }
+
+    async function toggleStudentStatus(admNo, newStatus) {
+      try {
+        const res = await fetch(`/api/admissions/${encodeURIComponent(admNo)}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else alert('Error: ' + (data.error || 'Failed to change status!'));
+      } catch (err) {
+        alert('Server error!');
+      }
+    }
+
+    async function deleteAdmission(admNo) {
+      if (!confirm('Are you sure you want to permanently delete this admission record?')) return;
+      try {
+        const res = await fetch(`/api/admissions/${encodeURIComponent(admNo)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else alert('Error: ' + (data.error || 'Failed to delete!'));
+      } catch (err) {
+        alert('Failed to delete admission record!');
+      }
+    }
+  </script>
+</body>
+</html>

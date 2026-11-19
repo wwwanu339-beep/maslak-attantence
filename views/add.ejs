@@ -5,15 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Batch & Subject Settings</title>
   <link rel="stylesheet" href="/add.css">
+  <style>
+    .danger-zone { border: 1px solid #fecaca !important; background-color: #fff5f5 !important; }
+    .danger-zone h3 { color: #b91c1c; }
+    .clear-btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+    .btn-clear { background-color: #dc2626; color: #fff; border: none; padding: 10px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-clear:hover { background-color: #b91c1c; }
+  </style>
 </head>
 <body>
 
   <div class="container">
-    <h2>Manage Batches, Subjects & Users</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+      <h2 style="margin: 0;">Manage Batches, Subjects & Users</h2>
+      <a href="/dashboard" class="btn" style="background: #475569; color: #fff; text-decoration: none;">← Dashboard</a>
+    </div>
 
     <div class="settings-grid">
       
-      <!-- ബാച്ച് മാനേജ്‌മെന്റ് കാർഡ് -->
+      <!-- Batch Management Card -->
       <div class="settings-card">
         <h3>Manage Batches</h3>
         
@@ -33,13 +43,20 @@
         </div>
       </div>
 
-      <!-- സബ്ജക്റ്റ് മാനേജ്‌മെന്റ് കാർഡ് -->
+      <!-- Subject Management Card -->
       <div class="settings-card">
         <h3>Manage Subjects</h3>
         
         <div class="input-action-row">
-          <input type="text" id="subjectInput" placeholder="Enter Subject Name">
-          <button type="button" class="btn btn-add" onclick="addSubject()">Add</button>
+          <select id="subjectBatchSelect">
+            <option value="" disabled selected>Select Batch</option>
+            <% batches.forEach(b => { %>
+              <option value="<%= b.id %>"><%= b.name %></option>
+            <% }) %>
+          </select>
+
+          <input type="text" id="subjectInput" placeholder="Subject Name">
+          <button type="button" class="btn btn-add" onclick="addSubject()">Add Subject</button>
         </div>
 
         <div class="select-action-row">
@@ -53,19 +70,40 @@
         </div>
       </div>
 
-      <!-- യൂസർ മാനേജ്‌മെന്റ് കാർഡ് -->
+      <!-- User Management Card -->
       <div class="settings-card settings-card1">
         <h3>Manage Users</h3>
         
         <div class="user-form-grid">
-          <input type="text" id="userInput" placeholder="Enter user Name">
-          <input type="password" id="userPass" placeholder="Enter user pass">
+          <input type="text" id="userInput" placeholder="Enter User Name">
+          <input type="password" id="userPass" placeholder="Enter Password">
           
+          <select id="userRole" onchange="handleRoleChange()">
+            <option value="admin">Admin / Full Access</option>
+            <option value="batch_leader">Batch Leader (Single Batch)</option>
+            <option value="subject_leader">Subject Leader (Single Subject)</option>
+          </select>
+
+          <select id="userBatchSelect" style="display: none;" onchange="filterRoleSubjects()">
+            <option value="" disabled selected>Select Assigned Batch</option>
+            <% batches.forEach(b => { %>
+              <option value="<%= b.id %>"><%= b.name %></option>
+            <% }) %>
+          </select>
+
+          <select id="userSubjectSelect" style="display: none;">
+            <option value="" disabled selected>Select Assigned Subject</option>
+            <% subjects.forEach(s => { %>
+              <option value="<%= s.id %>" data-batch-id="<%= s.batch_id %>"><%= s.name %></option>
+            <% }) %>
+          </select>
+
           <div class="checkbox-group">
-            <label><input type="checkbox" id="userAtt"> Attendance</label>
+            <label><input type="checkbox" id="userAtt" checked> Attendance</label>
+            <label><input type="checkbox" id="userUpdate" checked> Can Update</label>
             <label><input type="checkbox" id="userManage"> Add / Manage</label>
-             <label><input type="checkbox" id="userview"> Attendance View </label>
-              <label><input type="checkbox" id="userstudet"> student Manage </label> 
+            <label><input type="checkbox" id="userview"> Attendance View</label>
+            <label><input type="checkbox" id="userstudet"> Student Manage</label> 
           </div>
           
           <button type="button" class="btn btn-add" onclick="addUser()">Add User</button>
@@ -75,10 +113,25 @@
           <select id="userSelect">
             <option value="" disabled selected>Select User</option>
             <% users.forEach(u => { %>
-              <option value="<%= u.id %>"><%= u.username %></option>
+              <option value="<%= u.id %>"><%= u.username %> (<%= u.role || 'admin' %>)</option>
             <% }) %>
           </select>
           <button type="button" class="btn btn-delete" onclick="deleteUser()">Delete</button>
+        </div>
+      </div>
+
+      <!-- Clear All Data Card -->
+      <div class="settings-card danger-zone">
+        <h3>Clear All Records (Reset Data)</h3>
+        <p style="font-size: 13px; color: #7f1d1d; margin: 4px 0 10px;">
+          Warning: Clicking these buttons will permanently delete all records from the selected category.
+        </p>
+        <div class="clear-btn-grid">
+          <button type="button" class="btn-clear" onclick="clearAllData('attendance')">Clear Attendance</button>
+          <button type="button" class="btn-clear" onclick="clearAllData('students')">Clear Students</button>
+          <button type="button" class="btn-clear" onclick="clearAllData('subjects')">Clear Subjects</button>
+          <button type="button" class="btn-clear" onclick="clearAllData('batches')">Clear Batches</button>
+          <button type="button" class="btn-clear" onclick="clearAllData('users')">Clear Users</button>
         </div>
       </div>
 
@@ -86,10 +139,9 @@
   </div>
 
   <script>
-    // 1. ബാച്ച് ആഡ് ചെയ്യൽ & ഡിലീറ്റ് ചെയ്യൽ
     async function addBatch() {
       const name = document.getElementById('batchInput').value.trim();
-      if (!name) return alert('ബാച്ച് പേര് നൽകുക!');
+      if (!name) return alert('Please enter a batch name!');
 
       const res = await fetch('/api/batches', {
         method: 'POST',
@@ -98,75 +150,156 @@
       });
       const data = await res.json();
       if (data.success) location.reload();
+      else alert('Error: ' + (data.error || 'Failed to add batch!'));
     }
 
     async function deleteBatch() {
       const id = document.getElementById('batchSelect').value;
-      if (!id) return alert('ഡിലീറ്റ് ചെയ്യേണ്ട ബാച്ച് തിരഞ്ഞെടുക്കുക!');
-      if (!confirm('ഈ ബാച്ച് ഒഴിവാക്കണമോ?')) return;
+      if (!id) return alert('Please select a batch to delete!');
+      if (!confirm('Are you sure you want to delete this batch?')) return;
 
       const res = await fetch(`/api/batches/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) location.reload();
+      else alert('Error: ' + (data.error || 'Failed to delete batch!'));
     }
 
-    // 2. സബ്ജക്റ്റ് ആഡ് ചെയ്യൽ & ഡിലീറ്റ് ചെയ്യൽ
     async function addSubject() {
       const name = document.getElementById('subjectInput').value.trim();
-      if (!name) return alert('സബ്ജക്റ്റ് പേര് നൽകുക!');
+      const batch_id = document.getElementById('subjectBatchSelect').value;
+
+      if (!batch_id) return alert('Please select a batch!');
+      if (!name) return alert('Please enter a subject name!');
 
       const res = await fetch('/api/subjects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, batch_id })
       });
+
       const data = await res.json();
       if (data.success) location.reload();
+      else alert('Error: ' + (data.error || 'Failed to add subject!'));
     }
 
     async function deleteSubject() {
       const id = document.getElementById('subjectSelect').value;
-      if (!id) return alert('ഡിലീറ്റ് ചെയ്യേണ്ട സബ്ജക്റ്റ് തിരഞ്ഞെടുക്കുക!');
-      if (!confirm('ഈ സബ്ജക്റ്റ് ഒഴിവാക്കണമോ?')) return;
+      if (!id) return alert('Please select a subject to delete!');
+      if (!confirm('Are you sure you want to delete this subject?')) return;
 
       const res = await fetch(`/api/subjects/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) location.reload();
+      else alert('Error: ' + (data.error || 'Failed to delete subject!'));
     }
 
-    // 3. യൂസർ ആഡ് ചെയ്യൽ & ഡിലീറ്റ് ചെയ്യൽ
+    function handleRoleChange() {
+      const role = document.getElementById('userRole').value;
+      const batchSelect = document.getElementById('userBatchSelect');
+      const subjectSelect = document.getElementById('userSubjectSelect');
+      const updateCheck = document.getElementById('userUpdate');
+      const attCheck = document.getElementById('userAtt');
+
+      if (role === 'admin') {
+        batchSelect.style.display = 'none';
+        subjectSelect.style.display = 'none';
+        updateCheck.checked = true;
+      } else if (role === 'batch_leader') {
+        batchSelect.style.display = 'block';
+        subjectSelect.style.display = 'none';
+        attCheck.checked = true;
+        updateCheck.checked = false;
+      } else if (role === 'subject_leader') {
+        batchSelect.style.display = 'block';
+        subjectSelect.style.display = 'block';
+        attCheck.checked = true;
+        updateCheck.checked = false;
+        filterRoleSubjects();
+      }
+    }
+
+    function filterRoleSubjects() {
+      const selectedBatch = document.getElementById('userBatchSelect').value;
+      const subjectSelect = document.getElementById('userSubjectSelect');
+      subjectSelect.value = '';
+
+      subjectSelect.querySelectorAll('option').forEach(opt => {
+        if (!opt.value) return;
+        const match = opt.getAttribute('data-batch-id') === selectedBatch;
+        opt.hidden = !match;
+        opt.disabled = !match;
+      });
+    }
+
     async function addUser() {
       const username = document.getElementById('userInput').value.trim();
       const password = document.getElementById('userPass').value.trim();
+      const role = document.getElementById('userRole').value;
+      const allowed_batch = document.getElementById('userBatchSelect').value;
+      const allowed_subject = document.getElementById('userSubjectSelect').value;
+
       const can_attendance = document.getElementById('userAtt').checked;
+      const can_update = document.getElementById('userUpdate').checked;
       const can_manage = document.getElementById('userManage').checked;
       const can_attendanceveiw = document.getElementById('userview').checked;
       const can_studet = document.getElementById('userstudet').checked;
-      
 
-      if (!username || !password) return alert('യൂസർനെയിമും പാസ്‌വേഡും നൽകുക!');
+      if (!username || !password) return alert('Username and password are required!');
+      if (role === 'batch_leader' && !allowed_batch) return alert('Please select an assigned batch for Batch Leader!');
+      if (role === 'subject_leader' && (!allowed_batch || !allowed_subject)) {
+        return alert('Please select both batch and subject for Subject Leader!');
+      }
 
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, can_attendance, can_manage, can_attendanceveiw, can_studet })
+        body: JSON.stringify({ 
+          username, 
+          password, 
+          role,
+          allowed_batch: role === 'admin' ? 'all' : allowed_batch,
+          allowed_subject: role === 'subject_leader' ? allowed_subject : 'all',
+          can_attendance, 
+          can_update,
+          can_manage, 
+          can_attendanceveiw, 
+          can_studet 
+        })
       });
       const data = await res.json();
-      if (data.success) {
-        location.reload();
-      } else {
-        alert(data.error || 'യൂസറെ ചേർക്കാൻ സാധിച്ചില്ല!');
-      }
+      if (data.success) location.reload();
+      else alert('Error: ' + (data.error || 'Failed to add user!'));
     }
 
     async function deleteUser() {
       const id = document.getElementById('userSelect').value;
-      if (!id) return alert('ഡിലീറ്റ് ചെയ്യേണ്ട യൂസറെ തിരഞ്ഞെടുക്കുക!');
-      if (!confirm('ഈ യൂസറെ ഒഴിവാക്കണമോ?')) return;
+      if (!id) return alert('Please select a user to delete!');
+      if (!confirm('Are you sure you want to delete this user?')) return;
 
       const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) location.reload();
+      else alert('Error: ' + (data.error || 'Failed to delete user!'));
+    }
+
+    async function clearAllData(target) {
+      const label = target.toUpperCase();
+      if (!confirm(`WARNING: Are you sure you want to permanently delete ALL ${label} records? This action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/clear/${target}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message);
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to clear records!'));
+        }
+      } catch (err) {
+        alert('Server connection error!');
+      }
     }
   </script>
 </body>

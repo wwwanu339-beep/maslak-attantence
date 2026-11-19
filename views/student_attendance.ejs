@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Attendance - <%= student.full_name %></title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: #f8fafc; color: #1e293b; padding: 16px; }
+    .container { max-width: 750px; margin: 0 auto; }
+    .header-card { background: #fff; padding: 18px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+    .header-card h3 { margin: 0; font-size: 18px; color: #0f172a; }
+    .header-card p { margin: 4px 0 0; font-size: 13px; color: #64748b; }
+    .btn-logout { background: #fee2e2; color: #dc2626; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .stat-box { background: #fff; padding: 14px; border-radius: 10px; text-align: center; border: 1px solid #e2e8f0; }
+    .stat-box h4 { margin: 0; font-size: 20px; }
+    .stat-box span { font-size: 12px; color: #64748b; font-weight: 600; }
+    .p-color { color: #16a34a; }
+    .a-color { color: #dc2626; }
+    .l-color { color: #ca8a04; }
+    .pct-color { color: #2563eb; }
+    .filter-form { background: #fff; padding: 12px 16px; border-radius: 10px; border: 1px solid #e2e8f0; display: flex; gap: 10px; margin-bottom: 16px; align-items: center; }
+    select, button { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; }
+    button { background: #2563eb; color: #fff; border: none; font-weight: 600; cursor: pointer; }
+    .table-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f8fafc; color: #475569; font-weight: 600; }
+    .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; display: inline-block; }
+    .badge.present { background: #dcfce7; color: #15803d; }
+    .badge.absent { background: #fee2e2; color: #b91c1c; }
+    .badge.leave { background: #fef08a; color: #854d0e; }
+    @media (max-width: 550px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-card">
+      <div>
+        <h3><%= student.full_name %></h3>
+        <p>Adm No: <b><%= student.admission_no %></b> | Batch: <b><%= student.batch_name %></b></p>
+      </div>
+      <a href="/student-logout" class="btn-logout">Logout</a>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <h4 class="p-color"><%= stats.present %></h4>
+        <span>Present (P)</span>
+      </div>
+      <div class="stat-box">
+        <h4 class="a-color"><%= stats.absent %></h4>
+        <span>Absent (A)</span>
+      </div>
+      <div class="stat-box">
+        <h4 class="l-color"><%= stats.leave %></h4>
+        <span>Leave (L)</span>
+      </div>
+      <div class="stat-box">
+        <h4 class="pct-color"><%= stats.percentage %>%</h4>
+        <span>Attendance</span>
+      </div>
+    </div>
+
+    <form class="filter-form" method="GET" action="/my-attendance">
+      <select name="month">
+        <% const months = ['January','February','March','April','May','June','July','August','September','October','November','December']; %>
+        <% months.forEach((m, idx) => { %>
+          <option value="<%= idx + 1 %>" <%= selectedMonth === (idx + 1) ? 'selected' : '' %>><%= m %></option>
+        <% }) %>
+      </select>
+      <select name="year">
+        <% [2026, 2027, 2028].forEach(y => { %>
+          <option value="<%= y %>" <%= selectedYear === y ? 'selected' : '' %>><%= y %></option>
+        <% }) %>
+      </select>
+      <button type="submit">Show</button>
+    </form>
+
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Subject</th>
+            <th>Teacher</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (records.length === 0) { %>
+            <tr>
+              <td colspan="4" style="text-align: center; color: #64748b; padding: 25px;">No attendance records found for this month.</td>
+            </tr>
+          <% } else { %>
+            <% records.forEach(r => { %>
+              <tr>
+                <td><b><%= r.date %></b></td>
+                <td><%= r.subject %></td>
+                <td><%= r.teacher %></td>
+                <td><span class="badge <%= r.status %>"><%= r.status.toUpperCase() %></span></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

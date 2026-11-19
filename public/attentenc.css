@@ -253,6 +253,24 @@ body {
 .student-card.absent .status-badge {
   background-color: var(--a-badge);
 }
+/* Leave (L) കാർഡിന്റെ മഞ്ഞ നിറത്തിലുള്ള സ്റ്റൈൽ */
+.student-card.leave {
+  background-color: #fefce8;
+  border-color: #eab308;
+  color: #854d0e;
+}
+
+.student-card.leave .status-badge {
+  background-color: #eab308;
+  color: #ffffff;
+}
+
+/* മൊബൈലിൽ Long Press ചെയ്യുമ്പോൾ ടെക്സ്റ്റ് സെലക്ട് ആകാതിരിക്കാൻ */
+.student-card {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 
 /* മൊബൈൽ ക്രമീകരണം */
 @media (max-width: 600px) {

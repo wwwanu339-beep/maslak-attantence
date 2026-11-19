@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Attendance Report & Matrix</title>
   <link rel="stylesheet" href="/veiw.css">
-
-
 </head>
 <body>
 
-  <!-- 1. ഇൻഡിവിജ്വൽ സ്റ്റുഡന്റ് ഡീറ്റെയിൽ കാർഡ് -->
+  <!-- Individual Student Detail Card -->
   <div class="student-detail-card" id="studentDetailBox" style="display: none;">
     <div class="student-header">
       <div class="avatar" id="detailAvatar">01</div>
@@ -26,6 +24,7 @@
         <tr>
           <th>Session</th>
           <th>Subject</th>
+          <th>Teacher</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -33,17 +32,16 @@
     </table>
   </div>
 
-  <!-- 2. മന്ത്ലി മാട്രിക്സ് സെക്ഷൻ -->
+  <!-- Monthly Matrix Section -->
   <div class="matrix-container">
     <h2>Monthly Attendance Matrix</h2>
 
-    <!-- ഫിൽട്ടർ സെലക്ഷൻ ഏരിയ -->
     <div class="filter-bar">
       <div class="filter-item">
         <label>Batch</label>
         <select id="filterBatch">
-          <option value="all">All Classes</option>
           <option value="" disabled selected>Select Batch</option>
+          <option value="all">All Classes</option>
           <% batches.forEach(b => { %>
             <option value="<%= b.id %>"><%= b.name %></option>
           <% }) %>
@@ -53,9 +51,9 @@
       <div class="filter-item">
         <label>Subject</label>
         <select id="filterSubject">
-          <option value="all">All Subjects (Overall)</option>
+          <option value="all" selected>All Subjects</option>
           <% subjects.forEach(s => { %>
-            <option value="<%= s.id %>"><%= s.name %></option>
+            <option value="<%= s.id %>" data-batch-id="<%= s.batch_id %>"><%= s.name %></option>
           <% }) %>
         </select>
       </div>
@@ -88,17 +86,14 @@
       </div>
 
       <button type="button" class="btn-filter" onclick="loadAttendance()">Filter</button>
-      
-      <!-- ഫിൽട്ടർ ചെയ്ത ശേഷം മാത്രം കാണിക്കുന്ന ഡൗൺലോഡ് ബട്ടൺ -->
       <button type="button" class="btn-filter" id="btnDownload" onclick="Attendancedownload()" style="display: none; background-color: #059669; color: #fff;">Download / Print</button>
     </div>
 
-    <!-- റിപ്പോർട്ട് ടേബിൾ കണ്ടെയ്നർ -->
     <div class="table-wrapper" id="printArea">
       <table class="matrix-table">
         <tbody id="matrixBody">
           <tr>
-            <td colspan="35" style="padding: 25px; color: #64748b; text-align: center;">ഫിൽട്ടർ നൽകി 'Filter' ബട്ടൺ ക്ലിക്ക് ചെയ്യുക.</td>
+            <td colspan="36" style="padding: 25px; color: #64748b; text-align: center;">Select filters and click 'Filter' to view the report.</td>
           </tr>
         </tbody>
       </table>
@@ -112,6 +107,28 @@
       const now = new Date();
       document.getElementById('filterMonth').value = now.getMonth() + 1;
       document.getElementById('filterYear').value = now.getFullYear();
+
+      const batchSelect = document.getElementById('filterBatch');
+      const subjectSelect = document.getElementById('filterSubject');
+
+      if (batchSelect && subjectSelect) {
+        batchSelect.addEventListener('change', () => {
+          const selectedBatch = batchSelect.value;
+          subjectSelect.value = 'all';
+
+          subjectSelect.querySelectorAll('option').forEach(opt => {
+            if (!opt.value || opt.value === 'all') {
+              opt.hidden = false;
+              opt.disabled = false;
+              return;
+            }
+            const optBatchId = opt.getAttribute('data-batch-id');
+            const show = selectedBatch === 'all' || optBatchId === selectedBatch;
+            opt.hidden = !show;
+            opt.disabled = !show;
+          });
+        });
+      }
     });
 
     async function loadAttendance() {
@@ -123,132 +140,137 @@
 
       downloadBtn.style.display = 'none';
 
-      if (!batch_id) return alert('ബാച്ച് തിരഞ്ഞെടുക്കുക!');
+      if (!batch_id) return alert('Please select a batch!');
 
       const printArea = document.getElementById('printArea');
-      printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: #475569;">ഡാറ്റ ലോഡ് ചെയ്യുന്നു...</div>';
+      printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: #475569;">Loading report data...</div>';
 
       try {
         const res = await fetch(`/api/monthly-matrix?batch_id=${batch_id}&subject_id=${subject_id}&month=${month}&year=${year}`);
+        if (!res.ok) throw new Error('Server error');
         const data = await res.json();
 
         if (!data.success || !data.students || data.students.length === 0) {
-          printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: #64748b;">വിദ്യാർത്ഥികളോ വിവരങ്ങളോ ലഭ്യമല്ല.</div>';
+          printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: #64748b;">No students or attendance records found.</div>';
           return;
         }
 
         globalReportData = data;
         renderPaginatedMatrix(data, batch_id, subject_id, month, year);
-
-        // ഡാറ്റ ലഭിച്ചുകഴിഞ്ഞാൽ ഡൗൺലോഡ് ബട്ടൺ കാണിക്കുന്നു
         downloadBtn.style.display = 'inline-block';
       } catch (err) {
-        console.error(err);
-        printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: red;">ഡാറ്റ ലോഡ് ചെയ്യാൻ സാധിച്ചില്ല.</div>';
+        printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: red;">Failed to load attendance report.</div>';
       }
     }
 
-    // 30 പേർ വീതമുള്ള പേജുകളായി ടേബിൾ റെൻഡർ ചെയ്യുന്ന ഫംഗ്ഷൻ
- function renderPaginatedMatrix(data, batch_id, subject_id, month, year) {
-  const printArea = document.getElementById('printArea');
-  const isAllBatch = batch_id === 'all';
-  const batchText = document.getElementById('filterBatch').options[document.getElementById('filterBatch').selectedIndex].text;
-  const subjectText = document.getElementById('filterSubject').options[document.getElementById('filterSubject').selectedIndex].text;
-  const monthText = document.getElementById('filterMonth').options[document.getElementById('filterMonth').selectedIndex].text;
+    function renderPaginatedMatrix(data, batch_id, subject_id, month, year) {
+      const printArea = document.getElementById('printArea');
+      const isAllBatch = batch_id === 'all';
+      const batchText = document.getElementById('filterBatch').options[document.getElementById('filterBatch').selectedIndex].text;
+      const subjectText = document.getElementById('filterSubject').options[document.getElementById('filterSubject').selectedIndex].text;
+      const monthText = document.getElementById('filterMonth').options[document.getElementById('filterMonth').selectedIndex].text;
+      const markedTeacherName = data.markedTeachers || '-';
 
-  // All classes select cheythal batch nokkathe roll number order-il aakkanam
-  let studentList = [...data.students];
-  if (isAllBatch) {
-    studentList.sort((a, b) => {
-      const admA = parseInt(String(a.admission_no).replace(/\D/g, '')) || 0;
-      const admB = parseInt(String(b.admission_no).replace(/\D/g, '')) || 0;
-      return admA - admB;
-    });
-  }
+      let studentList = [...data.students];
+      if (isAllBatch) {
+        studentList.sort((a, b) => {
+          const admA = parseInt(String(a.roll_no || a.admission_no).replace(/\D/g, '')) || 0;
+          const admB = parseInt(String(b.roll_no || b.admission_no).replace(/\D/g, '')) || 0;
+          return admA - admB;
+        });
+      }
 
-  const pageSize = 30;
-  const totalStudents = studentList.length;
-  const totalPages = Math.ceil(totalStudents / pageSize);
+      const pageSize = 30;
+      const totalStudents = studentList.length;
+      const totalPages = Math.ceil(totalStudents / pageSize);
 
-  let fullHtml = '';
+      let fullHtml = '';
 
-  for (let pIdx = 0; pIdx < totalPages; pIdx++) {
-    const pageStudents = studentList.slice(pIdx * pageSize, (pIdx + 1) * pageSize);
-    const pageClass = pIdx > 0 ? 'print-page page-break' : 'print-page';
+      for (let pIdx = 0; pIdx < totalPages; pIdx++) {
+        const pageStudents = studentList.slice(pIdx * pageSize, (pIdx + 1) * pageSize);
+        const pageClass = pIdx > 0 ? 'print-page page-break' : 'print-page';
 
-    fullHtml += `<div class="${pageClass}">`;
+        fullHtml += `<div class="${pageClass}">`;
+        fullHtml += `
+          <div class="print-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+              <h3>Attendance Report - ${monthText} ${year}</h3>
+              <p>${!isAllBatch ? `Batch: <b>${batchText}</b> | ` : ''}Subject: <b>${subjectText}</b> | Page ${pIdx + 1} of ${totalPages}</p>
+            </div>
+            <div style="text-align: right;">
+              <h5 style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Marked Teacher</h5>
+              <p style="margin: 2px 0 0 0; font-weight: 700; font-size: 14px; color: #0f172a;">${markedTeacherName}</p>
+            </div>
+          </div>
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th class="col-roll">Roll</th>
+                <th class="col-name">Student Name</th>`;
 
-    fullHtml += `
-      <div class="print-header">
-        <h3>Attendance Report - ${monthText} ${year}</h3>
-        <p>${!isAllBatch ? `Batch: <b>${batchText}</b> | ` : ''}Subject: <b>${subjectText}</b> | Page ${pIdx + 1} of ${totalPages}</p>
-      </div>
-      <table class="matrix-table">
-        <thead>
-          <tr>
-            <th class="col-roll">Roll</th>
-            <th class="col-name">Student Name</th>`;
-
-    for (let d = 1; d <= data.daysInMonth; d++) {
-      fullHtml += `<th>${d}</th>`;
-    }
-    fullHtml += `<th class="col-summary">P</th><th class="col-summary">A</th><th class="col-summary">%</th>
-          </tr>
-        </thead>
-        <tbody>`;
-
-    pageStudents.forEach((st, idx) => {
-      let p = 0;
-      let a = 0;
-      const rollNo = st.admission_no || String((pIdx * pageSize) + idx + 1).padStart(2, '0');
-
-      let row = `<tr>
-        <td class="col-roll">${rollNo}</td>
-        <td class="col-name" style="cursor: pointer; font-weight: 600;" onclick="openLatestStudentDay('${st.id}')">
-          ${st.full_name || '-'}
-        </td>`;
-
-      for (let d = 1; d <= data.daysInMonth; d++) {
-        const status = data.attMap[st.id] ? data.attMap[st.id][d] : null;
-        const fullDate = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-        if (status === 'present') {
-          p++;
-          row += `<td class="status-p" style="cursor: pointer;" onclick="showStudentDay('${st.id}', '${fullDate}')" title="Click to view details">P</td>`;
-        } else if (status === 'absent') {
-          a++;
-          row += `<td class="status-a" style="cursor: pointer;" onclick="showStudentDay('${st.id}', '${fullDate}')" title="Click to view details">A</td>`;
-        } else {
-          row += `<td>-</td>`;
+        for (let d = 1; d <= data.daysInMonth; d++) {
+          fullHtml += `<th>${d}</th>`;
         }
+        fullHtml += `<th class="col-summary">P</th><th class="col-summary">A</th><th class="col-summary">L</th><th class="col-summary">%</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+        pageStudents.forEach((st, idx) => {
+          let p = 0, a = 0, l = 0;
+          const rollNo = st.roll_no || st.admission_no || String((pIdx * pageSize) + idx + 1).padStart(2, '0');
+          const admNo = st.admission_no;
+
+          let row = `<tr>
+            <td class="col-roll">${rollNo}</td>
+            <td class="col-name" style="cursor: pointer; font-weight: 600;" onclick="openLatestStudentDay('${admNo}')">
+              ${st.full_name || '-'}
+            </td>`;
+
+          for (let d = 1; d <= data.daysInMonth; d++) {
+            const status = data.attMap[admNo] ? data.attMap[admNo][d] : null;
+            const fullDate = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+            if (status === 'present') {
+              p++;
+              row += `<td class="status-p" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view details">P</td>`;
+            } else if (status === 'leave') {
+              l++;
+              row += `<td class="status-l" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view details">L</td>`;
+            } else if (status === 'absent') {
+              a++;
+              row += `<td class="status-a" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view details">A</td>`;
+            } else {
+              row += `<td>-</td>`;
+            }
+          }
+
+          const totalWorkingMarked = p + a;
+          const pct = totalWorkingMarked > 0 ? Math.round((p / totalWorkingMarked) * 100) : 0;
+
+          row += `
+            <td class="total-p">${p}</td>
+            <td class="total-a">${a}</td>
+            <td class="total-l">${l}</td>
+            <td class="total-pct">${pct}%</td>
+          </tr>`;
+          fullHtml += row;
+        });
+
+        fullHtml += `</tbody></table></div>`;
       }
 
-      const totalMarked = p + a;
-      const pct = totalMarked > 0 ? Math.round((p / totalMarked) * 100) : 0;
+      printArea.innerHTML = fullHtml;
+    }
 
-      row += `
-        <td class="total-p">${p}</td>
-        <td class="total-a">${a}</td>
-        <td class="total-pct">${pct}%</td>
-      </tr>`;
-      fullHtml += row;
-    });
-
-    fullHtml += `</tbody></table></div>`;
-  }
-
-  printArea.innerHTML = fullHtml;
-}
-
-    // പ്രിന്റ് / PDF സേവ് ഫംഗ്ഷൻ
     function Attendancedownload() {
       if (!globalReportData || globalReportData.students.length === 0) {
-        return alert('ഡൗൺലോഡ് ചെയ്യുന്നതിന് മുൻപ് ഫിൽട്ടർ ചെയ്യുക!');
+        return alert('Please filter records before downloading!');
       }
       window.print();
     }
 
-    function openLatestStudentDay(studentId) {
+    function openLatestStudentDay(admissionNo) {
       const month = document.getElementById('filterMonth').value;
       const year = document.getElementById('filterYear').value;
       const today = new Date();
@@ -257,23 +279,23 @@
       if (today.getFullYear() == year && (today.getMonth() + 1) == month) {
         day = String(today.getDate()).padStart(2, '0');
       }
-      showStudentDay(studentId, `${year}-${String(month).padStart(2, '0')}-${day}`);
+      showStudentDay(admissionNo, `${year}-${String(month).padStart(2, '0')}-${day}`);
     }
 
-    async function showStudentDay(studentId, date) {
+    async function showStudentDay(admissionNo, date) {
       const box = document.getElementById('studentDetailBox');
       const tbody = document.getElementById('sessionTableBody');
 
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 15px;">വിവരങ്ങൾ ലോഡ് ചെയ്യുന്നു...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 15px;">Loading details...</td></tr>';
       box.style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       try {
-        const res = await fetch(`/api/student-day-details?student_id=${studentId}&date=${date}`);
+        const res = await fetch(`/api/student-day-details?admission_no=${encodeURIComponent(admissionNo)}&date=${date}`);
         const data = await res.json();
 
         if (!data.success || !data.student) {
-          tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: red; padding: 15px;">വിവരങ്ങൾ ലഭ്യമല്ല.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red; padding: 15px;">Student details not available.</td></tr>';
           return;
         }
 
@@ -284,7 +306,7 @@
         tbody.innerHTML = '';
 
         if (!data.sessions || data.sessions.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 15px;">${date} തീയതിയിൽ ഹാജർ രേഖപ്പെടുത്തിയിട്ടില്ല.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 15px;">No attendance recorded on ${date}.</td></tr>`;
           document.getElementById('detailSummary').innerText = 'No Sessions';
           return;
         }
@@ -292,19 +314,24 @@
         let presentCount = 0;
         data.sessions.forEach((s, i) => {
           if (s.status === 'present') presentCount++;
+
+          let badgeClass = 'a';
+          if (s.status === 'present') badgeClass = 'p';
+          else if (s.status === 'leave') badgeClass = 'l';
+
           tbody.innerHTML += `
             <tr>
               <td>Period ${i + 1}</td>
               <td>${s.subject_name}</td>
-              <td><span class="badge ${s.status === 'present' ? 'p' : 'a'}">${s.status.toUpperCase()}</span></td>
+              <td>${s.user || '-'}</td>
+              <td><span class="badge ${badgeClass}">${s.status.toUpperCase()}</span></td>
             </tr>
           `;
         });
 
         document.getElementById('detailSummary').innerText = `${presentCount} / ${data.sessions.length} Attended`;
       } catch (err) {
-        console.error(err);
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: red; padding: 15px;">ഡാറ്റ ലഭ്യമാക്കുന്നതിൽ തകരാർ സംഭവിച്ചു.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red; padding: 15px;">Error loading session details.</td></tr>';
       }
     }
   </script>

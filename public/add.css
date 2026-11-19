@@ -35,14 +35,12 @@ h2 {
   color: #0f172a;
 }
 
-/* കാർഡുകൾക്കായി 2 കോളമുള്ള ഗ്രിഡ് */
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 
-/* കാർഡ് ബേസ് സ്റ്റൈൽ */
 .settings-card,
 .settings-card1 {
   background: var(--card-bg);
@@ -52,7 +50,6 @@ h2 {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
 }
 
-/* മൂന്നാമത്തെ കാർഡ് രണ്ട് കോളത്തിലും ഒന്നിച്ച് ഫുൾ വിഡ്ത്തിൽ വരാൻ */
 .settings-card1 {
   grid-column: 1 / -1;
 }
@@ -67,7 +64,6 @@ h2 {
   padding-bottom: 10px;
 }
 
-/* ബാച്ച്, സബ്ജക്റ്റ് ഇൻപുട്ട് വരികൾ */
 .input-action-row,
 .select-action-row {
   display: flex;
@@ -96,7 +92,6 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* യൂസർ കാർഡിലെ ലേഔട്ട് */
 .user-form-grid {
   display: flex;
   flex-wrap: wrap;
@@ -105,19 +100,21 @@ select:focus {
 }
 
 .user-form-grid input[type="text"],
-.user-form-grid input[type="password"] {
+.user-form-grid input[type="password"],
+.user-form-grid select {
   min-width: 180px;
 }
 
-/* ചെക്ക്‌ബോക്സുകൾ */
 .checkbox-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 15px;
   align-items: center;
   background-color: #f8fafc;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
+  width: 100%;
 }
 
 .checkbox-group label {
@@ -135,7 +132,6 @@ select:focus {
   accent-color: var(--primary-color);
 }
 
-/* ബട്ടണുകൾ */
 .btn {
   padding: 10px 18px;
   border: none;
@@ -166,7 +162,6 @@ select:focus {
   color: #ffffff;
 }
 
-/* മൊബൈൽ സ്ക്രീൻ സപ്പോർട്ട് */
 @media (max-width: 640px) {
   .settings-grid {
     grid-template-columns: 1fr;

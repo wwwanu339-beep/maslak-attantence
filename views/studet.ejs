@@ -3,77 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Board</title>
+  <title>Active Students</title>
   <link rel="stylesheet" href="/student.css">
   <style>
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    .modal-content {
-      background: #fff;
-      padding: 24px;
-      border-radius: 10px;
-      width: 90%;
-      max-width: 450px;
-    }
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 15px;
-    }
-    .badge-roll {
-      background: #e2e8f0;
-      color: #0f172a;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-weight: 700;
-    }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .search-input { flex: 1; min-width: 220px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; }
+    .search-input:focus { border-color: #2563eb; }
+    .btn-download { background-color: #059669; color: #fff; }
+    .btn-download:hover { background-color: #047857; }
+    .chk-col { width: 40px; text-align: center; }
+    input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h1>Student Board</h1>
-
-    <!-- വിദ്യാർത്ഥിയെ ചേർക്കാനുള്ള ഫോം -->
-    <div id="student-add" class="card">
-      <h3>Add New Student</h3>
-      <div class="form-grid">
-        <!-- റോൾ നമ്പർ നൽകാനുള്ള ഇൻപുട്ട് -->
-        <input type="number" id="stRoll" placeholder="Roll No (ഉദാ: 5)" min="1">
-        <input type="text" id="stName" placeholder="Student Name" required>
-        <input type="number" id="stAge" placeholder="Age" min="1" max="100">
-        <input type="text" id="stPhone" placeholder="Phone Number">
-        
-        <select id="stBatch" required>
-          <option value="" disabled selected>Select Batch</option>
-          <% batches.forEach(b => { %>
-            <option value="<%= b.id %>"><%= b.name %></option>
-          <% }) %>
-        </select>
-        
-        <button type="button" class="btn btn-add" onclick="addStudent()">Add Student</button>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+      <h1 style="margin: 0;">Active Student List (<%= students.length %>)</h1>
+      <div style="display: flex; gap: 10px;">
+        <a href="/admissions" class="btn btn-add" style="text-decoration: none;">+ New Admission</a>
+        <a href="/dashboard" class="btn" style="background: #475569; color: #fff; text-decoration: none;">Dashboard</a>
       </div>
     </div>
 
-    <!-- വിദ്യാർത്ഥികളുടെ ലിസ്റ്റ് ടേബിൾ -->
+    <!-- Search & Download Toolbar -->
+    <div class="card" style="padding: 16px; margin-bottom: 16px;">
+      <div class="toolbar" style="margin-bottom: 0;">
+        <input type="text" id="studentSearch" class="search-input" placeholder="Search by Name, Admission No, Roll No, Phone, or Batch..." onkeyup="filterStudentTable()">
+        <button type="button" class="btn btn-download" onclick="downloadSelectedStudents()">
+          Download Selected (CSV)
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Students Table -->
     <div id="studentlist" class="card">
-      <h3>Student List (<%= students.length %>)</h3>
       <div class="table-responsive">
-        <table>
+        <table id="studentsTable">
           <thead>
             <tr>
+              <th class="chk-col"><input type="checkbox" id="selectAllStudents" onclick="toggleSelectAll(this)" title="Select All"></th>
+              <th>Adm No</th>
               <th style="width: 80px;">Roll No</th>
               <th>Student Name</th>
-              <th>Age</th>
+              <th>DOB</th>
               <th>Phone Number</th>
               <th>Batch</th>
               <th style="text-align: center;">Action</th>
@@ -82,26 +55,48 @@
           <tbody>
             <% if (students.length === 0) { %>
               <tr>
-                <td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">
-                  വിദ്യാർത്ഥികളൊന്നും ചേർക്കപ്പെട്ടിട്ടില്ല.
+                <td colspan="8" style="text-align: center; color: #64748b; padding: 20px;">
+                  No active students found. Please activate students from the Admission Portal.
                 </td>
               </tr>
             <% } %>
 
             <% students.forEach(s => { %>
-              <tr>
-                <td><span class="badge-roll"><%= s.admission_no || '-' %></span></td>
+              <tr class="student-row"
+                  data-adm="<%= s.admission_no %>"
+                  data-roll="<%= s.roll_no || '' %>"
+                  data-name="<%= s.full_name %>"
+                  data-dob="<%= s.dob || '' %>"
+                  data-father="<%= s.father_name || '' %>"
+                  data-phone="<%= s.phone || '' %>"
+                  data-batch="<%= s.batch_name || '' %>">
+                <td class="chk-col">
+                  <input type="checkbox" class="student-select-chk" value="<%= s.admission_no %>">
+                </td>
+                <td><strong><%= s.admission_no %></strong></td>
+                <td><span class="badge-roll"><%= s.roll_no || '-' %></span></td>
                 <td><strong><%= s.full_name %></strong></td>
-                <td><%= s.age || '-' %></td>
+                <td><%= s.dob || '-' %></td>
                 <td><%= s.phone || '-' %></td>
                 <td><span class="badge"><%= s.batch_name || 'No Batch' %></span></td>
                 <td class="action-btns">
-                  <!-- Update ക്ലിക്ക് ചെയ്യുമ്പോൾ admission_no കൂടി അയക്കുന്നു -->
+                  <button type="button" class="btn" style="background-color: #0284c7; color: #fff;"
+                    data-adm="<%= s.admission_no %>"
+                    data-name="<%= s.full_name %>"
+                    onclick="openPassModal(this)">
+                    Set Pass
+                  </button>
                   <button type="button" class="btn btn-edit" 
-                    onclick="openEditModal('<%= s.id %>', '<%= s.full_name %>', '<%= s.age %>', '<%= s.phone %>', '<%= s.batch_id %>', '<%= s.admission_no %>')">
+                    data-adm="<%= s.admission_no %>"
+                    data-roll="<%= s.roll_no || '' %>"
+                    data-name="<%= s.full_name %>"
+                    data-dob="<%= s.dob || '' %>"
+                    data-phone="<%= s.phone || '' %>"
+                    data-batch="<%= s.batch_id || '' %>"
+                    onclick="openEditModal(this)">
                     Update
                   </button>
-                  <button type="button" class="btn btn-delete" onclick="deleteStudent('<%= s.id %>')">
+                  <button type="button" class="btn btn-delete" onclick="deleteStudent('<%= s.admission_no %>')">
                     Delete
                   </button>
                 </td>
@@ -113,26 +108,41 @@
     </div>
   </div>
 
-  <!-- എഡിറ്റ് മോഡൽ പോപ്പ്-അപ്പ് -->
+  <!-- Update Student Modal -->
   <div id="editModal" class="modal">
     <div class="modal-content">
       <h3 style="margin-bottom: 15px;">Update Student</h3>
-      <input type="hidden" id="editId">
       
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <label style="font-size: 13px; font-weight: 600;">Roll Number (ലിസ്റ്റിലെ സ്ഥാനം മാറ്റാൻ ഇവിടെ നമ്പർ മാറ്റുക):</label>
+      <div class="modal-form-body">
+        <label class="field-label">Permanent Admission No (Read-only):</label>
+        <input type="text" id="editAdm" readonly style="background: #e2e8f0; font-weight: bold; cursor: not-allowed;">
+
+        <label class="field-label">Roll Number:</label>
         <input type="number" id="editRoll" placeholder="Roll Number">
         
+        <label class="field-label">Full Name:</label>
         <input type="text" id="editName" placeholder="Student Name" required>
-        <input type="number" id="editAge" placeholder="Age">
+
+        <label class="field-label">Date of Birth:</label>
+        <input type="date" id="editDob">
+
+        <label class="field-label">Phone Number:</label>
         <input type="text" id="editPhone" placeholder="Phone Number">
+
+        <label class="field-label">New Password (Leave blank to keep current password):</label>
+        <input type="password" id="editPass" placeholder="Enter new password (optional)">
         
-        <select id="editBatch">
-          <option value="" disabled>Select Batch</option>
-          <% batches.forEach(b => { %>
-            <option value="<%= b.id %>"><%= b.name %></option>
-          <% }) %>
-        </select>
+        <div class="batch-selection-wrapper">
+          <span class="batch-selection-title">Select Batches:</span>
+          <div class="batch-checkbox-group">
+            <% batches.forEach(b => { %>
+              <label class="batch-chip">
+                <input type="checkbox" name="editStudentBatches" value="<%= b.id %>">
+                <span><%= b.name %></span>
+              </label>
+            <% }) %>
+          </div>
+        </div>
       </div>
 
       <div class="modal-actions">
@@ -142,46 +152,95 @@
     </div>
   </div>
 
+  <!-- Set Password Modal -->
+  <div id="passModal" class="modal">
+    <div class="modal-content" style="max-width: 380px;">
+      <h3 style="margin-bottom: 6px;">Set Student Password</h3>
+      <p id="passStudentName" style="font-size: 13px; color: #64748b; margin-bottom: 15px;"></p>
+      <input type="hidden" id="passStudentAdm">
+      
+      <div class="modal-form-body">
+        <label class="field-label">New Password:</label>
+        <input type="password" id="newStudentPass" placeholder="Enter new password" required>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 15px;">
+        <button type="button" class="btn btn-delete" onclick="closePassModal()">Cancel</button>
+        <button type="button" class="btn btn-add" onclick="saveStudentPassword()">Save Password</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // 1. വിദ്യാർത്ഥിയെ ചേർക്കൽ
-    async function addStudent() {
-      const admission_no = document.getElementById('stRoll').value.trim();
-      const full_name = document.getElementById('stName').value.trim();
-      const age = document.getElementById('stAge').value;
-      const phone = document.getElementById('stPhone').value.trim();
-      const batch_id = document.getElementById('stBatch').value;
+    // Live Search Filter
+    function filterStudentTable() {
+      const query = document.getElementById('studentSearch').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#studentsTable tbody tr.student-row');
 
-      if (!full_name || !batch_id) {
-        alert('പേരും ബാച്ചും നിർബന്ധമായും തിരഞ്ഞെടുക്കണം!');
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/students', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name, age, phone, batch_id, admission_no })
-        });
-        const data = await res.json();
-        if (data.success) {
-          location.reload();
-        } else {
-          alert('Error: ' + data.error);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('സേവ് ചെയ്യാൻ സാധിച്ചില്ല!');
-      }
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
     }
 
-    // 2. എഡിറ്റ് മോഡൽ തുറക്കൽ
-    function openEditModal(id, name, age, phone, batchId, admissionNo) {
-      document.getElementById('editId').value = id;
-      document.getElementById('editRoll').value = (admissionNo && admissionNo !== 'null') ? admissionNo : '';
-      document.getElementById('editName').value = name;
-      document.getElementById('editAge').value = (age && age !== 'null') ? age : '';
-      document.getElementById('editPhone').value = (phone && phone !== 'null') ? phone : '';
-      document.getElementById('editBatch').value = batchId;
+    // Select All Visible Checkboxes
+    function toggleSelectAll(masterChk) {
+      const rows = document.querySelectorAll('#studentsTable tbody tr.student-row');
+      rows.forEach(row => {
+        if (row.style.display !== 'none') {
+          const chk = row.querySelector('.student-select-chk');
+          if (chk) chk.checked = masterChk.checked;
+        }
+      });
+    }
+
+    // Download Selected Rows as CSV
+    function downloadSelectedStudents() {
+      const checkedBoxes = document.querySelectorAll('.student-select-chk:checked');
+      if (checkedBoxes.length === 0) {
+        return alert('Please select at least one student checkbox to download!');
+      }
+
+      const headers = ['Admission No', 'Roll No', 'Full Name', 'Date of Birth', 'Father Name', 'Phone', 'Batch'];
+      const csvRows = [headers.join(',')];
+
+      checkedBoxes.forEach(chk => {
+        const row = chk.closest('tr');
+        const values = [
+          row.dataset.adm,
+          row.dataset.roll,
+          row.dataset.name,
+          row.dataset.dob,
+          row.dataset.father,
+          row.dataset.phone,
+          row.dataset.batch
+        ].map(v => `"${String(v || '').replace(/"/g, '""')}"`);
+        csvRows.push(values.join(','));
+      });
+
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Students_List_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function openEditModal(btn) {
+      document.getElementById('editAdm').value = btn.dataset.adm;
+      document.getElementById('editRoll').value = btn.dataset.roll;
+      document.getElementById('editName').value = btn.dataset.name;
+      document.getElementById('editDob').value = btn.dataset.dob;
+      document.getElementById('editPhone').value = btn.dataset.phone;
+      document.getElementById('editPass').value = '';
+
+      const assignedBatches = String(btn.dataset.batch || '').split(',').map(b => b.trim());
+      document.querySelectorAll('input[name="editStudentBatches"]').forEach(cb => {
+        cb.checked = assignedBatches.includes(cb.value);
+      });
 
       document.getElementById('editModal').style.display = 'flex';
     }
@@ -190,56 +249,81 @@
       document.getElementById('editModal').style.display = 'none';
     }
 
-    // 3. എഡിറ്റ് ചെയ്ത ഡാറ്റ സേവ് ചെയ്യൽ (Update)
     async function saveStudentUpdate() {
-      const id = document.getElementById('editId').value;
-      const admission_no = document.getElementById('editRoll').value.trim();
+      const admNo = document.getElementById('editAdm').value;
+      const roll_no = document.getElementById('editRoll').value.trim();
       const full_name = document.getElementById('editName').value.trim();
-      const age = document.getElementById('editAge').value;
+      const dob = document.getElementById('editDob').value;
       const phone = document.getElementById('editPhone').value.trim();
-      const batch_id = document.getElementById('editBatch').value;
+      const password = document.getElementById('editPass').value.trim();
+
+      const batch_id = Array.from(document.querySelectorAll('input[name="editStudentBatches"]:checked'))
+        .map(cb => cb.value)
+        .join(',');
 
       if (!full_name || !batch_id) {
-        alert('പേരും ബാച്ചും നിർബന്ധമായും നൽകണം!');
-        return;
+        return alert('Full Name and at least one Batch are required!');
       }
 
       try {
-        const res = await fetch(`/api/students/${id}`, {
+        const res = await fetch(`/api/students/${encodeURIComponent(admNo)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name, age, phone, batch_id, admission_no })
+          body: JSON.stringify({ full_name, dob, phone, batch_id, roll_no, password })
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else alert('Error: ' + data.error);
+      } catch (err) {
+        alert('Failed to update student details!');
+      }
+    }
+
+    function openPassModal(btn) {
+      document.getElementById('passStudentAdm').value = btn.dataset.adm;
+      document.getElementById('passStudentName').innerText = `Student: ${btn.dataset.name} (${btn.dataset.adm})`;
+      document.getElementById('newStudentPass').value = '';
+      document.getElementById('passModal').style.display = 'flex';
+    }
+
+    function closePassModal() {
+      document.getElementById('passModal').style.display = 'none';
+    }
+
+    async function saveStudentPassword() {
+      const admNo = document.getElementById('passStudentAdm').value;
+      const password = document.getElementById('newStudentPass').value.trim();
+      if (!password) return alert('Please enter a new password!');
+
+      try {
+        const res = await fetch(`/api/students/${encodeURIComponent(admNo)}/password`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
         });
         const data = await res.json();
         if (data.success) {
-          location.reload();
+          alert('Password updated successfully!');
+          closePassModal();
         } else {
           alert('Error: ' + data.error);
         }
       } catch (err) {
-        console.error(err);
-        alert('അപ്‌ഡേറ്റ് ചെയ്യാൻ സാധിച്ചില്ല!');
+        alert('Failed to save password!');
       }
     }
 
-    // 4. ഒഴിവാക്കൽ (Delete)
-    async function deleteStudent(id) {
-      if (!confirm('ഈ വിദ്യാർത്ഥിയെ ലിസ്റ്റിൽ നിന്ന് ഒഴിവാക്കണമോ?')) return;
-
+    async function deleteStudent(admNo) {
+      if (!confirm('Are you sure you want to remove this student from the active list?')) return;
       try {
-        const res = await fetch(`/api/students/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/students/${encodeURIComponent(admNo)}`, { method: 'DELETE' });
         const data = await res.json();
-        if (data.success) {
-          location.reload();
-        } else {
-          alert('Error: ' + data.error);
-        }
+        if (data.success) location.reload();
+        else alert('Error: ' + data.error);
       } catch (err) {
-        console.error(err);
-        alert('ഡിലീറ്റ് ചെയ്യാൻ സാധിച്ചില്ല!');
+        alert('Failed to remove student!');
       }
     }
-    
   </script>
 </body>
 </html>
