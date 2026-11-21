@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="shortcut icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Dashboard - Attendance System</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 30px 20px;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* Header & Profile Icon Button */
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    .header-section h1 {
+      font-size: 24px;
+      margin: 0;
+      color: #0f172a;
+    }
+    .profile-trigger {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #2563eb;
+      color: #ffffff;
+      border: 2px solid #dbeafe;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+      transition: all 0.2s ease;
+    }
+    .profile-trigger:hover {
+      background: #1d4ed8;
+      transform: scale(1.05);
+    }
+
+    /* 1. Statistics Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .stat-card h3 {
+      margin: 0;
+      font-size: 13px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .stat-card p {
+      margin: 8px 0 0 0;
+      font-size: 28px;
+      font-weight: 700;
+      color: #2563eb;
+    }
+
+    /* 2. Navigation Links */
+    .menu-section h2 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #334155;
+    }
+    .links-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .nav-card {
+      display: block;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px 20px;
+      text-decoration: none;
+      color: #0f172a;
+      font-weight: 600;
+      font-size: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      transition: all 0.2s ease;
+    }
+    .nav-card:hover {
+      border-color: #2563eb;
+      background-color: #eff6ff;
+      color: #2563eb;
+      transform: translateY(-2px);
+    }
+    .nav-card span {
+      display: block;
+      font-size: 12px;
+      font-weight: 400;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    /* Profile Popup Modal */
+    .profile-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .profile-modal-box {
+      background: #ffffff;
+      width: 100%;
+      max-width: 380px;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+      position: relative;
+      animation: fadeIn 0.18s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .close-modal-btn {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 22px;
+      color: #64748b;
+      cursor: pointer;
+    }
+    .profile-header {
+      text-align: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 16px;
+    }
+    .profile-avatar-lg {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #eff6ff;
+      color: #2563eb;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      border: 2px solid #bfdbfe;
+    }
+    .profile-header h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #0f172a;
+    }
+    .profile-role-badge {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 10px;
+      background: #f1f5f9;
+      color: #475569;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .profile-details {
+      margin-bottom: 18px;
+      font-size: 14px;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+    .detail-row span:first-child {
+      color: #64748b;
+      font-weight: 500;
+    }
+    .detail-row span:last-child {
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .pass-section {
+      display: none;
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 14px;
+    }
+    .pass-section input {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .modal-btn {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+      transition: background 0.2s;
+    }
+    .btn-change-pass {
+      background: #f1f5f9;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      margin-bottom: 10px;
+    }
+    .btn-change-pass:hover { background: #e2e8f0; }
+    .btn-save-pass {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-save-pass:hover { background: #1d4ed8; }
+    .btn-modal-logout {
+      background: #ef4444;
+      color: #ffffff;
+    }
+    .btn-modal-logout:hover { background: #dc2626; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header with Profile Icon Only -->
+    <div class="header-section">
+      <h1>Hajar Dashboard</h1>
+      <button type="button" class="profile-trigger" onclick="openProfileModal()" title="Profile & Settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Students</h3>
+        <p><%= totalStudents %></p>
+      </div>
+      <div class="stat-card">
+        <h3>Total Subjects</h3>
+        <p><%= totalSubjects %></p>
+      </div>
+      <div class="stat-card">
+        <h3>Attendance Conducted</h3>
+        <p><%= totalClassesConducted %></p>
+      </div>
+    </div>
+
+    <!-- Quick Navigation -->
+    <div class="menu-section">
+      <h2>Quick Navigation</h2>
+      <div class="links-grid">
+
+        <% if (user && user.can_attendance == 1) { %>
+          <a href="/attendance" class="nav-card">
+            Mark Attendance
+            <span>Take daily / period attendance</span>
+          </a>
+        <% } %>
+
+        <% if (user && user.can_attendanceveiw == 1) { %>
+          <a href="/monthly-report" class="nav-card">
+            Monthly Sheet
+            <span>View monthly attendance matrix</span>
+          </a>
+        <% } %>
+
+        <% if (user && user.can_studet == 1) { %>
+          <a href="/students" class="nav-card">
+            Manage Students
+            <span>Add, update, or remove students</span>
+          </a>
+        <% } %>
+
+        <% if (user && user.can_manage == 1) { %>
+          <a href="/settings" class="nav-card">
+            Settings & Batches
+            <span>Manage batches, subjects & users</span>
+          </a>
+        <% } %>
+
+        <% if (user && user.can_studet == 1) { %>
+          <a href="/admissions" class="nav-card">
+            Student Admissions
+            <span>New admission & activate students</span>
+          </a>
+        <% } %>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Popup Modal -->
+  <div id="profileModal" class="profile-modal" onclick="if(event.target === this) closeProfileModal()">
+    <div class="profile-modal-box">
+      <button type="button" class="close-modal-btn" onclick="closeProfileModal()">×</button>
+
+      <div class="profile-header">
+        <div class="profile-avatar-lg">
+          <%= (user && (user.name || user.username)) ? String(user.name || user.username).charAt(0).toUpperCase() : 'U' %>
+        </div>
+        <h3><%= (user && (user.name || user.username)) || 'User' %></h3>
+        <span class="profile-role-badge"><%= (user && user.role) || 'Staff' %></span>
+      </div>
+
+      <div class="profile-details">
+        <div class="detail-row">
+          <span>Name</span>
+          <span><%= (user && user.name) || (user && user.username) || '-' %></span>
+        </div>
+        <div class="detail-row">
+          <span>Username</span>
+          <span><%= (user && user.username) || '-' %></span>
+        </div>
+        <div class="detail-row" style="border-bottom: none;">
+          <span>Phone</span>
+          <span><%= (user && user.phone) || '-' %></span>
+        </div>
+      </div>
+
+      <!-- Change Password Form (Hidden by default) -->
+      <div id="changePassBox" class="pass-section">
+        <input type="password" id="currentUserPass" placeholder="Current Password" required>
+        <input type="password" id="newUserPass" placeholder="New Password" required>
+        <button type="button" id="savePassBtn" class="modal-btn btn-save-pass" onclick="updateMyPassword()">
+          Update Password
+        </button>
+      </div>
+
+      <button type="button" class="modal-btn btn-change-pass" onclick="togglePassBox()">
+        Change Password
+      </button>
+
+      <a href="/logout" class="modal-btn btn-modal-logout">Logout</a>
+    </div>
+  </div>
+
+  <script>
+    function openProfileModal() {
+      document.getElementById('profileModal').style.display = 'flex';
+    }
+
+    function closeProfileModal() {
+      document.getElementById('profileModal').style.display = 'none';
+      document.getElementById('changePassBox').style.display = 'none';
+      document.getElementById('currentUserPass').value = '';
+      document.getElementById('newUserPass').value = '';
+    }
+
+    function togglePassBox() {
+      const box = document.getElementById('changePassBox');
+      box.style.display = box.style.display === 'block' ? 'none' : 'block';
+    }
+
+    async function updateMyPassword() {
+      const currentPassword = document.getElementById('currentUserPass').value.trim();
+      const newPassword = document.getElementById('newUserPass').value.trim();
+      const btn = document.getElementById('savePassBtn');
+
+      if (!currentPassword || !newPassword) {
+        return alert('Please enter both current and new passwords!');
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'Updating...';
+
+      try {
+        const res = await fetch('/api/change-password', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword, newPassword })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Password changed successfully!');
+          closeProfileModal();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to update password!'));
+        }
+      } catch (err) {
+        alert('Server connection error!');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Update Password';
+      }
+    }
+  </script>
+
+</body>
+</html>
