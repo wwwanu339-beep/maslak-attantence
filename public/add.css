@@ -42,7 +42,8 @@ h2 {
 }
 
 .settings-card,
-.settings-card1 {
+.settings-card1,
+.danger-zone {
   background: var(--card-bg);
   border-radius: 12px;
   padding: 24px;
@@ -50,7 +51,8 @@ h2 {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
 }
 
-.settings-card1 {
+.settings-card1,
+.danger-zone {
   grid-column: 1 / -1;
 }
 
@@ -162,11 +164,99 @@ select:focus {
   color: #ffffff;
 }
 
+/* Full Width Clear Box (Danger Zone) */
+.danger-zone {
+  border-color: #fecaca;
+  background-color: #fff5f5;
+}
+
+.danger-zone h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #b91c1c;
+  border-bottom: 1px solid #fecaca;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.clear-btn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.btn-clear {
+  background-color: var(--danger-hover);
+  color: #ffffff;
+  border: none;
+  padding: 11px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-clear:hover {
+  background-color: #b91c1c;
+}
+
+/* Admin Password Verification Modal */
+.auth-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.auth-modal-box {
+  background: var(--card-bg);
+  padding: 24px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+}
+
+.auth-modal-box h3 {
+  margin-bottom: 8px;
+  color: #b91c1c;
+  font-size: 18px;
+}
+
+.auth-modal-box p {
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.auth-modal-box input {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.auth-modal-box input:focus {
+  border-color: var(--danger-hover);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.auth-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 @media (max-width: 640px) {
   .settings-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .user-form-grid {
     flex-direction: column;
     align-items: stretch;

@@ -5,15 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Active Students</title>
   <link rel="stylesheet" href="/student.css">
-  <style>
-    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-    .search-input { flex: 1; min-width: 220px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; }
-    .search-input:focus { border-color: #2563eb; }
-    .btn-download { background-color: #059669; color: #fff; }
-    .btn-download:hover { background-color: #047857; }
-    .chk-col { width: 40px; text-align: center; }
-    input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
-  </style>
+  <!-- jsPDF & AutoTable CDN for Direct PDF Download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  
 </head>
 <body>
 
@@ -21,18 +16,23 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
       <h1 style="margin: 0;">Active Student List (<%= students.length %>)</h1>
       <div style="display: flex; gap: 10px;">
-        <a href="/admissions" class="btn btn-add" style="text-decoration: none;">+ New Admission</a>
-        <a href="/dashboard" class="btn" style="background: #475569; color: #fff; text-decoration: none;">Dashboard</a>
+        <a href="/admissions" class="btn btn-primary">+ New Admission</a>
+        <a href="/dashboard" class="btn btn-secondary">Dashboard</a>
       </div>
     </div>
 
     <!-- Search & Download Toolbar -->
     <div class="card" style="padding: 16px; margin-bottom: 16px;">
-      <div class="toolbar" style="margin-bottom: 0;">
-        <input type="text" id="studentSearch" class="search-input" placeholder="Search by Name, Admission No, Roll No, Phone, or Batch..." onkeyup="filterStudentTable()">
-        <button type="button" class="btn btn-download" onclick="downloadSelectedStudents()">
-          Download Selected (CSV)
-        </button>
+      <div class="toolbar">
+        <input type="text" id="studentSearch" class="search-input" autocomplete="off" placeholder="Search by Name, Admission No, Roll No, Phone, or Batch..." onkeyup="filterStudentTable()">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-success" onclick="openExportModal('csv')">
+            Download CSV
+          </button>
+          <button type="button" class="btn btn-danger" onclick="openExportModal('pdf')">
+            Download PDF
+          </button>
+        </div>
       </div>
     </div>
 
@@ -79,26 +79,28 @@
                 <td><%= s.dob || '-' %></td>
                 <td><%= s.phone || '-' %></td>
                 <td><span class="badge"><%= s.batch_name || 'No Batch' %></span></td>
-                <td class="action-btns">
-                  <button type="button" class="btn" style="background-color: #0284c7; color: #fff;"
-                    data-adm="<%= s.admission_no %>"
-                    data-name="<%= s.full_name %>"
-                    onclick="openPassModal(this)">
-                    Set Pass
-                  </button>
-                  <button type="button" class="btn btn-edit" 
-                    data-adm="<%= s.admission_no %>"
-                    data-roll="<%= s.roll_no || '' %>"
-                    data-name="<%= s.full_name %>"
-                    data-dob="<%= s.dob || '' %>"
-                    data-phone="<%= s.phone || '' %>"
-                    data-batch="<%= s.batch_id || '' %>"
-                    onclick="openEditModal(this)">
-                    Update
-                  </button>
-                  <button type="button" class="btn btn-delete" onclick="deleteStudent('<%= s.admission_no %>')">
-                    Delete
-                  </button>
+                <td>
+                  <div class="action-btns">
+                    <button type="button" class="btn btn-sm btn-warning"
+                      data-adm="<%= s.admission_no %>"
+                      data-name="<%= s.full_name %>"
+                      onclick="openPassModal(this)">
+                      Set Pass
+                    </button>
+                    <button type="button" class="btn btn-sm btn-edit-std" 
+                      data-adm="<%= s.admission_no %>"
+                      data-roll="<%= s.roll_no || '' %>"
+                      data-name="<%= s.full_name %>"
+                      data-dob="<%= s.dob || '' %>"
+                      data-phone="<%= s.phone || '' %>"
+                      data-batch="<%= s.batch_id || '' %>"
+                      onclick="openEditModal(this)">
+                      Update
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteStudent('<%= s.admission_no %>')">
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             <% }) %>
@@ -108,10 +110,61 @@
     </div>
   </div>
 
+  <!-- Column Selection Modal for Export (CSV / PDF) -->
+  <div id="exportColModal" class="modal" onclick="if(event.target === this) closeExportModal()">
+    <div class="modal-content" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3 id="exportModalTitle">Select Columns to Download</h3>
+        <button type="button" class="modal-close" onclick="closeExportModal()">×</button>
+      </div>
+      <p id="exportSelectedCount" style="font-size: 13px; color: #64748b; margin-bottom: 6px;"></p>
+      <input type="hidden" id="exportFormatType">
+
+      <div class="col-select-grid">
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="adm" data-label="Adm No" checked>
+          <span>Admission No</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="roll" data-label="Roll No" checked>
+          <span>Roll No</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="name" data-label="Full Name" checked>
+          <span>Student Name</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="father" data-label="Father Name" checked>
+          <span>Father's Name</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="dob" data-label="DOB" checked>
+          <span>Date of Birth</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="phone" data-label="Phone" checked>
+          <span>Phone Number</span>
+        </label>
+        <label class="col-chk-item" style="grid-column: 1 / -1;">
+          <input type="checkbox" name="exportCols" value="batch" data-label="Batch" checked>
+          <span>Batch</span>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+        <button type="button" id="confirmExportBtn" class="btn btn-primary" onclick="executeExport()">Download</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Update Student Modal -->
-  <div id="editModal" class="modal">
+  <div id="editModal" class="modal" onclick="if(event.target === this) closeEditModal()">
     <div class="modal-content">
-      <h3 style="margin-bottom: 15px;">Update Student</h3>
+      <div class="modal-header">
+        <h3>Update Student</h3>
+        <button type="button" class="modal-close" onclick="closeEditModal()">×</button>
+      </div>
       
       <div class="modal-form-body">
         <label class="field-label">Permanent Admission No (Read-only):</label>
@@ -146,17 +199,20 @@
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="btn btn-delete" onclick="closeEditModal()">Cancel</button>
-        <button type="button" class="btn btn-add" onclick="saveStudentUpdate()">Save Changes</button>
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveStudentUpdate()">Save Changes</button>
       </div>
     </div>
   </div>
 
   <!-- Set Password Modal -->
-  <div id="passModal" class="modal">
+  <div id="passModal" class="modal" onclick="if(event.target === this) closePassModal()">
     <div class="modal-content" style="max-width: 380px;">
-      <h3 style="margin-bottom: 6px;">Set Student Password</h3>
-      <p id="passStudentName" style="font-size: 13px; color: #64748b; margin-bottom: 15px;"></p>
+      <div class="modal-header">
+        <h3>Set Student Password</h3>
+        <button type="button" class="modal-close" onclick="closePassModal()">×</button>
+      </div>
+      <p id="passStudentName" style="font-size: 13px; color: #64748b; margin-bottom: 12px;"></p>
       <input type="hidden" id="passStudentAdm">
       
       <div class="modal-form-body">
@@ -164,26 +220,30 @@
         <input type="password" id="newStudentPass" placeholder="Enter new password" required>
       </div>
 
-      <div class="modal-actions" style="margin-top: 15px;">
-        <button type="button" class="btn btn-delete" onclick="closePassModal()">Cancel</button>
-        <button type="button" class="btn btn-add" onclick="saveStudentPassword()">Save Password</button>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closePassModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveStudentPassword()">Save Password</button>
       </div>
     </div>
   </div>
 
   <script>
-    // Live Search Filter
+    window.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('studentSearch');
+      if (searchInput && document.activeElement === searchInput) {
+        searchInput.blur();
+      }
+    });
+
     function filterStudentTable() {
       const query = document.getElementById('studentSearch').value.toLowerCase().trim();
       const rows = document.querySelectorAll('#studentsTable tbody tr.student-row');
-
       rows.forEach(row => {
         const text = row.innerText.toLowerCase();
         row.style.display = text.includes(query) ? '' : 'none';
       });
     }
 
-    // Select All Visible Checkboxes
     function toggleSelectAll(masterChk) {
       const rows = document.querySelectorAll('#studentsTable tbody tr.student-row');
       rows.forEach(row => {
@@ -194,39 +254,121 @@
       });
     }
 
-    // Download Selected Rows as CSV
-    function downloadSelectedStudents() {
+    // Open Column Selection Modal
+    function openExportModal(format) {
       const checkedBoxes = document.querySelectorAll('.student-select-chk:checked');
       if (checkedBoxes.length === 0) {
-        return alert('Please select at least one student checkbox to download!');
+        return alert('Please select at least one student checkbox first!');
       }
 
-      const headers = ['Admission No', 'Roll No', 'Full Name', 'Date of Birth', 'Father Name', 'Phone', 'Batch'];
-      const csvRows = [headers.join(',')];
+      document.getElementById('exportFormatType').value = format;
+      document.getElementById('exportModalTitle').innerText = format === 'pdf'
+        ? 'Select Columns for PDF'
+        : 'Select Columns for CSV';
+      document.getElementById('exportSelectedCount').innerText = `Selected Students: ${checkedBoxes.length}`;
 
-      checkedBoxes.forEach(chk => {
-        const row = chk.closest('tr');
-        const values = [
-          row.dataset.adm,
-          row.dataset.roll,
-          row.dataset.name,
-          row.dataset.dob,
-          row.dataset.father,
-          row.dataset.phone,
-          row.dataset.batch
-        ].map(v => `"${String(v || '').replace(/"/g, '""')}"`);
-        csvRows.push(values.join(','));
-      });
+      const confirmBtn = document.getElementById('confirmExportBtn');
+      confirmBtn.innerText = format === 'pdf' ? 'Download PDF' : 'Download CSV';
+      confirmBtn.className = format === 'pdf' ? 'btn btn-danger' : 'btn btn-success';
 
-      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Students_List_${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      document.getElementById('exportColModal').style.display = 'flex';
+    }
+
+    function closeExportModal() {
+      document.getElementById('exportColModal').style.display = 'none';
+    }
+
+    function executeExport() {
+      const format = document.getElementById('exportFormatType').value;
+      const selectedColInputs = Array.from(document.querySelectorAll('input[name="exportCols"]:checked'));
+
+      if (selectedColInputs.length === 0) {
+        return alert('Please select at least one column to download!');
+      }
+
+      const selectedCols = selectedColInputs.map(cb => ({
+        key: cb.value,
+        label: cb.getAttribute('data-label')
+      }));
+
+      const checkedRows = Array.from(document.querySelectorAll('.student-select-chk:checked'))
+        .map(chk => chk.closest('tr'));
+
+      const today = new Date().toISOString().split('T')[0];
+
+      if (format === 'csv') {
+        const headers = selectedCols.map(c => c.label);
+        const csvRows = [headers.join(',')];
+
+        checkedRows.forEach(row => {
+          const values = selectedCols.map(c => {
+            const rawVal = row.dataset[c.key] || '';
+            return `"${String(rawVal).replace(/"/g, '""')}"`;
+          });
+          csvRows.push(values.join(','));
+        });
+
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Students_List_${today}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        closeExportModal();
+      } else if (format === 'pdf') {
+        if (!window.jspdf) {
+          return alert('PDF library is loading. Please check your internet connection and try again.');
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        doc.setFontSize(15);
+        doc.setTextColor(15, 23, 42);
+        doc.text('Active Student List', 14, 16);
+
+        doc.setFontSize(9.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Generated Date: ${today}   |   Total Students: ${checkedRows.length}`, 14, 22);
+
+        const headRow = ['#', ...selectedCols.map(c => c.label)];
+        const bodyRows = checkedRows.map((row, idx) => [
+          idx + 1,
+          ...selectedCols.map(c => row.dataset[c.key] || '-')
+        ]);
+
+        doc.autoTable({
+          startY: 27,
+          head: [headRow],
+          body: bodyRows,
+          theme: 'grid',
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            textColor: [30, 41, 59],
+            lineColor: [203, 213, 225],
+            lineWidth: 0.2
+          },
+          headStyles: {
+            fillColor: [37, 99, 235],
+            textColor: 255,
+            fontStyle: 'bold',
+            halign: 'center'
+          },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 10 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          }
+        });
+
+        doc.save(`Students_List_${today}.pdf`);
+        closeExportModal();
+      }
     }
 
     function openEditModal(btn) {

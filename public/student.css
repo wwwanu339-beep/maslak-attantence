@@ -1,9 +1,16 @@
 :root {
   --primary-color: #2563eb;
   --primary-hover: #1d4ed8;
-  --success-color: #10b981;
-  --danger-color: #ef4444;
-  --danger-hover: #dc2626;
+  --secondary-color: #475569;
+  --secondary-hover: #334155;
+  --success-color: #16a34a;
+  --success-hover: #15803d;
+  --info-color: #0284c7;
+  --info-hover: #0369a1;
+  --warning-color: #d97706;
+  --warning-hover: #b45309;
+  --danger-color: #dc2626;
+  --danger-hover: #b91c1c;
   --bg-color: #f1f5f9;
   --card-bg: #ffffff;
   --text-main: #1e293b;
@@ -25,7 +32,7 @@ body {
 }
 
 .container {
-  max-width: 950px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
@@ -36,7 +43,7 @@ h1 {
   color: #0f172a;
 }
 
-/* കാർഡ് സ്റ്റൈൽ */
+/* Card Style */
 .card {
   background: var(--card-bg);
   border-radius: 10px;
@@ -52,7 +59,7 @@ h1 {
   color: var(--text-main);
 }
 
-/* ഇൻപുട്ട് ഫോം ഗ്രിഡ് */
+/* Input Form Grid */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -66,33 +73,34 @@ h1 {
   color: var(--text-main);
 }
 
-input, select {
+input, select, textarea {
   width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 7px;
   font-size: 14px;
+  font-family: inherit;
   color: var(--text-main);
   background-color: #f8fafc;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-input:focus, select:focus {
+input:focus, select:focus, textarea:focus {
   border-color: var(--primary-color);
   background-color: #ffffff;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* ചെക്ക്ബോക്സുകൾക്ക് മുകളിലെ input { width: 100% } ബാധിക്കാതിരിക്കാൻ */
 input[type="checkbox"] {
-  width: auto;
+  width: 16px;
+  height: 16px;
   margin: 0;
   accent-color: var(--primary-color);
   cursor: pointer;
 }
 
-/* ബാച്ച് സെലക്ഷൻ ഭാഗം */
+/* Batch Selection Chips */
 .batch-selection-wrapper {
   grid-column: 1 / -1;
   background-color: #f8fafc;
@@ -109,14 +117,12 @@ input[type="checkbox"] {
   margin-bottom: 10px;
 }
 
-/* ബാച്ച് ചെക്ക്ബോക്സുകൾ നിരനിരയായി (Flex) വരാൻ */
 .batch-checkbox-group {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-/* ഓരോ ബാച്ചും ഒരു Pill / Chip ബട്ടൺ പോലെ കാണിക്കാൻ */
 .batch-chip {
   display: inline-flex;
   align-items: center;
@@ -138,7 +144,6 @@ input[type="checkbox"] {
   background-color: #eff6ff;
 }
 
-/* ചെക്ക്ബോക്സ് ടിക്ക് ചെയ്യുമ്പോൾ ആ ചിപ്പിന്റെ നിറം മാറാൻ */
 .batch-chip:has(input:checked) {
   background-color: #eff6ff;
   border-color: var(--primary-color);
@@ -146,45 +151,123 @@ input[type="checkbox"] {
   font-weight: 600;
 }
 
-/* ബട്ടണുകൾ */
+/* Standard Button System */
 .btn {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 13.5px;
   font-weight: 600;
+  font-family: inherit;
+  line-height: 1.2;
+  border-radius: 7px;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.18s ease;
 }
 
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-sm {
+  padding: 6px 11px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.btn-primary,
 .btn-add {
   background-color: var(--primary-color);
   color: #ffffff;
 }
 
+.btn-primary:hover,
 .btn-add:hover {
   background-color: var(--primary-hover);
 }
 
+.btn-secondary {
+  background-color: var(--secondary-color);
+  color: #ffffff;
+}
+
+.btn-secondary:hover {
+  background-color: var(--secondary-hover);
+}
+
+.btn-success,
+.btn-download {
+  background-color: var(--success-color);
+  color: #ffffff;
+}
+
+.btn-success:hover,
+.btn-download:hover {
+  background-color: var(--success-hover);
+}
+
+.btn-edit-std,
 .btn-edit {
-  background-color: #e0e7ff;
-  color: var(--primary-color);
+  background-color: var(--info-color);
+  color: #ffffff;
 }
 
+.btn-edit-std:hover,
 .btn-edit:hover {
-  background-color: #c7d2fe;
+  background-color: var(--info-hover);
 }
 
+.btn-warning {
+  background-color: var(--warning-color);
+  color: #ffffff;
+}
+
+.btn-warning:hover {
+  background-color: var(--warning-hover);
+}
+
+.btn-danger,
 .btn-delete {
-  background-color: #fee2e2;
-  color: var(--danger-color);
+  background-color: var(--danger-color);
+  color: #ffffff;
 }
 
+.btn-danger:hover,
 .btn-delete:hover {
-  background-color: #fecaca;
+  background-color: var(--danger-hover);
 }
 
-/* ടേബിൾ ലേഔട്ട് */
+.btn-draft {
+  background-color: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.btn-draft:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Search & Action Toolbar */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 220px;
+}
+
+/* Table Layout */
 .table-responsive {
   overflow-x: auto;
 }
@@ -202,21 +285,27 @@ thead th {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 12px 16px;
+  padding: 12px 14px;
   border-bottom: 2px solid var(--border-color);
 }
 
 tbody td {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border-color);
   font-size: 14px;
+  vertical-align: middle;
 }
 
 tbody tr:hover {
   background-color: #f8fafc;
 }
 
-/* ബാഡ്ജുകൾ */
+.chk-col {
+  width: 40px;
+  text-align: center;
+}
+
+/* Badges */
 .badge {
   display: inline-block;
   padding: 4px 8px;
@@ -224,7 +313,7 @@ tbody tr:hover {
   font-weight: 600;
   color: #0369a1;
   background-color: #e0f2fe;
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .badge-roll {
@@ -232,42 +321,66 @@ tbody tr:hover {
   background: #e2e8f0;
   color: #0f172a;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: 5px;
   font-weight: 700;
   font-size: 13px;
 }
 
-/* ആക്ഷൻ ബട്ടണുകൾ */
+/* Table Action Buttons */
 .action-btns {
   display: flex;
-  gap: 8px;
+  align-items: center;
   justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
-/* മോഡൽ പോപ്പ്-അപ്പ് സ്റ്റൈലുകൾ */
+/* Modal Popup Styles */
 .modal {
   display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
   justify-content: center;
   align-items: center;
   z-index: 1000;
   padding: 15px;
+  overflow-y: auto;
 }
 
 .modal-content {
   background: #ffffff;
   padding: 24px;
-  border-radius: 10px;
+  border-radius: 12px;
   width: 100%;
-  max-width: 450px;
+  max-width: 460px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
 }
 
 .modal-form-body {
@@ -280,5 +393,39 @@ tbody tr:hover {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 15px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
 }
+
+    .col-select-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .col-chk-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #1e293b;
+      cursor: pointer;
+      user-select: none;
+    }
+    .col-chk-item:hover {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+    .col-chk-item:has(input:checked) {
+      border-color: #2563eb;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+  

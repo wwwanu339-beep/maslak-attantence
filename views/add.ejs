@@ -5,13 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Batch & Subject Settings</title>
   <link rel="stylesheet" href="/add.css">
-  <style>
-    .danger-zone { border: 1px solid #fecaca !important; background-color: #fff5f5 !important; }
-    .danger-zone h3 { color: #b91c1c; }
-    .clear-btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
-    .btn-clear { background-color: #dc2626; color: #fff; border: none; padding: 10px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .btn-clear:hover { background-color: #b91c1c; }
-  </style>
 </head>
 <body>
 
@@ -75,8 +68,10 @@
         <h3>Manage Users</h3>
         
         <div class="user-form-grid">
-          <input type="text" id="userInput" placeholder="Enter User Name">
-          <input type="password" id="userPass" placeholder="Enter Password">
+          <input type="text" id="userFullName" placeholder="Full Name">
+          <input type="text" id="userPhone" placeholder="Phone Number">
+          <input type="text" id="userInput" placeholder="Username (Login ID)">
+          <input type="password" id="userPass" placeholder="Password">
           
           <select id="userRole" onchange="handleRoleChange()">
             <option value="admin">Admin / Full Access</option>
@@ -113,28 +108,44 @@
           <select id="userSelect">
             <option value="" disabled selected>Select User</option>
             <% users.forEach(u => { %>
-              <option value="<%= u.id %>"><%= u.username %> (<%= u.role || 'admin' %>)</option>
+              <option value="<%= u.id %>">
+                <%= u.name ? `${u.name} (@${u.username})` : u.username %> — <%= u.phone || 'No Phone' %> (<%= u.role || 'admin' %>)
+              </option>
             <% }) %>
           </select>
           <button type="button" class="btn btn-delete" onclick="deleteUser()">Delete</button>
         </div>
       </div>
 
-      <!-- Clear All Data Card -->
+      <!-- Full Width Clear All Data Card -->
       <div class="settings-card danger-zone">
         <h3>Clear All Records (Reset Data)</h3>
         <p style="font-size: 13px; color: #7f1d1d; margin: 4px 0 10px;">
-          Warning: Clicking these buttons will permanently delete all records from the selected category.
+          Warning: Clicking these buttons will permanently delete all records from the selected category. Main Admin password verification is required.
         </p>
         <div class="clear-btn-grid">
-          <button type="button" class="btn-clear" onclick="clearAllData('attendance')">Clear Attendance</button>
-          <button type="button" class="btn-clear" onclick="clearAllData('students')">Clear Students</button>
-          <button type="button" class="btn-clear" onclick="clearAllData('subjects')">Clear Subjects</button>
-          <button type="button" class="btn-clear" onclick="clearAllData('batches')">Clear Batches</button>
-          <button type="button" class="btn-clear" onclick="clearAllData('users')">Clear Users</button>
+          <button type="button" class="btn-clear" onclick="openClearModal('attendance')">Clear Attendance</button>
+          <button type="button" class="btn-clear" onclick="openClearModal('students')">Clear Students</button>
+          <button type="button" class="btn-clear" onclick="openClearModal('subjects')">Clear Subjects</button>
+          <button type="button" class="btn-clear" onclick="openClearModal('batches')">Clear Batches</button>
+          <button type="button" class="btn-clear" onclick="openClearModal('users')">Clear Users</button>
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Main Admin Password Verification Modal -->
+  <div id="clearAuthModal" class="auth-modal" onclick="if(event.target === this) closeClearModal()">
+    <div class="auth-modal-box">
+      <h3>Confirm Data Reset</h3>
+      <p id="clearModalDesc">Enter the Main Admin password to permanently clear records.</p>
+      <input type="hidden" id="clearTargetValue">
+      <input type="password" id="mainAdminPassword" placeholder="Enter Main Admin Password" onkeyup="if(event.key === 'Enter') executeClearData()">
+      <div class="auth-modal-actions">
+        <button type="button" class="btn" style="background: #64748b; color: #fff;" onclick="closeClearModal()">Cancel</button>
+        <button type="button" id="confirmClearBtn" class="btn-clear" onclick="executeClearData()">Confirm & Clear</button>
+      </div>
     </div>
   </div>
 
@@ -232,6 +243,8 @@
     }
 
     async function addUser() {
+      const name = document.getElementById('userFullName').value.trim();
+      const phone = document.getElementById('userPhone').value.trim();
       const username = document.getElementById('userInput').value.trim();
       const password = document.getElementById('userPass').value.trim();
       const role = document.getElementById('userRole').value;
@@ -244,7 +257,7 @@
       const can_attendanceveiw = document.getElementById('userview').checked;
       const can_studet = document.getElementById('userstudet').checked;
 
-      if (!username || !password) return alert('Username and password are required!');
+      if (!name || !username || !password) return alert('Full Name, Username, and Password are required!');
       if (role === 'batch_leader' && !allowed_batch) return alert('Please select an assigned batch for Batch Leader!');
       if (role === 'subject_leader' && (!allowed_batch || !allowed_subject)) {
         return alert('Please select both batch and subject for Subject Leader!');
@@ -254,6 +267,8 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
+          name,
+          phone,
           username, 
           password, 
           role,
@@ -282,23 +297,49 @@
       else alert('Error: ' + (data.error || 'Failed to delete user!'));
     }
 
-    async function clearAllData(target) {
-      const label = target.toUpperCase();
-      if (!confirm(`WARNING: Are you sure you want to permanently delete ALL ${label} records? This action cannot be undone.`)) {
-        return;
+    // Open Password Verification Modal
+    function openClearModal(target) {
+      document.getElementById('clearTargetValue').value = target;
+      document.getElementById('clearModalDesc').innerHTML = `You are about to permanently delete <strong>ALL ${target.toUpperCase()}</strong> records. Please enter the <strong>Main Admin Password</strong> to continue:`;
+      document.getElementById('mainAdminPassword').value = '';
+      document.getElementById('clearAuthModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('mainAdminPassword').focus(), 100);
+    }
+
+    function closeClearModal() {
+      document.getElementById('clearAuthModal').style.display = 'none';
+    }
+
+    async function executeClearData() {
+      const target = document.getElementById('clearTargetValue').value;
+      const adminPassword = document.getElementById('mainAdminPassword').value.trim();
+      const confirmBtn = document.getElementById('confirmClearBtn');
+
+      if (!adminPassword) {
+        return alert('Please enter the Main Admin password!');
       }
 
+      confirmBtn.disabled = true;
+      confirmBtn.innerText = 'Verifying...';
+
       try {
-        const res = await fetch(`/api/clear/${target}`, { method: 'DELETE' });
+        const res = await fetch(`/api/clear/${target}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminPassword })
+        });
         const data = await res.json();
         if (data.success) {
           alert(data.message);
           location.reload();
         } else {
-          alert('Error: ' + (data.error || 'Failed to clear records!'));
+          alert('Error: ' + (data.error || 'Verification failed!'));
         }
       } catch (err) {
         alert('Server connection error!');
+      } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.innerText = 'Confirm & Clear';
       }
     }
   </script>
