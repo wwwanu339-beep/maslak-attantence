@@ -656,38 +656,44 @@ app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async
 });
 
 // Auto-Shift & Batch Save Roll Numbers across 'students' and 'admissions' (Zero API Rate Limit)
+// Auto-Shift & Batch Save Roll Numbers across 'students' and 'admissions' (Gap-Free Sequential Order)
 async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admSheet, sRows, aRows) {
-  const newRoll = parseInt(desiredRollStr);
+  const newRoll = parseInt(desiredRollStr, 10);
   if (isNaN(newRoll) || newRoll < 1) return;
 
   const items = [];
   const processedAdms = new Set();
 
+  // Prioritize 'students' rows first, then 'admissions' rows for current roll numbers
   [...sRows, ...aRows].forEach(r => {
     const adm = String(r.get('admission_no') || '').trim();
     if (!adm || adm === targetAdmNo || processedAdms.has(adm)) return;
     processedAdms.add(adm);
 
-    const rNum = parseInt(String(r.get('roll_no') || '').trim());
+    const rNum = parseInt(String(r.get('roll_no') || '').trim(), 10);
     if (!isNaN(rNum) && rNum > 0) {
       items.push({ adm, roll: rNum });
     }
   });
 
+  // Sort all other students by their existing roll number
   items.sort((a, b) => a.roll - b.roll);
 
   const finalRollMap = new Map();
   finalRollMap.set(targetAdmNo, String(newRoll));
 
+  // Keep students before newRoll unchanged, and assign sequential numbers (newRoll + 1, +2...) after it
+  const beforeTarget = items.filter(item => item.roll < newRoll);
+  const afterTarget = items.filter(item => item.roll >= newRoll);
+
+  beforeTarget.forEach(item => {
+    finalRollMap.set(item.adm, String(item.roll));
+  });
+
   let nextAvailable = newRoll + 1;
-  items.forEach(item => {
-    if (item.roll < newRoll) {
-      finalRollMap.set(item.adm, String(item.roll));
-    } else {
-      const assigned = Math.max(item.roll + 1, nextAvailable);
-      finalRollMap.set(item.adm, String(assigned));
-      nextAvailable = assigned + 1;
-    }
+  afterTarget.forEach(item => {
+    finalRollMap.set(item.adm, String(nextAvailable));
+    nextAvailable++;
   });
 
   async function batchUpdateRollColumn(sheet) {
