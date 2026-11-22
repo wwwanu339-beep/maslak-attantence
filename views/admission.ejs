@@ -5,123 +5,57 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student Admissions</title>
   <link rel="stylesheet" href="/student.css">
-  <style>
-    /* Standard Button System */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 9px 16px;
-      font-size: 13.5px;
-      font-weight: 600;
-      font-family: inherit;
-      line-height: 1.2;
-      border-radius: 7px;
-      border: 1px solid transparent;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.18s ease;
-      white-space: nowrap;
-    }
-    .btn:active { transform: scale(0.98); }
-
-    .btn-sm {
-      padding: 6px 11px;
-      font-size: 12px;
-      border-radius: 6px;
-    }
-
-    .btn-primary { background-color: #2563eb; color: #ffffff; }
-    .btn-primary:hover { background-color: #1d4ed8; }
-
-    .btn-secondary { background-color: #475569; color: #ffffff; }
-    .btn-secondary:hover { background-color: #334155; }
-
-    .btn-draft { background-color: #f1f5f9; color: #334155; border-color: #cbd5e1; }
-    .btn-draft:hover { background-color: #e2e8f0; color: #0f172a; }
-
-    .btn-success { background-color: #16a34a; color: #ffffff; }
-    .btn-success:hover { background-color: #15803d; }
-
-    .btn-warning { background-color: #d97706; color: #ffffff; }
-    .btn-warning:hover { background-color: #b45309; }
-
-    .btn-danger { background-color: #dc2626; color: #ffffff; }
-    .btn-danger:hover { background-color: #b91c1c; }
-
-    .btn-edit-std { background-color: #0284c7; color: #ffffff; }
-    .btn-edit-std:hover { background-color: #0369a1; }
-
-    .action-btns {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      flex-wrap: nowrap;
-    }
-
-    /* Status Badges & Form Fields */
-    .status-badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
-    .status-active { background: #dcfce7; color: #15803d; }
-    .status-pending { background: #fef08a; color: #854d0e; }
-    .status-draft { background: #e2e8f0; color: #475569; }
-
-    .readonly-adm { background-color: #f1f5f9 !important; font-weight: 700; color: #0f172a; cursor: not-allowed; }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-
-    .field-box label { font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 5px; }
-    .field-box input, .field-box textarea {
-      width: 100%;
-      padding: 9px 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 7px;
-      font-size: 14px;
-      font-family: inherit;
-      box-sizing: border-box;
-    }
-    .field-box input:focus, .field-box textarea:focus {
-      outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
-
-    .full-span { grid-column: 1 / -1; }
-    .doc-link { color: #2563eb; text-decoration: none; font-size: 12px; font-weight: 600; }
-    .doc-link:hover { text-decoration: underline; }
-    .student-thumb { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1; }
-
-    /* Modal Styles */
-    .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); justify-content: center; align-items: center; z-index: 1000; padding: 15px; overflow-y: auto; }
-    .modal-content { background: #fff; padding: 24px; border-radius: 12px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); animation: modalFade 0.18s ease-out; }
-    @keyframes modalFade {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
-    .modal-header h3 { margin: 0; font-size: 18px; color: #0f172a; }
-    .modal-close { background: none; border: none; font-size: 24px; color: #64748b; cursor: pointer; line-height: 1; }
-    .modal-close:hover { color: #0f172a; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 14px; border-top: 1px solid #e2e8f0; flex-wrap: wrap; }
-  </style>
+  <link rel="stylesheet" href="/admission.css">
 </head>
 <body>
 
+  <%
+    const safeBranding = (typeof branding !== 'undefined' && branding) ? branding : { headerUrl: '', footerUrl: '' };
+  %>
+
   <div class="container">
     <div class="top-bar">
-      <h1 style="margin: 0;">Student Admission Portal</h1>
-      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button type="button" class="btn btn-success" onclick="openNewAdmModal()">+ New Admission</button>
-        <a href="/students" class="btn btn-primary">Active Student List →</a>
-        <a href="/dashboard" class="btn btn-secondary">Dashboard</a>
+      <h1 class="top-bar-title">Student Admissions</h1>
+
+      <div class="top-bar-actions-group">
+        <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5"></path>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </a>
+
+        <div class="header-menu-wrapper" id="headerMenuWrapper">
+          <button type="button" class="btn-header-icon" id="headerMenuBtn" onclick="toggleHeaderMenu(event)" title="Options" aria-label="Options Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="1.5"></circle>
+              <circle cx="12" cy="12" r="1.5"></circle>
+              <circle cx="12" cy="19" r="1.5"></circle>
+            </svg>
+          </button>
+
+          <div class="header-dropdown-menu" id="headerDropdownMenu">
+            <button type="button" class="menu-drop-item item-success" onclick="closeHeaderMenu(); openNewAdmModal();">
+              <span>+ New Admission</span>
+            </button>
+            <a href="/students" class="menu-drop-item item-primary">
+              <span>Active Student List →</span>
+            </a>
+            <button type="button" class="menu-drop-item item-warning" onclick="closeHeaderMenu(); openBrandingModal();">
+              <span>Print Header / Footer</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- 1. All Admissions Table -->
     <div class="card">
-      <h3>All Admissions (<%= allStudents.length %>) — Only active students appear in Student List & Attendance</h3>
+      <h3>All Admissions (<%= allStudents.length %>)</h3>
+      <p class="card-subtitle">Only active students appear in the Active Student List & Attendance.</p>
+
       <div class="table-responsive">
-        <table>
+        <table id="admissionsTable">
           <thead>
             <tr>
               <th>Photo</th>
@@ -129,7 +63,7 @@
               <th>Student & Father</th>
               <th>DOB</th>
               <th>Aadhaar / Docs</th>
-              <th>Batch</th>
+              <th>Main Batch</th>
               <th>Status</th>
               <th style="text-align: center;">Action</th>
             </tr>
@@ -137,75 +71,59 @@
           <tbody>
             <% if (allStudents.length === 0) { %>
               <tr>
-                <td colspan="8" style="text-align: center; color: #64748b; padding: 24px;">
-                  No admission records found. Click <strong>"+ New Admission"</strong> to add a student.
+                <td colspan="8" class="empty-row">
+                  No admission records found. Tap the menu icon (<strong>⋮</strong>) above to add a new admission.
                 </td>
               </tr>
             <% } %>
 
-            <% allStudents.forEach(s => { %>
+            <% allStudents.forEach((s, index) => { %>
               <tr>
-                <td>
+                <td data-label="Photo">
                   <% if (s.photo_file) { %>
                     <a href="<%= s.photo_file %>" target="_blank">
                       <img src="<%= s.photo_file %>" alt="Photo" class="student-thumb">
                     </a>
                   <% } else { %>
-                    <span style="font-size: 11px; color: #94a3b8;">No Photo</span>
+                    <span class="no-photo-tag">No<br>Photo</span>
                   <% } %>
                 </td>
-                <td><strong><%= s.admission_no || '-' %></strong></td>
-                <td>
-                  <strong><%= s.full_name %></strong><br>
-                  <small style="color: #64748b;">Father: <%= s.father_name || '-' %></small>
+                <td data-label="Adm No"><strong><%= s.admission_no || '-' %></strong></td>
+                <td data-label="Student">
+                  <div>
+                    <strong><%= s.full_name %></strong>
+                    <span class="student-meta-sub">Father: <%= s.father_name || '-' %></span>
+                  </div>
                 </td>
-                <td><%= s.dob || '-' %></td>
-                <td>
-                  <div style="font-size: 12px;"><%= s.aadhaar_no || '-' %></div>
-                  <% if (s.aadhaar_file) { %>
-                    <a href="<%= s.aadhaar_file %>" target="_blank" class="doc-link">View Document ↗</a>
-                  <% } %>
+                <td data-label="DOB"><%= s.dob || '-' %></td>
+                <td data-label="Aadhaar / Docs">
+                  <div>
+                    <div class="aadhaar-text"><%= s.aadhaar_no || '-' %></div>
+                    <% if (s.aadhaar_file) { %>
+                      <a href="<%= s.aadhaar_file %>" target="_blank" class="doc-link">View Document ↗</a>
+                    <% } %>
+                  </div>
                 </td>
-                <td><span class="badge"><%= s.batch_name || 'No Batch' %></span></td>
-                <td>
-                  <span class="status-badge status-<%= s.status %>">
-                    <%= s.status %>
-                  </span>
+                <td data-label="Main Batch"><span class="badge"><%= s.main_batch_name || s.batch_name || 'No Batch' %></span></td>
+                <td data-label="Status">
+                  <select class="status-select st-<%= s.status %>"
+                          data-current="<%= s.status %>"
+                          data-adm="<%= s.admission_no %>"
+                          onchange="handleStatusDropdown(this)">
+                    <% if (s.status === 'draft') { %>
+                      <option value="draft" selected>Draft</option>
+                    <% } %>
+                    <option value="pending" <%= s.status === 'pending' ? 'selected' : '' %>>Not Active</option>
+                    <option value="active" <%= s.status === 'active' ? 'selected' : '' %>>Active</option>
+                  </select>
                 </td>
-                <td>
+                <td data-label="Action">
                   <div class="action-btns">
-                    <button type="button" class="btn btn-sm btn-edit-std"
-                      data-adm="<%= s.admission_no || '' %>"
-                      data-roll="<%= s.roll_no || '' %>"
-                      data-name="<%= s.full_name || '' %>"
-                      data-dob="<%= s.dob || '' %>"
-                      data-father="<%= s.father_name || '' %>"
-                      data-phone="<%= s.phone || '' %>"
-                      data-aadhaar="<%= s.aadhaar_no || '' %>"
-                      data-address="<%= s.address || '' %>"
-                      data-batch="<%= s.batch_id || '' %>"
-                      data-status="<%= s.status || 'pending' %>"
-                      data-photo="<%= s.photo_file || '' %>"
-                      data-doc="<%= s.aadhaar_file || '' %>"
-                      onclick="openEditAdmModal(this)">
+                    <button type="button" class="btn btn-sm btn-edit-std" data-index="<%= index %>" onclick="openEditAdmByIndex(this.dataset.index)">
                       Edit
                     </button>
-
-                    <% if (s.status !== 'active') { %>
-                      <button type="button" class="btn btn-sm btn-success"
-                        onclick="toggleStudentStatus('<%= s.admission_no %>', 'active')">
-                        Make Active
-                      </button>
-                    <% } else { %>
-                      <button type="button" class="btn btn-sm btn-warning"
-                        onclick="toggleStudentStatus('<%= s.admission_no %>', 'pending')">
-                        Deactivate
-                      </button>
-                    <% } %>
-
-                    <button type="button" class="btn btn-sm btn-danger"
-                      onclick="deleteAdmission('<%= s.admission_no %>')">
-                      Delete
+                    <button type="button" class="btn btn-sm btn-secondary" data-index="<%= index %>" onclick="printAdmByIndex(this.dataset.index)">
+                      Print
                     </button>
                   </div>
                 </td>
@@ -219,7 +137,7 @@
 
   <!-- 2. New Admission Popup Modal -->
   <div id="newAdmModal" class="modal" onclick="if(event.target === this) closeNewAdmModal()">
-    <div class="modal-content">
+    <div class="modal-content modal-lg">
       <div class="modal-header">
         <h3>New Student Admission</h3>
         <button type="button" class="modal-close" onclick="closeNewAdmModal()">×</button>
@@ -238,12 +156,12 @@
           </div>
 
           <div class="field-box">
-            <label>Full Name: <span style="color:#dc2626;">*</span></label>
+            <label>Full Name: <span class="req-star">*</span></label>
             <input type="text" id="stName" name="full_name" placeholder="Student Full Name" required>
           </div>
 
           <div class="field-box">
-            <label>Date of Birth: <span style="color:#dc2626;">*</span></label>
+            <label>Date of Birth: <span class="req-star">*</span></label>
             <input type="date" id="stDob" name="dob" required>
           </div>
 
@@ -283,11 +201,11 @@
           </div>
 
           <div class="batch-selection-wrapper full-span">
-            <span class="batch-selection-title">Select Batches (Optional for Draft):</span>
+            <span class="batch-selection-title">Select Batches (First checked is Main Batch):</span>
             <div class="batch-checkbox-group">
               <% batches.forEach(b => { %>
                 <label class="batch-chip">
-                  <input type="checkbox" name="admBatches" value="<%= b.id %>">
+                  <input type="checkbox" name="admBatches" value="<%= b.id %>" data-name="<%= b.name %>">
                   <span><%= b.name %></span>
                 </label>
               <% }) %>
@@ -297,8 +215,9 @@
 
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" onclick="closeNewAdmModal()">Cancel</button>
-          <button type="button" class="btn btn-draft" onclick="submitAdmission('draft')">Save Draft</button>
-          <button type="button" class="btn btn-primary" onclick="submitAdmission('pending')">Submit Admission</button>
+          <button type="button" class="btn btn-draft" onclick="submitAdmission('draft', false)">Save Draft</button>
+          <button type="button" class="btn btn-primary" onclick="submitAdmission('pending', false)">Submit Admission</button>
+          <button type="button" class="btn btn-success" onclick="submitAdmission('pending', true)">Submit & Print</button>
         </div>
       </form>
     </div>
@@ -306,7 +225,7 @@
 
   <!-- 3. Edit Admission Modal -->
   <div id="editAdmModal" class="modal" onclick="if(event.target === this) closeEditAdmModal()">
-    <div class="modal-content">
+    <div class="modal-content modal-lg">
       <div class="modal-header">
         <h3>Edit Admission Details</h3>
         <button type="button" class="modal-close" onclick="closeEditAdmModal()">×</button>
@@ -325,12 +244,12 @@
         </div>
 
         <div class="field-box">
-          <label>Full Name: <span style="color:#dc2626;">*</span></label>
+          <label>Full Name: <span class="req-star">*</span></label>
           <input type="text" id="editAdmName" required>
         </div>
 
         <div class="field-box">
-          <label>Date of Birth: <span style="color:#dc2626;">*</span></label>
+          <label>Date of Birth: <span class="req-star">*</span></label>
           <input type="date" id="editAdmDob" required>
         </div>
 
@@ -370,7 +289,7 @@
         </div>
 
         <div class="batch-selection-wrapper full-span">
-          <span class="batch-selection-title">Select Batches:</span>
+          <span class="batch-selection-title">Select Batches (First checked is Main Batch):</span>
           <div class="batch-checkbox-group">
             <% batches.forEach(b => { %>
               <label class="batch-chip">
@@ -390,13 +309,96 @@
     </div>
   </div>
 
+  <!-- 4. Print Header & Footer Upload Modal -->
+  <div id="brandingModal" class="modal" onclick="if(event.target === this) closeBrandingModal()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Admission Print Header & Footer</h3>
+        <button type="button" class="modal-close" onclick="closeBrandingModal()">×</button>
+      </div>
+      <p class="branding-desc">
+        Upload header and footer banner images to automatically include them in every Admission Form printout.
+      </p>
+
+      <div class="modal-form-body">
+        <div>
+          <label class="field-label">Header Image (Top Banner):</label>
+          <input type="file" id="brandHeaderInput" accept="image/*" onchange="previewBrandImg(this, 'headerPreview')">
+          <img id="headerPreview" class="preview-banner" src="<%= safeBranding.headerUrl %>" <%= safeBranding.headerUrl ? '' : 'hidden' %>>
+        </div>
+
+        <div style="margin-top: 8px;">
+          <label class="field-label">Footer Image (Bottom Banner):</label>
+          <input type="file" id="brandFooterInput" accept="image/*" onchange="previewBrandImg(this, 'footerPreview')">
+          <img id="footerPreview" class="preview-banner" src="<%= safeBranding.footerUrl %>" <%= safeBranding.footerUrl ? '' : 'hidden' %>>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" onclick="clearBranding()">Remove Both</button>
+        <button type="button" class="btn btn-secondary" onclick="closeBrandingModal()">Close</button>
+        <button type="button" id="saveBrandBtn" class="btn btn-primary" onclick="saveBranding()">Save Header & Footer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Safe JSON Data Store -->
+  <script id="admissionsDataJson" type="application/json"><%- JSON.stringify(allStudents).replace(/</g, '\\u003c') %></script>
+  <script id="brandingDataJson" type="application/json"><%- JSON.stringify(safeBranding).replace(/</g, '\\u003c') %></script>
+
   <script>
-    function cleanVal(val) {
-      if (!val || val === 'undefined' || val === 'null') return '';
-      return String(val).trim();
+    const ADMISSIONS_LIST = JSON.parse(document.getElementById('admissionsDataJson').textContent || '[]');
+    const BRANDING_CFG = JSON.parse(document.getElementById('brandingDataJson').textContent || '{}');
+    const SERVER_HEADER_URL = BRANDING_CFG.headerUrl || '';
+    const SERVER_FOOTER_URL = BRANDING_CFG.footerUrl || '';
+
+    let selectedNewBatches = [];
+    let selectedEditBatches = [];
+
+    // Header Dropdown Menu Toggle
+    function toggleHeaderMenu(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('headerDropdownMenu');
+      const btn = document.getElementById('headerMenuBtn');
+      const isOpen = menu.classList.toggle('open');
+      btn.classList.toggle('active', isOpen);
     }
 
+    function closeHeaderMenu() {
+      const menu = document.getElementById('headerDropdownMenu');
+      const btn = document.getElementById('headerMenuBtn');
+      if (menu) menu.classList.remove('open');
+      if (btn) btn.classList.remove('active');
+    }
+
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('headerMenuWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeHeaderMenu();
+      }
+    });
+
+    document.addEventListener('change', (e) => {
+      if (e.target.name === 'admBatches') {
+        const val = e.target.value;
+        if (e.target.checked) {
+          if (!selectedNewBatches.includes(val)) selectedNewBatches.push(val);
+        } else {
+          selectedNewBatches = selectedNewBatches.filter(item => item !== val);
+        }
+      } else if (e.target.name === 'editAdmBatches') {
+        const val = e.target.value;
+        if (e.target.checked) {
+          if (!selectedEditBatches.includes(val)) selectedEditBatches.push(val);
+        } else {
+          selectedEditBatches = selectedEditBatches.filter(item => item !== val);
+        }
+      }
+    });
+
     function openNewAdmModal() {
+      selectedNewBatches = [];
+      document.querySelectorAll('input[name="admBatches"]').forEach(cb => cb.checked = false);
       document.getElementById('newAdmModal').style.display = 'flex';
       setTimeout(() => document.getElementById('stName').focus(), 100);
     }
@@ -405,30 +407,61 @@
       document.getElementById('newAdmModal').style.display = 'none';
     }
 
-    async function submitAdmission(saveMode) {
+    async function handleStatusDropdown(selectEl) {
+      const admNo = selectEl.dataset.adm;
+      const action = selectEl.value;
+      const prevStatus = selectEl.getAttribute('data-current');
+
+      try {
+        const res = await fetch(`/api/admissions/${encodeURIComponent(admNo)}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: action })
+        });
+        const data = await res.json();
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to update status!'));
+          selectEl.value = prevStatus;
+        }
+      } catch (err) {
+        alert('Server error!');
+        selectEl.value = prevStatus;
+      }
+    }
+
+    async function submitAdmission(saveMode, autoPrint = false) {
       const full_name = document.getElementById('stName').value.trim();
       const dob = document.getElementById('stDob').value.trim();
+      const roll_no = document.getElementById('stRoll').value.trim();
+      const father_name = document.getElementById('stFather').value.trim();
+      const phone = document.getElementById('stPhone').value.trim();
+      const aadhaar_no = document.getElementById('stAadhaar').value.trim();
+      const address = document.getElementById('stAddress').value.trim();
 
       if (!full_name || !dob) {
         return alert('Please enter both Full Name and Date of Birth!');
       }
 
-      const batch_id = Array.from(document.querySelectorAll('input[name="admBatches"]:checked'))
-        .map(cb => cb.value)
-        .join(',');
-
+      const batch_id = selectedNewBatches.join(',');
       if (saveMode === 'pending' && !batch_id) {
         return alert('Please select at least one batch to submit! (Or click Save Draft)');
       }
 
+      const firstBatchCheckbox = selectedNewBatches.length > 0
+        ? document.querySelector(`input[name="admBatches"][value="${selectedNewBatches[0]}"]`)
+        : null;
+      const mainBatchName = firstBatchCheckbox ? firstBatchCheckbox.getAttribute('data-name') : 'No Batch';
+
       const formData = new FormData();
       formData.append('full_name', full_name);
       formData.append('dob', dob);
-      formData.append('roll_no', document.getElementById('stRoll').value.trim());
-      formData.append('father_name', document.getElementById('stFather').value.trim());
-      formData.append('phone', document.getElementById('stPhone').value.trim());
-      formData.append('aadhaar_no', document.getElementById('stAadhaar').value.trim());
-      formData.append('address', document.getElementById('stAddress').value.trim());
+      formData.append('roll_no', roll_no);
+      formData.append('father_name', father_name);
+      formData.append('phone', phone);
+      formData.append('aadhaar_no', aadhaar_no);
+      formData.append('address', address);
       formData.append('password', document.getElementById('stPass').value.trim());
       formData.append('batch_id', batch_id);
       formData.append('status', saveMode);
@@ -446,11 +479,28 @@
         });
         const data = await res.json();
         if (data.success) {
-          const msg = saveMode === 'draft'
-            ? `Saved as Draft! Admission No: ${data.admission_no}`
-            : `Admission submitted! Admission No: ${data.admission_no}\n(Click "Make Active" to move student to the active list)`;
-          alert(msg);
-          location.reload();
+          if (autoPrint) {
+            printAdmissionRecord({
+              admission_no: data.admission_no,
+              roll_no: roll_no,
+              full_name: full_name,
+              dob: dob,
+              father_name: father_name,
+              phone: phone,
+              aadhaar_no: aadhaar_no,
+              address: address,
+              main_batch_name: mainBatchName,
+              status: saveMode,
+              photo_file: ''
+            });
+            setTimeout(() => location.reload(), 600);
+          } else {
+            const msg = saveMode === 'draft'
+              ? `Saved as Draft! Admission No: ${data.admission_no}`
+              : `Admission submitted! Admission No: ${data.admission_no}\n(Select "Active" in Status dropdown to move student to Active List)`;
+            alert(msg);
+            location.reload();
+          }
         } else {
           alert('Error: ' + (data.error || 'Failed to save admission!'));
         }
@@ -459,49 +509,40 @@
       }
     }
 
-    function openEditAdmModal(btn) {
-      const adm = cleanVal(btn.getAttribute('data-adm'));
-      const roll = cleanVal(btn.getAttribute('data-roll'));
-      const name = cleanVal(btn.getAttribute('data-name'));
-      const rawDob = cleanVal(btn.getAttribute('data-dob'));
-      const father = cleanVal(btn.getAttribute('data-father'));
-      const phone = cleanVal(btn.getAttribute('data-phone'));
-      const aadhaar = cleanVal(btn.getAttribute('data-aadhaar'));
-      const address = cleanVal(btn.getAttribute('data-address'));
-      const batchStr = cleanVal(btn.getAttribute('data-batch'));
-      const status = cleanVal(btn.getAttribute('data-status')) || 'pending';
-      const photoUrl = cleanVal(btn.getAttribute('data-photo'));
-      const docUrl = cleanVal(btn.getAttribute('data-doc'));
+    function openEditAdmByIndex(idx) {
+      const s = ADMISSIONS_LIST[Number(idx)];
+      if (!s) return;
 
-      let formattedDob = rawDob;
-      if (rawDob && rawDob.includes('/')) {
-        const parts = rawDob.split('/');
+      let formattedDob = s.dob || '';
+      if (formattedDob.includes('/')) {
+        const parts = formattedDob.split('/');
         if (parts[2] && parts[2].length === 4) {
           formattedDob = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
       }
 
-      document.getElementById('editAdmStatus').value = status;
-      document.getElementById('editAdmNo').value = adm;
-      document.getElementById('editAdmRoll').value = roll;
-      document.getElementById('editAdmName').value = name;
+      document.getElementById('editAdmStatus').value = s.status || 'pending';
+      document.getElementById('editAdmNo').value = s.admission_no || '';
+      document.getElementById('editAdmRoll').value = s.roll_no || '';
+      document.getElementById('editAdmName').value = s.full_name || '';
       document.getElementById('editAdmDob').value = formattedDob;
-      document.getElementById('editAdmFather').value = father;
-      document.getElementById('editAdmPhone').value = phone;
-      document.getElementById('editAdmAadhaar').value = aadhaar;
-      document.getElementById('editAdmAddress').value = address;
+      document.getElementById('editAdmFather').value = s.father_name || '';
+      document.getElementById('editAdmPhone').value = s.phone || '';
+      document.getElementById('editAdmAadhaar').value = s.aadhaar_no || '';
+      document.getElementById('editAdmAddress').value = s.address || '';
       document.getElementById('editAdmPass').value = '';
       document.getElementById('editAdmPhoto').value = '';
       document.getElementById('editAdmAadhaarFile').value = '';
 
-      document.getElementById('currentPhotoLink').innerHTML = photoUrl
-        ? `(<a href="${photoUrl}" target="_blank" class="doc-link">Current</a>)`
+      document.getElementById('currentPhotoLink').innerHTML = s.photo_file
+        ? `(<a href="${s.photo_file}" target="_blank" class="doc-link">Current</a>)`
         : '';
-      document.getElementById('currentDocLink').innerHTML = docUrl
-        ? `(<a href="${docUrl}" target="_blank" class="doc-link">Current</a>)`
+      document.getElementById('currentDocLink').innerHTML = s.aadhaar_file
+        ? `(<a href="${s.aadhaar_file}" target="_blank" class="doc-link">Current</a>)`
         : '';
 
-      const assignedBatches = batchStr.split(',').map(b => b.trim()).filter(Boolean);
+      const assignedBatches = String(s.batch_id || '').split(',').map(b => b.trim()).filter(Boolean);
+      selectedEditBatches = [...assignedBatches];
       document.querySelectorAll('input[name="editAdmBatches"]').forEach(cb => {
         cb.checked = assignedBatches.includes(String(cb.value).trim());
       });
@@ -523,10 +564,7 @@
         return alert('Full Name and Date of Birth are required!');
       }
 
-      const batch_id = Array.from(document.querySelectorAll('input[name="editAdmBatches"]:checked'))
-        .map(cb => cb.value)
-        .join(',');
-
+      const batch_id = selectedEditBatches.join(',');
       let newStatus = currentStatus;
       if (mode === 'draft') {
         newStatus = 'draft';
@@ -566,31 +604,159 @@
       }
     }
 
-    async function toggleStudentStatus(admNo, newStatus) {
-      try {
-        const res = await fetch(`/api/admissions/${encodeURIComponent(admNo)}/status`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus })
-        });
-        const data = await res.json();
-        if (data.success) location.reload();
-        else alert('Error: ' + (data.error || 'Failed to change status!'));
-      } catch (err) {
-        alert('Server error!');
+    function openBrandingModal() {
+      const savedHeader = localStorage.getItem('adm_print_header') || SERVER_HEADER_URL;
+      const savedFooter = localStorage.getItem('adm_print_footer') || SERVER_FOOTER_URL;
+      const hPrev = document.getElementById('headerPreview');
+      const fPrev = document.getElementById('footerPreview');
+
+      if (savedHeader) { hPrev.src = savedHeader; hPrev.hidden = false; }
+      if (savedFooter) { fPrev.src = savedFooter; fPrev.hidden = false; }
+
+      document.getElementById('brandingModal').style.display = 'flex';
+    }
+
+    function closeBrandingModal() {
+      document.getElementById('brandingModal').style.display = 'none';
+    }
+
+    function previewBrandImg(input, imgId) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = document.getElementById(imgId);
+          img.src = e.target.result;
+          img.hidden = false;
+          if (imgId === 'headerPreview') localStorage.setItem('adm_print_header', e.target.result);
+          if (imgId === 'footerPreview') localStorage.setItem('adm_print_footer', e.target.result);
+        };
+        reader.readAsDataURL(input.files[0]);
       }
     }
 
-    async function deleteAdmission(admNo) {
-      if (!confirm('Are you sure you want to permanently delete this admission record?')) return;
-      try {
-        const res = await fetch(`/api/admissions/${encodeURIComponent(admNo)}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (data.success) location.reload();
-        else alert('Error: ' + (data.error || 'Failed to delete!'));
-      } catch (err) {
-        alert('Failed to delete admission record!');
+    async function saveBranding() {
+      const hFile = document.getElementById('brandHeaderInput').files[0];
+      const fFile = document.getElementById('brandFooterInput').files[0];
+      const btn = document.getElementById('saveBrandBtn');
+
+      if (!hFile && !fFile) {
+        alert('Header & Footer preferences saved!');
+        closeBrandingModal();
+        return;
       }
+
+      const formData = new FormData();
+      if (hFile) formData.append('print_header', hFile);
+      if (fFile) formData.append('print_footer', fFile);
+
+      btn.disabled = true;
+      btn.innerText = 'Uploading...';
+
+      try {
+        const res = await fetch('/api/admission-branding', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Header & Footer uploaded successfully!');
+          closeBrandingModal();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        alert('Saved locally in browser!');
+        closeBrandingModal();
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Save Header & Footer';
+      }
+    }
+
+    function clearBranding() {
+      localStorage.removeItem('adm_print_header');
+      localStorage.removeItem('adm_print_footer');
+      document.getElementById('headerPreview').src = '';
+      document.getElementById('headerPreview').hidden = true;
+      document.getElementById('footerPreview').src = '';
+      document.getElementById('footerPreview').hidden = true;
+      alert('Header & Footer removed!');
+    }
+
+    function printAdmByIndex(idx) {
+      const s = ADMISSIONS_LIST[Number(idx)];
+      if (!s) return;
+      printAdmissionRecord(s);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '-')
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"');
+    }
+
+    function printAdmissionRecord(info) {
+      const headerImg = localStorage.getItem('adm_print_header') || SERVER_HEADER_URL;
+      const footerImg = localStorage.getItem('adm_print_footer') || SERVER_FOOTER_URL;
+      const today = new Date().toLocaleDateString('en-GB');
+
+      const printWin = window.open('', '_blank', 'width=820,height=950');
+      if (!printWin) return alert('Please allow pop-ups in your browser to print!');
+
+      const htmlParts = [
+        '<!DOCTYPE html><html><head><title>Admission Form - ' + escapeHtml(info.admission_no) + '</title>',
+        '<style>',
+        '@page { size: A4; margin: 12mm; }',
+        'body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; padding: 0; }',
+        '.page-wrap { display: flex; flex-direction: column; min-height: 270mm; justify-content: space-between; }',
+        '.header-banner img, .footer-banner img { width: 100%; max-height: 115px; object-fit: contain; display: block; }',
+        '.default-header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 16px; }',
+        '.form-title { text-align: center; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; margin: 12px 0 18px; }',
+        '.top-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }',
+        '.photo-box { width: 110px; height: 130px; border: 1px solid #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #64748b; overflow: hidden; }',
+        '.photo-box img { width: 100%; height: 100%; object-fit: cover; }',
+        'table.details { width: 100%; border-collapse: collapse; font-size: 13.5px; }',
+        'table.details td { padding: 10px 12px; border: 1px solid #cbd5e1; }',
+        'table.details td.lbl { width: 32%; font-weight: 700; background: #f8fafc; color: #334155; }',
+        '.sig-row { display: flex; justify-content: space-between; margin-top: 45px; padding: 0 20px; font-size: 13px; font-weight: 600; }',
+        '.sig-line { border-top: 1px solid #334155; padding-top: 6px; width: 180px; text-align: center; }',
+        '</style></head><body><div class="page-wrap"><div>',
+        headerImg
+          ? '<div class="header-banner"><img src="' + headerImg + '" alt="Header"></div>'
+          : '<div class="default-header"><h2 style="margin:0;">STUDENT ADMISSION FORM</h2></div>',
+        '<div class="form-title">Student Admission Record</div>',
+        '<div class="top-meta"><div>',
+        '<p style="margin:4px 0;font-size:14px;"><strong>Admission No:</strong> ' + escapeHtml(info.admission_no) + '</p>',
+        '<p style="margin:4px 0;font-size:14px;"><strong>Main Batch:</strong> ' + escapeHtml(info.main_batch_name || info.batch_name) + '</p>',
+        '<p style="margin:4px 0;font-size:13px;color:#475569;"><strong>Date:</strong> ' + today + '</p>',
+        '</div><div class="photo-box">',
+        info.photo_file ? '<img src="' + info.photo_file + '" alt="Student Photo">' : 'Passport Photo',
+        '</div></div>',
+        '<table class="details">',
+        '<tr><td class="lbl">Full Name</td><td><strong>' + escapeHtml(info.full_name) + '</strong></td></tr>',
+        '<tr><td class="lbl">Roll Number</td><td>' + escapeHtml(info.roll_no) + '</td></tr>',
+        '<tr><td class="lbl">Date of Birth</td><td>' + escapeHtml(info.dob) + '</td></tr>',
+        '<tr><td class="lbl">Father\'s Name</td><td>' + escapeHtml(info.father_name) + '</td></tr>',
+        '<tr><td class="lbl">Phone Number</td><td>' + escapeHtml(info.phone) + '</td></tr>',
+        '<tr><td class="lbl">Aadhaar Number</td><td>' + escapeHtml(info.aadhaar_no) + '</td></tr>',
+        '<tr><td class="lbl">Full Address</td><td>' + escapeHtml(info.address) + '</td></tr>',
+        '<tr><td class="lbl">Admission Status</td><td style="text-transform:uppercase;font-weight:700;">' + escapeHtml(info.status) + '</td></tr>',
+        '</table>',
+        '<div class="sig-row"><div class="sig-line">Parent / Student Signature</div><div class="sig-line">Authorized Signature</div></div>',
+        '</div>',
+        footerImg ? '<div class="footer-banner"><img src="' + footerImg + '" alt="Footer"></div>' : '',
+        '</div></body></html>'
+      ];
+
+      printWin.document.open();
+      printWin.document.write(htmlParts.join(''));
+      printWin.document.close();
+
+      printWin.onload = () => {
+        setTimeout(() => printWin.print(), 250);
+      };
     }
   </script>
 </body>

@@ -5,34 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Active Students</title>
   <link rel="stylesheet" href="/student.css">
-  <!-- jsPDF & AutoTable CDN for Direct PDF Download -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  
 </head>
 <body>
 
   <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-      <h1 style="margin: 0;">Active Student List (<%= students.length %>)</h1>
-      <div style="display: flex; gap: 10px;">
-        <a href="/admissions" class="btn btn-primary">+ New Admission</a>
-        <a href="/dashboard" class="btn btn-secondary">Dashboard</a>
+    <!-- Unified Top Header Bar -->
+    <div class="top-bar">
+      <h1 class="top-bar-title">Active Students (<%= students.length %>)</h1>
+
+      <div class="top-bar-actions-group">
+        <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5"></path>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </a>
+
+        <div class="header-menu-wrapper" id="headerMenuWrapper">
+          <button type="button" class="btn-header-icon" id="headerMenuBtn" onclick="toggleHeaderMenu(event)" title="Options" aria-label="Options Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="1.5"></circle>
+              <circle cx="12" cy="12" r="1.5"></circle>
+              <circle cx="12" cy="19" r="1.5"></circle>
+            </svg>
+          </button>
+
+          <div class="header-dropdown-menu" id="headerDropdownMenu">
+            <a href="/admissions" class="menu-drop-item">
+              <span>+ New Admission</span>
+            </a>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openBulkBatchModal();">
+              <span>+ Assign Batch by Roll</span>
+            </button>
+            <div class="menu-divider"></div>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openExportModal('csv');">
+              <span>Download CSV</span>
+            </button>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openExportModal('pdf');">
+              <span>Download PDF</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Search & Download Toolbar -->
-    <div class="card" style="padding: 16px; margin-bottom: 16px;">
+    <!-- Search Bar Card -->
+    <div class="card" style="padding: 14px 16px; margin-bottom: 16px;">
       <div class="toolbar">
-        <input type="text" id="studentSearch" class="search-input" autocomplete="off" placeholder="Search by Name, Admission No, Roll No, Phone, or Batch..." onkeyup="filterStudentTable()">
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button type="button" class="btn btn-success" onclick="openExportModal('csv')">
-            Download CSV
-          </button>
-          <button type="button" class="btn btn-danger" onclick="openExportModal('pdf')">
-            Download PDF
-          </button>
-        </div>
+        <input type="text" id="studentSearch" class="search-input" autocomplete="off" placeholder="Search by Name, Admission No, Roll No, Phone, or Main Batch..." onkeyup="filterStudentTable()">
       </div>
     </div>
 
@@ -48,14 +70,14 @@
               <th>Student Name</th>
               <th>DOB</th>
               <th>Phone Number</th>
-              <th>Batch</th>
+              <th>Main Batch</th>
               <th style="text-align: center;">Action</th>
             </tr>
           </thead>
           <tbody>
             <% if (students.length === 0) { %>
               <tr>
-                <td colspan="8" style="text-align: center; color: #64748b; padding: 20px;">
+                <td colspan="8" style="text-align: center; color: #64748b; padding: 24px;">
                   No active students found. Please activate students from the Admission Portal.
                 </td>
               </tr>
@@ -67,19 +89,18 @@
                   data-roll="<%= s.roll_no || '' %>"
                   data-name="<%= s.full_name %>"
                   data-dob="<%= s.dob || '' %>"
-                  data-father="<%= s.father_name || '' %>"
                   data-phone="<%= s.phone || '' %>"
-                  data-batch="<%= s.batch_name || '' %>">
-                <td class="chk-col">
+                  data-batch="<%= s.main_batch_name || s.batch_name || '' %>">
+                <td class="chk-col" data-label="Select">
                   <input type="checkbox" class="student-select-chk" value="<%= s.admission_no %>">
                 </td>
-                <td><strong><%= s.admission_no %></strong></td>
-                <td><span class="badge-roll"><%= s.roll_no || '-' %></span></td>
-                <td><strong><%= s.full_name %></strong></td>
-                <td><%= s.dob || '-' %></td>
-                <td><%= s.phone || '-' %></td>
-                <td><span class="badge"><%= s.batch_name || 'No Batch' %></span></td>
-                <td>
+                <td data-label="Adm No"><strong><%= s.admission_no %></strong></td>
+                <td data-label="Roll No"><span class="badge-roll"><%= s.roll_no || '-' %></span></td>
+                <td data-label="Student Name"><strong><%= s.full_name %></strong></td>
+                <td data-label="DOB"><%= s.dob || '-' %></td>
+                <td data-label="Phone"><%= s.phone || '-' %></td>
+                <td data-label="Main Batch"><span class="badge"><%= s.main_batch_name || s.batch_name || 'No Batch' %></span></td>
+                <td data-label="Action">
                   <div class="action-btns">
                     <button type="button" class="btn btn-sm btn-warning"
                       data-adm="<%= s.admission_no %>"
@@ -134,10 +155,6 @@
           <span>Student Name</span>
         </label>
         <label class="col-chk-item">
-          <input type="checkbox" name="exportCols" value="father" data-label="Father Name" checked>
-          <span>Father's Name</span>
-        </label>
-        <label class="col-chk-item">
           <input type="checkbox" name="exportCols" value="dob" data-label="DOB" checked>
           <span>Date of Birth</span>
         </label>
@@ -145,9 +162,9 @@
           <input type="checkbox" name="exportCols" value="phone" data-label="Phone" checked>
           <span>Phone Number</span>
         </label>
-        <label class="col-chk-item" style="grid-column: 1 / -1;">
-          <input type="checkbox" name="exportCols" value="batch" data-label="Batch" checked>
-          <span>Batch</span>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="batch" data-label="Main Batch" checked>
+          <span>Main Batch</span>
         </label>
       </div>
 
@@ -186,7 +203,7 @@
         <input type="password" id="editPass" placeholder="Enter new password (optional)">
         
         <div class="batch-selection-wrapper">
-          <span class="batch-selection-title">Select Batches:</span>
+          <span class="batch-selection-title">Select Batches (First selected is Main Batch):</span>
           <div class="batch-checkbox-group">
             <% batches.forEach(b => { %>
               <label class="batch-chip">
@@ -227,7 +244,69 @@
     </div>
   </div>
 
+  <!-- Bulk Assign Batch by Roll Range Modal -->
+  <div id="bulkBatchModal" class="modal" onclick="if(event.target === this) closeBulkBatchModal()">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3>Assign Batch by Roll Range</h3>
+        <button type="button" class="modal-close" onclick="closeBulkBatchModal()">×</button>
+      </div>
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
+        Add a secondary/sub batch to all active students within a specific roll number range (e.g., Roll 1 to 20).
+      </p>
+
+      <div class="modal-form-body">
+        <label class="field-label">Select Batch to Add:</label>
+        <select id="bulkTargetBatch">
+          <option value="" disabled selected>-- Select Batch --</option>
+          <% batches.forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px;">
+          <div>
+            <label class="field-label">From Roll No:</label>
+            <input type="number" id="bulkFromRoll" min="1" placeholder="e.g., 1">
+          </div>
+          <div>
+            <label class="field-label">To Roll No:</label>
+            <input type="number" id="bulkToRoll" min="1" placeholder="e.g., 20">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeBulkBatchModal()">Cancel</button>
+        <button type="button" id="bulkAssignBtn" class="btn btn-primary" onclick="executeBulkBatchAssign()">Assign Batch</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // Header Dropdown Menu Toggle
+    function toggleHeaderMenu(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('headerDropdownMenu');
+      const btn = document.getElementById('headerMenuBtn');
+      const isOpen = menu.classList.toggle('open');
+      btn.classList.toggle('active', isOpen);
+    }
+
+    function closeHeaderMenu() {
+      const menu = document.getElementById('headerDropdownMenu');
+      const btn = document.getElementById('headerMenuBtn');
+      if (menu) menu.classList.remove('open');
+      if (btn) btn.classList.remove('active');
+    }
+
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('headerMenuWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeHeaderMenu();
+      }
+    });
+
     window.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('studentSearch');
       if (searchInput && document.activeElement === searchInput) {
@@ -254,7 +333,6 @@
       });
     }
 
-    // Open Column Selection Modal
     function openExportModal(format) {
       const checkedBoxes = document.querySelectorAll('.student-select-chk:checked');
       if (checkedBoxes.length === 0) {
@@ -371,6 +449,22 @@
       }
     }
 
+    // Track exact click order for Edit Student checkboxes in studet.ejs
+    let selectedStudentEditBatches = [];
+
+    document.addEventListener('change', (e) => {
+      if (e.target.name === 'editStudentBatches') {
+        const val = e.target.value;
+        if (e.target.checked) {
+          if (!selectedStudentEditBatches.includes(val)) {
+            selectedStudentEditBatches.push(val);
+          }
+        } else {
+          selectedStudentEditBatches = selectedStudentEditBatches.filter(item => item !== val);
+        }
+      }
+    });
+
     function openEditModal(btn) {
       document.getElementById('editAdm').value = btn.dataset.adm;
       document.getElementById('editRoll').value = btn.dataset.roll;
@@ -379,9 +473,11 @@
       document.getElementById('editPhone').value = btn.dataset.phone;
       document.getElementById('editPass').value = '';
 
-      const assignedBatches = String(btn.dataset.batch || '').split(',').map(b => b.trim());
+      const assignedBatches = String(btn.dataset.batch || '').split(',').map(b => b.trim()).filter(Boolean);
+      selectedStudentEditBatches = [...assignedBatches];
+
       document.querySelectorAll('input[name="editStudentBatches"]').forEach(cb => {
-        cb.checked = assignedBatches.includes(cb.value);
+        cb.checked = assignedBatches.includes(String(cb.value).trim());
       });
 
       document.getElementById('editModal').style.display = 'flex';
@@ -399,9 +495,7 @@
       const phone = document.getElementById('editPhone').value.trim();
       const password = document.getElementById('editPass').value.trim();
 
-      const batch_id = Array.from(document.querySelectorAll('input[name="editStudentBatches"]:checked'))
-        .map(cb => cb.value)
-        .join(',');
+      const batch_id = selectedStudentEditBatches.join(',');
 
       if (!full_name || !batch_id) {
         return alert('Full Name and at least one Batch are required!');
@@ -464,6 +558,51 @@
         else alert('Error: ' + data.error);
       } catch (err) {
         alert('Failed to remove student!');
+      }
+    }
+
+    function openBulkBatchModal() {
+      document.getElementById('bulkTargetBatch').value = '';
+      document.getElementById('bulkFromRoll').value = '';
+      document.getElementById('bulkToRoll').value = '';
+      document.getElementById('bulkBatchModal').style.display = 'flex';
+    }
+
+    function closeBulkBatchModal() {
+      document.getElementById('bulkBatchModal').style.display = 'none';
+    }
+
+    async function executeBulkBatchAssign() {
+      const batch_id = document.getElementById('bulkTargetBatch').value;
+      const from_roll = document.getElementById('bulkFromRoll').value.trim();
+      const to_roll = document.getElementById('bulkToRoll').value.trim();
+      const btn = document.getElementById('bulkAssignBtn');
+
+      if (!batch_id || !from_roll || !to_roll) {
+        return alert('Please select a batch and enter both From and To roll numbers!');
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'Assigning...';
+
+      try {
+        const res = await fetch('/api/students/bulk-assign-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch_id, from_roll, to_roll })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message);
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to assign batch!'));
+        }
+      } catch (err) {
+        alert('Server error while assigning batch!');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Assign Batch';
       }
     }
   </script>

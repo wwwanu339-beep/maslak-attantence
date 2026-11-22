@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 2. Multer File Upload Setup (Photo & Identity Doc)
+// 2. Multer File Upload Setup (Photo, Identity Doc & Print Branding)
 const uploadDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -34,6 +34,30 @@ const admUploads = upload.fields([
   { name: 'photo', maxCount: 1 },
   { name: 'aadhaar_doc', maxCount: 1 }
 ]);
+
+// Print Header & Footer Upload Setup
+const brandingUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.png';
+      cb(null, `${file.fieldname}${ext}`);
+    }
+  })
+}).fields([
+  { name: 'print_header', maxCount: 1 },
+  { name: 'print_footer', maxCount: 1 }
+]);
+
+function getBrandingUrls() {
+  const files = fs.existsSync(uploadDir) ? fs.readdirSync(uploadDir) : [];
+  const headerFile = files.find(f => f.startsWith('print_header.'));
+  const footerFile = files.find(f => f.startsWith('print_footer.'));
+  return {
+    headerUrl: headerFile ? `/uploads/${headerFile}?v=${Date.now()}` : '',
+    footerUrl: footerFile ? `/uploads/${footerFile}?v=${Date.now()}` : ''
+  };
+}
 
 // 3. Session Middleware
 app.use(session({
@@ -56,7 +80,6 @@ app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
   res.status(204).end();
 });
 
-// ================= GOOGLE SHEETS SETUP =================
 // ================= GOOGLE SHEETS SETUP =================
 function formatPrivateKey(key) {
   if (!key) return '';
@@ -92,17 +115,23 @@ async function getSheet(sheetTitle) {
   return doc.sheetsByTitle[sheetTitle];
 }
 
-// Generate next permanent Admission Number (ADM1001, ADM1002...)
+// Generate next Admission Number based on the bottom-most row in 'admissions'
 function generateNextAdmissionNo(admRows, stuRows = []) {
-  let maxNum = 1000;
-  [...admRows, ...stuRows].forEach(r => {
-    const adm = String(r.get('admission_no') || '').trim();
-    const num = parseInt(adm.replace(/\D/g, ''));
-    if (!isNaN(num) && num > maxNum) {
-      maxNum = num;
+  for (let i = admRows.length - 1; i >= 0; i--) {
+    const adm = String(admRows[i].get('admission_no') || '').trim();
+    const num = parseInt(adm.replace(/\D/g, ''), 10);
+    if (!isNaN(num)) {
+      return `ADM${num + 1}`;
     }
-  });
-  return `ADM${maxNum + 1}`;
+  }
+  for (let i = stuRows.length - 1; i >= 0; i--) {
+    const adm = String(stuRows[i].get('admission_no') || '').trim();
+    const num = parseInt(adm.replace(/\D/g, ''), 10);
+    if (!isNaN(num)) {
+      return `ADM${num + 1}`;
+    }
+  }
+  return 'ADM1001';
 }
 
 // Password Hash & Verify Helpers
@@ -135,6 +164,11 @@ function checkManage(req, res, next) {
 function checkStudent(req, res, next) {
   if (req.session.user && req.session.user.can_studet == 1) next();
   else res.status(403).send("Access Denied: You do not have permission to manage students.");
+}
+
+function checkAdmission(req, res, next) {
+  if (req.session.user && req.session.user.can_admission == 1) next();
+  else res.status(403).send("Access Denied: You do not have permission to manage admissions.");
 }
 
 function checkAttendance(req, res, next) {
@@ -203,6 +237,7 @@ app.post('/login', async (req, res) => {
         can_manage: parseInt(matchedUser.get('can_manage') || 0),
         can_attendanceveiw: parseInt(matchedUser.get('can_attendanceveiw') || 0),
         can_studet: parseInt(matchedUser.get('can_studet') || 0),
+        can_admission: parseInt(matchedUser.get('can_admission') || 0),
         role: String(matchedUser.get('role') || 'admin').trim(),
         allowed_batch: String(matchedUser.get('allowed_batch') || 'all').trim(),
         allowed_subject: String(matchedUser.get('allowed_subject') || 'all').trim(),
@@ -303,7 +338,7 @@ app.delete('/api/subjects/:id', requireAuth, checkManage, async (req, res) => {
 app.post('/api/users', requireAuth, checkManage, async (req, res) => {
   const { 
     name, phone, username, password, role, allowed_batch, allowed_subject,
-    can_attendance, can_update, can_manage, can_attendanceveiw, can_studet 
+    can_attendance, can_update, can_manage, can_attendanceveiw, can_studet, can_admission 
   } = req.body;
 
   if (!username || !password) return res.status(400).json({ success: false, error: 'Username and password are required!' });
@@ -340,7 +375,8 @@ app.post('/api/users', requireAuth, checkManage, async (req, res) => {
       can_update: can_update ? '1' : '0',
       can_manage: can_manage ? '1' : '0',
       can_attendanceveiw: can_attendanceveiw ? '1' : '0',
-      can_studet: can_studet ? '1' : '0'
+      can_studet: can_studet ? '1' : '0',
+      can_admission: can_admission ? '1' : '0'
     });
     res.json({ success: true });
   } catch (err) {
@@ -359,6 +395,7 @@ app.delete('/api/users/:id', requireAuth, checkManage, async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 // Change Logged-in User Password
 app.put('/api/change-password', requireAuth, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
@@ -389,7 +426,6 @@ app.put('/api/change-password', requireAuth, async (req, res) => {
   }
 });
 
-// Clear All Data Route (Attendance, Students, Subjects, Batches, Users)
 // Clear All Data Route (Requires Main Admin Password Verification)
 app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
   const target = req.params.target;
@@ -405,13 +441,10 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
   }
 
   try {
-    // 1. Verify Main Admin Password from 'users' sheet
     const userSheet = await getSheet('users');
     const uRows = await userSheet.getRows();
 
-    // Find the primary/main admin user (first admin row in the sheet)
     const mainAdmin = uRows.find(r => (r.get('role') || 'admin').trim().toLowerCase() === 'admin');
-
     if (!mainAdmin) {
       return res.status(404).json({ success: false, error: 'Main Admin account not found!' });
     }
@@ -421,7 +454,6 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
       return res.status(401).json({ success: false, error: 'Incorrect Main Admin password!' });
     }
 
-    // 2. Clear Target Sheet Rows
     const sheet = await getSheet(target);
     if (!sheet) return res.status(404).json({ success: false, error: `Sheet "${target}" not found!` });
 
@@ -429,7 +461,6 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
     for (let i = rows.length - 1; i >= 0; i--) {
       if (target === 'users') {
         const rowUser = String(rows[i].get('username')).trim();
-        // Protect Main Admin and currently logged-in user from deletion
         if (rowUser === String(mainAdmin.get('username')).trim() || rowUser === req.session.user.username) {
           continue;
         }
@@ -437,7 +468,6 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
       await rows[i].delete();
     }
 
-    // Also clear admissions if students are cleared
     if (target === 'students') {
       const admSheet = await getSheet('admissions');
       if (admSheet) {
@@ -454,8 +484,26 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
   }
 });
 
-// ================= 3. ADMISSIONS (Controlled by admission_no) =================
-app.get('/admissions', requireAuth, checkStudent, async (req, res) => {
+// ================= 3. ADMISSIONS (Controlled by admission_no & checkAdmission) =================
+app.post('/api/admission-branding', requireAuth, checkAdmission, brandingUpload, (req, res) => {
+  try {
+    if (req.files?.print_header?.[0]) {
+      fs.readdirSync(uploadDir)
+        .filter(f => f.startsWith('print_header.') && f !== req.files.print_header[0].filename)
+        .forEach(f => fs.unlinkSync(path.join(uploadDir, f)));
+    }
+    if (req.files?.print_footer?.[0]) {
+      fs.readdirSync(uploadDir)
+        .filter(f => f.startsWith('print_footer.') && f !== req.files.print_footer[0].filename)
+        .forEach(f => fs.unlinkSync(path.join(uploadDir, f)));
+    }
+    res.json({ success: true, ...getBrandingUrls() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
   try {
     const admSheet = await getSheet('admissions');
     const stuSheet = await getSheet('students');
@@ -476,12 +524,13 @@ app.get('/admissions', requireAuth, checkStudent, async (req, res) => {
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     const nextAdmissionNo = generateNextAdmissionNo(aRows, sRows);
-
     const allStudents = aRows
       .filter(r => (r.get('full_name') || '').trim() !== '')
       .map(r => {
         const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
-        const batchNames = rawBatchIds.map(id => batchMap[id]).filter(Boolean).join(', ');
+        const batchNamesList = rawBatchIds.map(id => batchMap[id]).filter(Boolean);
+        const mainBatchName = batchNamesList[0] || 'No Batch';
+
         return {
           admission_no: String(r.get('admission_no') || '').trim(),
           roll_no: r.get('roll_no') || '',
@@ -494,20 +543,22 @@ app.get('/admissions', requireAuth, checkStudent, async (req, res) => {
           photo_file: r.get('photo_file') || '',
           address: r.get('address') || '',
           batch_id: r.get('batch_id') || '',
-          batch_name: batchNames || 'No Batch',
+          main_batch_name: mainBatchName,
+          batch_name: batchNamesList.join(', ') || 'No Batch',
           status: (r.get('status') || 'pending').trim().toLowerCase()
         };
       })
       .reverse();
 
-    res.render('admission', { batches, allStudents, nextAdmissionNo });
+    const branding = getBrandingUrls();
+    res.render('admission', { batches, allStudents, nextAdmissionNo, branding });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
   }
 });
 
 // Create Admission / Draft
-app.post('/api/admissions', requireAuth, checkStudent, admUploads, async (req, res) => {
+app.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const { full_name, dob, roll_no, father_name, phone, aadhaar_no, address, batch_id, password, status } = req.body;
     if (!full_name || !dob) {
@@ -548,9 +599,8 @@ app.post('/api/admissions', requireAuth, checkStudent, admUploads, async (req, r
   }
 });
 
-// Edit Admission by admission_no
 // Edit Admission by admission_no (with Auto Roll Reorder)
-app.put('/api/admissions/:admNo', requireAuth, checkStudent, admUploads, async (req, res) => {
+app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
     const { full_name, dob, roll_no, father_name, phone, aadhaar_no, address, batch_id, password, status } = req.body;
@@ -588,16 +638,13 @@ app.put('/api/admissions/:admNo', requireAuth, checkStudent, admUploads, async (
         stuRow.set('full_name', admRow.get('full_name'));
         stuRow.set('dob', admRow.get('dob'));
         stuRow.set('roll_no', cleanRoll);
-        stuRow.set('father_name', admRow.get('father_name'));
         stuRow.set('phone', admRow.get('phone'));
         stuRow.set('batch_id', admRow.get('batch_id'));
         stuRow.set('password', admRow.get('password'));
-        stuRow.set('photo_file', admRow.get('photo_file'));
         await stuRow.save();
       }
     }
 
-    // Reorder & Batch Save all affected roll numbers across both sheets
     if (cleanRoll) {
       await syncAndReorderRolls(targetAdmNo, cleanRoll, stuSheet, admSheet, sRows, aRows);
     }
@@ -607,13 +654,12 @@ app.put('/api/admissions/:admNo', requireAuth, checkStudent, admUploads, async (
     res.status(500).json({ success: false, error: err.message });
   }
 });
-// Auto-Shift & Batch Save Roll Numbers across 'students' and 'admissions' (Zero API Rate Limit)
+
 // Auto-Shift & Batch Save Roll Numbers across 'students' and 'admissions' (Zero API Rate Limit)
 async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admSheet, sRows, aRows) {
   const newRoll = parseInt(desiredRollStr);
   if (isNaN(newRoll) || newRoll < 1) return;
 
-  // 1. Collect all students with a valid roll_no (excluding the updated student)
   const items = [];
   const processedAdms = new Set();
 
@@ -628,10 +674,8 @@ async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admShe
     }
   });
 
-  // Sort existing students by current roll number
   items.sort((a, b) => a.roll - b.roll);
 
-  // 2. Shift roll numbers >= newRoll sequentially
   const finalRollMap = new Map();
   finalRollMap.set(targetAdmNo, String(newRoll));
 
@@ -646,7 +690,6 @@ async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admShe
     }
   });
 
-  // 3. Batch update 'roll_no' column using loadCells() + saveUpdatedCells()
   async function batchUpdateRollColumn(sheet) {
     if (!sheet) return;
     await sheet.loadHeaderRow();
@@ -685,8 +728,9 @@ async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admShe
     batchUpdateRollColumn(admSheet)
   ]);
 }
-// Make Active / Deactivate by admission_no
-app.put('/api/admissions/:admNo/status', requireAuth, checkStudent, async (req, res) => {
+
+// Make Active / Not Active by admission_no
+app.put('/api/admissions/:admNo/status', requireAuth, checkAdmission, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
     const { status } = req.body;
@@ -699,26 +743,27 @@ app.put('/api/admissions/:admNo/status', requireAuth, checkStudent, async (req, 
     if (!admRow) return res.status(404).json({ success: false, error: 'Admission record not found!' });
 
     if (status === 'active') {
-      if (!admRow.get('batch_id')) {
+      const existingStu = sRows.find(r => String(r.get('admission_no')).trim() === targetAdmNo);
+      const effectiveBatchId = admRow.get('batch_id') || (existingStu ? existingStu.get('batch_id') : '');
+
+      if (!effectiveBatchId) {
         return res.status(400).json({ success: false, error: 'Please assign at least one batch via Edit before activating!' });
       }
 
+      if (!admRow.get('batch_id')) admRow.set('batch_id', effectiveBatchId);
       admRow.set('status', 'active');
       await admRow.save();
 
       const defaultPass = admRow.get('password') || await hashPassword(targetAdmNo);
-      const existingStu = sRows.find(r => String(r.get('admission_no')).trim() === targetAdmNo);
 
       if (existingStu) {
         existingStu.set('status', 'active');
         existingStu.set('full_name', admRow.get('full_name'));
-        existingStu.set('roll_no', admRow.get('roll_no') || '');
+        existingStu.set('roll_no', admRow.get('roll_no') || existingStu.get('roll_no') || '');
         existingStu.set('dob', admRow.get('dob') || '');
-        existingStu.set('father_name', admRow.get('father_name') || '');
         existingStu.set('phone', admRow.get('phone') || '');
-        existingStu.set('batch_id', admRow.get('batch_id') || '');
+        existingStu.set('batch_id', effectiveBatchId);
         existingStu.set('password', defaultPass);
-        existingStu.set('photo_file', admRow.get('photo_file') || '');
         await existingStu.save();
       } else {
         await stuSheet.addRow({
@@ -726,11 +771,9 @@ app.put('/api/admissions/:admNo/status', requireAuth, checkStudent, async (req, 
           roll_no: admRow.get('roll_no') || '',
           full_name: admRow.get('full_name'),
           dob: admRow.get('dob') || '',
-          father_name: admRow.get('father_name') || '',
           phone: admRow.get('phone') || '',
-          batch_id: admRow.get('batch_id') || '',
+          batch_id: effectiveBatchId,
           password: defaultPass,
-          photo_file: admRow.get('photo_file') || '',
           status: 'active'
         });
       }
@@ -749,7 +792,7 @@ app.put('/api/admissions/:admNo/status', requireAuth, checkStudent, async (req, 
 });
 
 // Delete Admission by admission_no
-app.delete('/api/admissions/:admNo', requireAuth, checkStudent, async (req, res) => {
+app.delete('/api/admissions/:admNo', requireAuth, checkAdmission, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
     const admSheet = await getSheet('admissions');
@@ -768,7 +811,7 @@ app.delete('/api/admissions/:admNo', requireAuth, checkStudent, async (req, res)
   }
 });
 
-// ================= 4. ACTIVE STUDENTS LIST (Controlled by admission_no) =================
+// ================= 4. ACTIVE STUDENTS LIST (Controlled by admission_no & checkStudent) =================
 app.get('/students', requireAuth, checkStudent, async (req, res) => {
   try {
     const studentSheet = await getSheet('students');
@@ -786,7 +829,8 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
       .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active' && (r.get('full_name') || '').trim() !== '')
       .map(r => {
         const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
-        const batchNames = rawBatchIds.map(id => batchMap[id]).filter(Boolean).join(', ');
+        const batchNamesList = rawBatchIds.map(id => batchMap[id]).filter(Boolean);
+        const mainBatchName = batchNamesList[0] || 'N/A';
         const admNo = String(r.get('admission_no') || '').trim();
 
         return {
@@ -794,10 +838,10 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
           roll_no: r.get('roll_no') || '',
           full_name: r.get('full_name'),
           dob: r.get('dob') || r.get('age') || '',
-          father_name: r.get('father_name') || '',
           phone: r.get('phone') || '',
           batch_id: r.get('batch_id') || '',
-          batch_name: batchNames || 'N/A',
+          main_batch_name: mainBatchName,
+          batch_name: batchNamesList.join(', ') || 'N/A',
           status: r.get('status')
         };
       })
@@ -810,6 +854,82 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
     res.render('studet', { students, batches });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
+  }
+});
+
+// Bulk Assign Batch by Roll Number Range (Zero Rate Limit via saveUpdatedCells)
+app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (req, res) => {
+  try {
+    const { batch_id, from_roll, to_roll } = req.body;
+    const targetBatch = String(batch_id || '').trim();
+    const startRoll = parseInt(from_roll);
+    const endRoll = parseInt(to_roll);
+
+    if (!targetBatch || isNaN(startRoll) || isNaN(endRoll) || startRoll > endRoll) {
+      return res.status(400).json({ success: false, error: 'Please select a valid batch and roll number range!' });
+    }
+
+    const stuSheet = await getSheet('students');
+    const admSheet = await getSheet('admissions');
+
+    async function updateBatchInSheet(sheet, onlyActive = false) {
+      if (!sheet) return 0;
+      await sheet.loadHeaderRow();
+      const rollIdx = sheet.headerValues.indexOf('roll_no');
+      const batchIdx = sheet.headerValues.indexOf('batch_id');
+      const statusIdx = sheet.headerValues.indexOf('status');
+      if (rollIdx === -1 || batchIdx === -1 || sheet.rowCount < 2) return 0;
+
+      const cols = [rollIdx, batchIdx];
+      if (statusIdx !== -1) cols.push(statusIdx);
+
+      await sheet.loadCells({
+        startRowIndex: 1,
+        endRowIndex: sheet.rowCount,
+        startColumnIndex: Math.min(...cols),
+        endColumnIndex: Math.max(...cols) + 1
+      });
+
+      let updatedCount = 0;
+      for (let r = 1; r < sheet.rowCount; r++) {
+        if (onlyActive && statusIdx !== -1) {
+          const st = String(sheet.getCell(r, statusIdx).value || '').trim().toLowerCase();
+          if (st !== 'active') continue;
+        }
+
+        const rollVal = parseInt(String(sheet.getCell(r, rollIdx).value || '').trim());
+        if (!isNaN(rollVal) && rollVal >= startRoll && rollVal <= endRoll) {
+          const batchCell = sheet.getCell(r, batchIdx);
+          const existingBatches = String(batchCell.value || '')
+            .split(',')
+            .map(b => b.trim())
+            .filter(Boolean);
+
+          if (!existingBatches.includes(targetBatch)) {
+            existingBatches.push(targetBatch);
+            batchCell.value = existingBatches.join(',');
+            updatedCount++;
+          }
+        }
+      }
+
+      if (updatedCount > 0) {
+        await sheet.saveUpdatedCells();
+      }
+      return updatedCount;
+    }
+
+    const [stuUpdated] = await Promise.all([
+      updateBatchInSheet(stuSheet, true),
+      updateBatchInSheet(admSheet, false)
+    ]);
+
+    res.json({
+      success: true,
+      message: `Batch assigned successfully to ${stuUpdated} student(s) (Roll ${startRoll} to ${endRoll})!`
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -851,7 +971,6 @@ app.put('/api/students/:admNo/password', requireAuth, checkStudent, async (req, 
   }
 });
 
-// Update Student by admission_no
 // Update Student by admission_no (with Auto Roll Reorder)
 app.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) => {
   try {
@@ -887,7 +1006,6 @@ app.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) => {
       await admRow.save();
     }
 
-    // Reorder & Batch Save all affected roll numbers across both sheets
     if (cleanRoll) {
       await syncAndReorderRolls(targetAdmNo, cleanRoll, stuSheet, admSheet, sRows, aRows);
     }

@@ -1,9 +1,9 @@
 :root {
   --primary-color: #2563eb;
   --primary-hover: #1d4ed8;
-  --danger-color: #ef4444;
-  --danger-hover: #dc2626;
-  --bg-color: #f8fafc;
+  --danger-color: #dc2626;
+  --danger-hover: #b91c1c;
+  --bg-color: #f1f5f9;
   --card-bg: #ffffff;
   --text-main: #1e293b;
   --text-muted: #64748b;
@@ -20,25 +20,56 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-main);
-  padding: 40px 20px;
+  padding: 30px 15px;
 }
 
 .container {
-  max-width: 900px;
+  max-width: 920px;
   margin: 0 auto;
 }
 
-h2 {
-  font-size: 24px;
+/* Unified Top Header Bar */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+
+.top-bar-title {
+  margin: 0;
+  font-size: 22px;
   font-weight: 700;
-  margin-bottom: 24px;
   color: #0f172a;
+}
+
+.btn-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background-color: #eff6ff;
+  border: 1.5px solid #2563eb;
+  color: #1d4ed8;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.btn-header-icon:hover {
+  background-color: #dbeafe;
+  border-color: #1d4ed8;
+  color: #1e40af;
 }
 
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  gap: 18px;
 }
 
 .settings-card,
@@ -46,7 +77,7 @@ h2 {
 .danger-zone {
   background: var(--card-bg);
   border-radius: 12px;
-  padding: 24px;
+  padding: 22px;
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
 }
@@ -59,8 +90,8 @@ h2 {
 .settings-card h3,
 .settings-card1 h3 {
   font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
   color: var(--text-main);
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 10px;
@@ -70,17 +101,24 @@ h2 {
 .select-action-row {
   display: flex;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+}
+
+.select-action-row:last-child {
+  margin-bottom: 0;
 }
 
 input[type="text"],
 input[type="password"],
 select {
   flex: 1;
+  width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 7px;
   font-size: 14px;
+  font-family: inherit;
+  color: var(--text-main);
   background-color: #f8fafc;
   outline: none;
   transition: all 0.2s ease;
@@ -95,73 +133,91 @@ select:focus {
 }
 
 .user-form-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
   align-items: center;
 }
 
-.user-form-grid input[type="text"],
-.user-form-grid input[type="password"],
-.user-form-grid select {
-  min-width: 180px;
-}
-
 .checkbox-group {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 14px;
   align-items: center;
   background-color: #f8fafc;
-  padding: 10px 14px;
-  border-radius: 6px;
+  padding: 12px 14px;
+  border-radius: 8px;
   border: 1px solid var(--border-color);
-  width: 100%;
 }
 
 .checkbox-group label {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-main);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
 }
 
 .checkbox-group input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   accent-color: var(--primary-color);
 }
 
+/* Soft Tinted Standard Buttons */
 .btn {
-  padding: 10px 18px;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border: 1.5px solid transparent;
+  border-radius: 7px;
+  font-size: 13.5px;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
 }
 
 .btn-add {
-  background-color: var(--primary-color);
-  color: #ffffff;
+  background-color: #eff6ff;
+  border-color: var(--primary-color);
+  color: var(--primary-hover);
 }
 
 .btn-add:hover {
-  background-color: var(--primary-hover);
+  background-color: #dbeafe;
 }
 
-.btn-delete {
+.btn-secondary {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.btn-secondary:hover {
+  background-color: #e2e8f0;
+}
+
+.btn-delete,
+.btn-clear {
+  background-color: #fef2f2;
+  border-color: var(--danger-color);
+  color: var(--danger-hover);
+}
+
+.btn-delete:hover,
+.btn-clear:hover {
   background-color: #fee2e2;
-  color: var(--danger-color);
-}
-
-.btn-delete:hover {
-  background-color: var(--danger-color);
-  color: #ffffff;
 }
 
 /* Full Width Clear Box (Danger Zone) */
@@ -172,34 +228,24 @@ select:focus {
 
 .danger-zone h3 {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: #b91c1c;
   border-bottom: 1px solid #fecaca;
   padding-bottom: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+
+.danger-desc {
+  font-size: 13px;
+  color: #7f1d1d;
+  margin-bottom: 14px;
+  line-height: 1.45;
 }
 
 .clear-btn-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.btn-clear {
-  background-color: var(--danger-hover);
-  color: #ffffff;
-  border: none;
-  padding: 11px 14px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.btn-clear:hover {
-  background-color: #b91c1c;
+  gap: 10px;
 }
 
 /* Admin Password Verification Modal */
@@ -233,7 +279,7 @@ select:focus {
   margin-bottom: 16px;
   font-size: 13.5px;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .auth-modal-box input {
@@ -252,13 +298,47 @@ select:focus {
   gap: 10px;
 }
 
-@media (max-width: 640px) {
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  body {
+    padding: 16px 10px;
+  }
+
+  .top-bar-title {
+    font-size: 18px;
+  }
+
   .settings-grid {
     grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .settings-card,
+  .settings-card1,
+  .danger-zone {
+    padding: 16px 14px;
+    border-radius: 10px;
+  }
+
+  .subject-add-row {
+    flex-direction: column;
   }
 
   .user-form-grid {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .checkbox-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .clear-btn-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .clear-btn-grid .btn-clear:last-child {
+    grid-column: 1 / -1;
   }
 }
