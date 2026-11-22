@@ -89,32 +89,9 @@
 }
 
 .menu-drop-item:hover {
-  background-color: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-.menu-drop-item.item-success {
-  color: #15803d;
-}
-.menu-drop-item.item-success:hover {
-  background-color: #f0fdf4;
-  border-color: #bbf7d0;
-}
-
-.menu-drop-item.item-warning {
-  color: #b45309;
-}
-.menu-drop-item.item-warning:hover {
-  background-color: #fffbeb;
-  border-color: #fde68a;
-}
-
-.menu-drop-item.item-primary {
-  color: #1d4ed8;
-}
-.menu-drop-item.item-primary:hover {
   background-color: #eff6ff;
   border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .card-subtitle {
@@ -260,7 +237,7 @@
   background: #f8fafc;
 }
 
-/* Mobile Responsive Optimization */
+/* Mobile Scrollable Table & Responsive Modal Optimization */
 @media (max-width: 768px) {
   body {
     padding: 16px 10px;
@@ -283,78 +260,22 @@
     font-size: 16px;
   }
 
-  /* Mobile Card-View for Admissions Table */
-  #admissionsTable thead {
-    display: none;
+  /* Keep standard table with smooth horizontal scroll */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
-  #admissionsTable,
-  #admissionsTable tbody,
-  #admissionsTable tr,
+  #admissionsTable {
+    min-width: 760px;
+  }
+
+  #admissionsTable th,
   #admissionsTable td {
-    display: block;
-    width: 100%;
-  }
-
-  #admissionsTable tbody tr {
-    background: #ffffff;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
-  }
-
-  #admissionsTable tbody tr:last-child {
-    margin-bottom: 0;
-  }
-
-  #admissionsTable tbody td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 7px 0;
-    border-bottom: 1px dashed #e2e8f0;
-    font-size: 13.5px;
-    text-align: right;
-    gap: 10px;
-  }
-
-  #admissionsTable tbody td:last-child {
-    border-bottom: none;
-    padding-top: 10px;
-    padding-bottom: 2px;
-  }
-
-  #admissionsTable tbody td::before {
-    content: attr(data-label);
-    font-size: 11.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: #64748b;
-    text-align: left;
-    flex-shrink: 0;
-  }
-
-  #admissionsTable tbody td.empty-row {
-    display: block;
-    text-align: center;
-    border: none;
-  }
-
-  #admissionsTable tbody td.empty-row::before {
-    display: none;
-  }
-
-  #admissionsTable .action-btns {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  #admissionsTable .action-btns .btn {
-    flex: 1;
-    padding: 7px 12px;
+    padding: 10px 10px;
+    font-size: 13px;
+    white-space: nowrap;
   }
 
   /* Mobile Modal & Form Adjustments */
@@ -383,4 +304,4 @@
     width: 100%;
     padding: 10px 14px;
   }
-} 
+}

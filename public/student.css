@@ -376,7 +376,9 @@ input[type="checkbox"] {
 
 /* Table Layout */
 .table-responsive {
+  width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -394,6 +396,7 @@ thead th {
   letter-spacing: 0.05em;
   padding: 12px 14px;
   border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
 }
 
 tbody td {
@@ -421,6 +424,7 @@ tbody tr:hover {
   color: #0369a1;
   background-color: #e0f2fe;
   border-radius: 5px;
+  white-space: nowrap;
 }
 
 .badge-roll {
@@ -539,7 +543,7 @@ tbody tr:hover {
   font-weight: 600;
 }
 
-/* Mobile Responsive Card View for Active Students */
+/* Mobile Horizontal Scroll Table & Responsive Modals */
 @media (max-width: 768px) {
   body {
     padding: 16px 10px;
@@ -553,61 +557,15 @@ tbody tr:hover {
     padding: 16px 12px;
   }
 
-  #studentsTable thead {
-    display: none;
+  #studentsTable {
+    min-width: 720px;
   }
 
-  #studentsTable,
-  #studentsTable tbody,
-  #studentsTable tr,
+  #studentsTable th,
   #studentsTable td {
-    display: block;
-    width: 100%;
-  }
-
-  #studentsTable tbody tr.student-row {
-    background: #ffffff;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
-  }
-
-  #studentsTable tbody td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 7px 0;
-    border-bottom: 1px dashed #e2e8f0;
-    font-size: 13.5px;
-    text-align: right;
-  }
-
-  #studentsTable tbody td:last-child {
-    border-bottom: none;
-    padding-top: 10px;
-    padding-bottom: 2px;
-  }
-
-  #studentsTable tbody td::before {
-    content: attr(data-label);
-    font-size: 11.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: #64748b;
-    text-align: left;
-  }
-
-  #studentsTable .action-btns {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  #studentsTable .action-btns .btn {
-    flex: 1;
-    padding: 7px 8px;
+    padding: 10px 10px;
+    font-size: 13px;
+    white-space: nowrap;
   }
 
   .modal-actions {
