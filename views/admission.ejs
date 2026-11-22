@@ -43,6 +43,9 @@
             <a href="/students" class="menu-drop-item">
               <span>Active Student List →</span>
             </a>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); goToIdCardsPage();">
+              <span>ID Card Studio →</span>
+            </button>
             <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openBrandingModal();">
               <span>Print Header / Footer</span>
             </button>
@@ -67,7 +70,7 @@
                autocomplete="off"
                readonly
                onfocus="this.removeAttribute('readonly');"
-               placeholder="Search by Name, Adm No, Father's Name, Phone, Aadhaar, Batch, or Status..."
+               placeholder="Search by Name, Adm No, Father's Name, Phone, Batch, or Status..."
                onkeyup="filterAdmissionTable()">
       </div>
     </div>
@@ -86,7 +89,7 @@
               <th>Adm No</th>
               <th>Student & Father</th>
               <th>DOB</th>
-              <th>Aadhaar / Docs</th>
+              <th>ID / Docs</th>
               <th>Main Batch</th>
               <th>Status</th>
               <th style="text-align: center;">Action</th>
@@ -104,7 +107,7 @@
             <% allStudents.forEach((s, index) => { %>
               <tr class="adm-row"
                   data-index="<%= index %>"
-                  data-search="<%= `${s.admission_no || ''} ${s.roll_no || ''} ${s.full_name || ''} ${s.father_name || ''} ${s.phone || ''} ${s.aadhaar_no || ''} ${s.main_batch_name || ''} ${s.batch_name || ''} ${s.status || ''}`.toLowerCase() %>">
+                  data-search="<%= `${s.admission_no || ''} ${s.roll_no || ''} ${s.full_name || ''} ${s.father_name || ''} ${s.phone || ''} ${s.main_batch_name || ''} ${s.batch_name || ''} ${s.status || ''}`.toLowerCase() %>">
                 <td class="chk-col" data-label="Select">
                   <input type="checkbox" class="adm-select-chk" value="<%= index %>">
                 </td>
@@ -125,7 +128,7 @@
                   </div>
                 </td>
                 <td data-label="DOB"><%= s.dob || '-' %></td>
-                <td data-label="Aadhaar / Docs">
+                <td data-label="ID / Docs">
                   <div>
                     <div class="aadhaar-text"><%= s.aadhaar_no || '-' %></div>
                     <% if (s.aadhaar_file) { %>
@@ -151,6 +154,9 @@
                     <button type="button" class="btn btn-sm btn-edit-std" data-index="<%= index %>" onclick="openEditAdmByIndex(this.dataset.index)">
                       Edit
                     </button>
+                    <a href="/id-cards?adms=<%= encodeURIComponent(s.admission_no) %>" class="btn btn-sm btn-primary">
+                      ID Card
+                    </a>
                     <button type="button" class="btn btn-sm btn-secondary" data-index="<%= index %>" onclick="printAdmByIndex(this.dataset.index)">
                       Print
                     </button>
@@ -200,8 +206,8 @@
           <span>Phone Number</span>
         </label>
         <label class="col-chk-item">
-          <input type="checkbox" name="admExportCols" value="aadhaar_no" data-label="Aadhaar No">
-          <span>Aadhaar Number</span>
+          <input type="checkbox" name="admExportCols" value="aadhaar_no" data-label="ID No">
+          <span>ID Number</span>
         </label>
         <label class="col-chk-item">
           <input type="checkbox" name="admExportCols" value="address" data-label="Address">
@@ -265,7 +271,7 @@
           </div>
 
           <div class="field-box">
-            <label>Aadhaar Number:</label>
+            <label>ID Number:</label>
             <input type="text" id="stAadhaar" name="aadhaar_no" placeholder="12-digit ID Number" maxlength="14">
           </div>
 
@@ -285,7 +291,7 @@
           </div>
 
           <div class="field-box">
-            <label>Aadhaar Card Upload (Image/PDF):</label>
+            <label>ID Document Upload (Image/PDF):</label>
             <input type="file" id="stAadhaarFile" name="aadhaar_doc" accept="image/*,.pdf">
           </div>
 
@@ -353,7 +359,7 @@
         </div>
 
         <div class="field-box">
-          <label>Aadhaar Number:</label>
+          <label>ID Number:</label>
           <input type="text" id="editAdmAadhaar" maxlength="14" placeholder="12-digit ID Number">
         </div>
 
@@ -373,7 +379,7 @@
         </div>
 
         <div class="field-box">
-          <label>Update Aadhaar Doc (Optional): <span id="currentDocLink"></span></label>
+          <label>Update ID Doc (Optional): <span id="currentDocLink"></span></label>
           <input type="file" id="editAdmAadhaarFile" accept="image/*,.pdf">
         </div>
 
@@ -448,6 +454,19 @@
       const searchInput = document.getElementById('admissionSearch');
       if (searchInput) searchInput.blur();
     });
+
+    // Navigate to Dedicated ID Card Studio (Passing selected checkboxes if any)
+    function goToIdCardsPage() {
+      const checkedAdms = Array.from(document.querySelectorAll('.adm-select-chk:checked'))
+        .map(chk => ADMISSIONS_LIST[Number(chk.value)]?.admission_no)
+        .filter(Boolean);
+
+      if (checkedAdms.length > 0) {
+        window.location.href = `/id-cards?adms=${encodeURIComponent(checkedAdms.join(','))}`;
+      } else {
+        window.location.href = '/id-cards';
+      }
+    }
 
     // Live Search Filter
     function filterAdmissionTable() {
@@ -984,7 +1003,7 @@
         '<tr><td class="lbl">Date of Birth</td><td>' + escapeHtml(info.dob) + '</td></tr>',
         '<tr><td class="lbl">Father\'s Name</td><td>' + escapeHtml(info.father_name) + '</td></tr>',
         '<tr><td class="lbl">Phone Number</td><td>' + escapeHtml(info.phone) + '</td></tr>',
-        '<tr><td class="lbl">Aadhaar Number</td><td>' + escapeHtml(info.aadhaar_no) + '</td></tr>',
+        '<tr><td class="lbl">ID Number</td><td>' + escapeHtml(info.aadhaar_no) + '</td></tr>',
         '<tr><td class="lbl">Full Address</td><td>' + escapeHtml(info.address) + '</td></tr>',
         '<tr><td class="lbl">Admission Status</td><td style="text-transform:uppercase;font-weight:700;">' + escapeHtml(info.status) + '</td></tr>',
         '</table>',

@@ -1,0 +1,87 @@
+// ID Card Dedicated Page
+app.get('/id-cards', requireAuth, checkAdmission, async (req, res) => {
+  try {
+    const admSheet = await getSheet('admissions');
+    const batchSheet = await getSheet('batches');
+
+    const [aRows, bRows] = await Promise.all([admSheet.getRows(), batchSheet.getRows()]);
+
+    const batchMap = {};
+    const batches = bRows.map(r => {
+      batchMap[r.get('id')] = r.get('name');
+      return { id: r.get('id'), name: r.get('name') };
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    const allStudents = aRows
+      .filter(r => (r.get('full_name') || '').trim() !== '')
+      .map(r => {
+        const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
+        const batchNamesList = rawBatchIds.map(id => batchMap[id]).filter(Boolean);
+        return {
+          admission_no: String(r.get('admission_no') || '').trim(),
+          roll_no: r.get('roll_no') || '',
+          full_name: r.get('full_name'),
+          dob: r.get('dob') || '',
+          father_name: r.get('father_name') || '',
+          phone: r.get('phone') || '',
+          photo_file: r.get('photo_file') || '',
+          address: r.get('address') || '',
+          batch_id: r.get('batch_id') || '',
+          main_batch_name: batchNamesList[0] || 'No Batch',
+          status: (r.get('status') || 'pending').trim().toLowerCase()
+        };
+      })
+      .reverse();
+
+    const files = fs.existsSync(uploadDir) ? fs.readdirSync(uploadDir) : [];
+    const idHeaderFile = files.find(f => f.startsWith('id_card_header.'));
+    const idFooterFile = files.find(f => f.startsWith('id_card_footer.'));
+    const idBranding = {
+      headerUrl: idHeaderFile ? `/uploads/${idHeaderFile}?v=${Date.now()}` : '',
+      footerUrl: idFooterFile ? `/uploads/${idFooterFile}?v=${Date.now()}` : ''
+    };
+
+    res.render('id_cards', { batches, allStudents, idBranding });
+  } catch (err) {
+    res.status(500).send('Database Error: ' + err.message);
+  }
+});
+
+// Upload Dedicated ID Card Header & Footer
+const idBrandingUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.png';
+      cb(null, `${file.fieldname}${ext}`);
+    }
+  })
+}).fields([
+  { name: 'id_card_header', maxCount: 1 },
+  { name: 'id_card_footer', maxCount: 1 }
+]);
+
+app.post('/api/id-card-branding', requireAuth, checkAdmission, idBrandingUpload, (req, res) => {
+  try {
+    if (req.files?.id_card_header?.[0]) {
+      fs.readdirSync(uploadDir)
+        .filter(f => f.startsWith('id_card_header.') && f !== req.files.id_card_header[0].filename)
+        .forEach(f => fs.unlinkSync(path.join(uploadDir, f)));
+    }
+    if (req.files?.id_card_footer?.[0]) {
+      fs.readdirSync(uploadDir)
+        .filter(f => f.startsWith('id_card_footer.') && f !== req.files.id_card_footer[0].filename)
+        .forEach(f => fs.unlinkSync(path.join(uploadDir, f)));
+    }
+    const files = fs.existsSync(uploadDir) ? fs.readdirSync(uploadDir) : [];
+    const hFile = files.find(f => f.startsWith('id_card_header.'));
+    const fFile = files.find(f => f.startsWith('id_card_footer.'));
+    res.json({
+      success: true,
+      headerUrl: hFile ? `/uploads/${hFile}?v=${Date.now()}` : '',
+      footerUrl: fFile ? `/uploads/${fFile}?v=${Date.now()}` : ''
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
