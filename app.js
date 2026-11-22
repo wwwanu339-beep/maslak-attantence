@@ -496,7 +496,6 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
 
     for (let i = rows.length - 1; i >= 0; i--) {
       if (target === 'users') {
-        // Never delete Developer ('super_admin') or Main Admin ('admin') when clearing users
         if (isProtectedAdmin(rows[i])) {
           continue;
         }
@@ -635,7 +634,7 @@ app.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req,
   }
 });
 
-// Edit Admission by admission_no (with Auto Roll Reorder)
+// Edit Admission by admission_no (with Cascade Roll Reorder)
 app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
@@ -691,7 +690,8 @@ app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async
   }
 });
 
-// Auto-Shift & Batch Save Roll Numbers across 'students' and 'admissions' (Gap-Free Sequential Order)
+// Cascade Shift & Gap-Free Sequential Reorder across 'students' and 'admissions'
+// Moving a roll down (e.g. 2 -> 5) shifts 3,4,5 up to 2,3,4; moving up (e.g. 5 -> 2) shifts 2,3,4 down to 3,4,5.
 async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admSheet, sRows, aRows) {
   const newRoll = parseInt(desiredRollStr, 10);
   if (isNaN(newRoll) || newRoll < 1) return;
@@ -710,22 +710,16 @@ async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admShe
     }
   });
 
+  // Sort all other students by their existing roll order
   items.sort((a, b) => a.roll - b.roll);
 
+  // Insert the target student at exact 1-based position `newRoll` and re-number sequentially (1, 2, 3...)
+  const targetIndex = Math.min(Math.max(0, newRoll - 1), items.length);
+  items.splice(targetIndex, 0, { adm: targetAdmNo, roll: newRoll });
+
   const finalRollMap = new Map();
-  finalRollMap.set(targetAdmNo, String(newRoll));
-
-  const beforeTarget = items.filter(item => item.roll < newRoll);
-  const afterTarget = items.filter(item => item.roll >= newRoll);
-
-  beforeTarget.forEach(item => {
-    finalRollMap.set(item.adm, String(item.roll));
-  });
-
-  let nextAvailable = newRoll + 1;
-  afterTarget.forEach(item => {
-    finalRollMap.set(item.adm, String(nextAvailable));
-    nextAvailable++;
+  items.forEach((item, idx) => {
+    finalRollMap.set(item.adm, String(idx + 1));
   });
 
   async function batchUpdateRollColumn(sheet) {
@@ -1009,7 +1003,7 @@ app.put('/api/students/:admNo/password', requireAuth, checkStudent, async (req, 
   }
 });
 
-// Update Student by admission_no (with Auto Roll Reorder)
+// Update Student by admission_no (with Cascade Roll Reorder)
 app.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
