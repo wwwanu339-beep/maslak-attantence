@@ -6,6 +6,8 @@
   <title>Student Admissions</title>
   <link rel="stylesheet" href="/student.css">
   <link rel="stylesheet" href="/admission.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -35,29 +37,51 @@
           </button>
 
           <div class="header-dropdown-menu" id="headerDropdownMenu">
-            <button type="button" class="menu-drop-item item-success" onclick="closeHeaderMenu(); openNewAdmModal();">
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openNewAdmModal();">
               <span>+ New Admission</span>
             </button>
-            <a href="/students" class="menu-drop-item item-primary">
+            <a href="/students" class="menu-drop-item">
               <span>Active Student List →</span>
             </a>
-            <button type="button" class="menu-drop-item item-warning" onclick="closeHeaderMenu(); openBrandingModal();">
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openBrandingModal();">
               <span>Print Header / Footer</span>
+            </button>
+            <div class="menu-divider"></div>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openAdmExportModal('csv');">
+              <span>Download CSV</span>
+            </button>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openAdmExportModal('pdf');">
+              <span>Download PDF</span>
             </button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Search Bar Card -->
+    <div class="card" style="padding: 14px 16px; margin-bottom: 16px;">
+      <div class="toolbar">
+        <input type="text"
+               id="admissionSearch"
+               class="search-input"
+               autocomplete="off"
+               readonly
+               onfocus="this.removeAttribute('readonly');"
+               placeholder="Search by Name, Adm No, Father's Name, Phone, Aadhaar, Batch, or Status..."
+               onkeyup="filterAdmissionTable()">
+      </div>
+    </div>
+
     <!-- 1. All Admissions Table -->
     <div class="card">
-      <h3>All Admissions (<%= allStudents.length %>)</h3>
+      <h3>All Admissions (<span id="visibleAdmCount"><%= allStudents.length %></span>)</h3>
       <p class="card-subtitle">Only active students appear in the Active Student List & Attendance.</p>
 
       <div class="table-responsive">
         <table id="admissionsTable">
           <thead>
             <tr>
+              <th class="chk-col"><input type="checkbox" id="selectAllAdmissions" onclick="toggleSelectAllAdm(this)" title="Select All"></th>
               <th>Photo</th>
               <th>Adm No</th>
               <th>Student & Father</th>
@@ -71,14 +95,19 @@
           <tbody>
             <% if (allStudents.length === 0) { %>
               <tr>
-                <td colspan="8" class="empty-row">
+                <td colspan="9" class="empty-row">
                   No admission records found. Tap the menu icon (<strong>⋮</strong>) above to add a new admission.
                 </td>
               </tr>
             <% } %>
 
             <% allStudents.forEach((s, index) => { %>
-              <tr>
+              <tr class="adm-row"
+                  data-index="<%= index %>"
+                  data-search="<%= `${s.admission_no || ''} ${s.roll_no || ''} ${s.full_name || ''} ${s.father_name || ''} ${s.phone || ''} ${s.aadhaar_no || ''} ${s.main_batch_name || ''} ${s.batch_name || ''} ${s.status || ''}`.toLowerCase() %>">
+                <td class="chk-col" data-label="Select">
+                  <input type="checkbox" class="adm-select-chk" value="<%= index %>">
+                </td>
                 <td data-label="Photo">
                   <% if (s.photo_file) { %>
                     <a href="<%= s.photo_file %>" target="_blank">
@@ -131,6 +160,66 @@
             <% }) %>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Column Selection Modal for Export (CSV / PDF) -->
+  <div id="admExportModal" class="modal" onclick="if(event.target === this) closeAdmExportModal()">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="admExportTitle">Select Columns to Download</h3>
+        <button type="button" class="modal-close" onclick="closeAdmExportModal()">×</button>
+      </div>
+      <p id="admExportSelectedCount" style="font-size: 13px; color: #64748b; margin-bottom: 6px;"></p>
+      <input type="hidden" id="admExportFormatType">
+
+      <div class="col-select-grid">
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="admission_no" data-label="Adm No" checked>
+          <span>Admission No</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="roll_no" data-label="Roll No" checked>
+          <span>Roll No</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="full_name" data-label="Full Name" checked>
+          <span>Student Name</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="father_name" data-label="Father Name" checked>
+          <span>Father's Name</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="dob" data-label="DOB" checked>
+          <span>Date of Birth</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="phone" data-label="Phone" checked>
+          <span>Phone Number</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="aadhaar_no" data-label="Aadhaar No">
+          <span>Aadhaar Number</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="address" data-label="Address">
+          <span>Full Address</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="main_batch_name" data-label="Main Batch" checked>
+          <span>Main Batch</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="status" data-label="Status" checked>
+          <span>Status</span>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeAdmExportModal()">Cancel</button>
+        <button type="button" id="confirmAdmExportBtn" class="btn btn-primary" onclick="executeAdmExport()">Download</button>
       </div>
     </div>
   </div>
@@ -355,6 +444,28 @@
     let selectedNewBatches = [];
     let selectedEditBatches = [];
 
+    window.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('admissionSearch');
+      if (searchInput) searchInput.blur();
+    });
+
+    // Live Search Filter
+    function filterAdmissionTable() {
+      const query = document.getElementById('admissionSearch').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#admissionsTable tbody tr.adm-row');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const searchData = row.dataset.search || row.innerText.toLowerCase();
+        const isMatch = searchData.includes(query);
+        row.style.display = isMatch ? '' : 'none';
+        if (isMatch) visibleCount++;
+      });
+
+      const countEl = document.getElementById('visibleAdmCount');
+      if (countEl) countEl.innerText = visibleCount;
+    }
+
     // Header Dropdown Menu Toggle
     function toggleHeaderMenu(e) {
       e.stopPropagation();
@@ -377,6 +488,139 @@
         closeHeaderMenu();
       }
     });
+
+    // Checkbox Selection & Export (CSV / PDF)
+    function toggleSelectAllAdm(masterChk) {
+      document.querySelectorAll('#admissionsTable tbody tr.adm-row').forEach(row => {
+        if (row.style.display !== 'none') {
+          const chk = row.querySelector('.adm-select-chk');
+          if (chk) chk.checked = masterChk.checked;
+        }
+      });
+    }
+
+    function openAdmExportModal(format) {
+      const checkedBoxes = document.querySelectorAll('.adm-select-chk:checked');
+      if (checkedBoxes.length === 0) {
+        return alert('Please select at least one student checkbox first!');
+      }
+
+      document.getElementById('admExportFormatType').value = format;
+      document.getElementById('admExportTitle').innerText = format === 'pdf'
+        ? 'Select Columns for PDF'
+        : 'Select Columns for CSV';
+      document.getElementById('admExportSelectedCount').innerText = `Selected Admissions: ${checkedBoxes.length}`;
+
+      const confirmBtn = document.getElementById('confirmAdmExportBtn');
+      confirmBtn.innerText = format === 'pdf' ? 'Download PDF' : 'Download CSV';
+      confirmBtn.className = format === 'pdf' ? 'btn btn-danger' : 'btn btn-success';
+
+      document.getElementById('admExportModal').style.display = 'flex';
+    }
+
+    function closeAdmExportModal() {
+      document.getElementById('admExportModal').style.display = 'none';
+    }
+
+    function executeAdmExport() {
+      const format = document.getElementById('admExportFormatType').value;
+      const selectedColInputs = Array.from(document.querySelectorAll('input[name="admExportCols"]:checked'));
+
+      if (selectedColInputs.length === 0) {
+        return alert('Please select at least one column to download!');
+      }
+
+      const selectedCols = selectedColInputs.map(cb => ({
+        key: cb.value,
+        label: cb.getAttribute('data-label')
+      }));
+
+      const selectedRecords = Array.from(document.querySelectorAll('.adm-select-chk:checked'))
+        .map(chk => ADMISSIONS_LIST[Number(chk.value)])
+        .filter(Boolean);
+
+      const today = new Date().toISOString().split('T')[0];
+
+      if (format === 'csv') {
+        const headers = selectedCols.map(c => c.label);
+        const csvRows = [headers.join(',')];
+
+        selectedRecords.forEach(item => {
+          const values = selectedCols.map(c => {
+            let val = item[c.key] || '';
+            if (c.key === 'status') val = String(val).toUpperCase();
+            return `"${String(val).replace(/"/g, '""')}"`;
+          });
+          csvRows.push(values.join(','));
+        });
+
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Admissions_List_${today}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        closeAdmExportModal();
+      } else if (format === 'pdf') {
+        if (!window.jspdf) {
+          return alert('PDF library is loading. Please check your internet connection and try again.');
+        }
+
+        const { jsPDF } = window.jspdf;
+        const isLandscape = selectedCols.length > 6;
+        const doc = new jsPDF(isLandscape ? 'l' : 'p', 'mm', 'a4');
+
+        doc.setFontSize(15);
+        doc.setTextColor(15, 23, 42);
+        doc.text('Student Admissions List', 14, 16);
+
+        doc.setFontSize(9.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Generated Date: ${today}   |   Total Records: ${selectedRecords.length}`, 14, 22);
+
+        const headRow = ['#', ...selectedCols.map(c => c.label)];
+        const bodyRows = selectedRecords.map((item, idx) => [
+          idx + 1,
+          ...selectedCols.map(c => {
+            let val = item[c.key] || '-';
+            if (c.key === 'status') val = String(val).toUpperCase();
+            return val;
+          })
+        ]);
+
+        doc.autoTable({
+          startY: 27,
+          head: [headRow],
+          body: bodyRows,
+          theme: 'grid',
+          styles: {
+            fontSize: 8.5,
+            cellPadding: 3,
+            textColor: [30, 41, 59],
+            lineColor: [203, 213, 225],
+            lineWidth: 0.2
+          },
+          headStyles: {
+            fillColor: [37, 99, 235],
+            textColor: 255,
+            fontStyle: 'bold',
+            halign: 'center'
+          },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 10 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          }
+        });
+
+        doc.save(`Admissions_List_${today}.pdf`);
+        closeAdmExportModal();
+      }
+    }
 
     document.addEventListener('change', (e) => {
       if (e.target.name === 'admBatches') {

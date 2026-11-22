@@ -81,7 +81,7 @@
           <input type="password" id="userPass" placeholder="Password">
           
           <select id="userRole" onchange="handleRoleChange()">
-            <option value="admin">Admin / Full Access</option>
+            <option value="sub_admin">Sub Admin / Staff Access</option>
             <option value="batch_leader">Batch Leader (Single Batch)</option>
             <option value="subject_leader">Subject Leader (Single Subject)</option>
           </select>
@@ -101,13 +101,13 @@
           </select>
 
           <div class="checkbox-group">
-  <label><input type="checkbox" id="userAtt" checked> Attendance</label>
-  <label><input type="checkbox" id="userUpdate" checked> Can Update</label>
-  <label><input type="checkbox" id="userManage"> Add / Manage</label>
-  <label><input type="checkbox" id="userview"> Attendance View</label>
-  <label><input type="checkbox" id="userstudet"> Student Manage</label>
-  <label><input type="checkbox" id="userAdmission"> Admission Access</label>
-</div>
+            <label><input type="checkbox" id="userAtt" checked> Attendance</label>
+            <label><input type="checkbox" id="userUpdate" checked> Can Update</label>
+            <label><input type="checkbox" id="userManage"> Add / Manage</label>
+            <label><input type="checkbox" id="userview"> Attendance View</label>
+            <label><input type="checkbox" id="userstudet"> Student Manage</label>
+            <label><input type="checkbox" id="userAdmission"> Admission Access</label>
+          </div>
           
           <button type="button" class="btn btn-add" onclick="addUser()">Add User</button>
         </div>
@@ -117,7 +117,7 @@
             <option value="" disabled selected>Select User</option>
             <% users.forEach(u => { %>
               <option value="<%= u.id %>">
-                <%= u.name ? `${u.name} (@${u.username})` : u.username %> — <%= u.phone || 'No Phone' %> (<%= u.role || 'admin' %>)
+                <%= u.name ? `${u.name} (@${u.username})` : u.username %> — <%= u.phone || 'No Phone' %> (<%= u.role || 'sub_admin' %>)
               </option>
             <% }) %>
           </select>
@@ -219,7 +219,7 @@
       const updateCheck = document.getElementById('userUpdate');
       const attCheck = document.getElementById('userAtt');
 
-      if (role === 'admin') {
+      if (role === 'sub_admin') {
         batchSelect.style.display = 'none';
         subjectSelect.style.display = 'none';
         updateCheck.checked = true;
@@ -281,7 +281,7 @@
           username, 
           password, 
           role,
-          allowed_batch: role === 'admin' ? 'all' : allowed_batch,
+          allowed_batch: role === 'sub_admin' ? 'all' : allowed_batch,
           allowed_subject: role === 'subject_leader' ? allowed_subject : 'all',
           can_attendance, 
           can_admission,

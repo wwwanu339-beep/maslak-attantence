@@ -115,6 +115,13 @@ async function getSheet(sheetTitle) {
   return doc.sheetsByTitle[sheetTitle];
 }
 
+// Identify Protected Accounts: 'super_admin' (Developer) & 'admin' (Main Admin)
+function isProtectedAdmin(row) {
+  if (!row) return false;
+  const role = String(row.get('role') || '').trim().toLowerCase();
+  return role === 'super_admin' || role === 'admin';
+}
+
 // Generate next Admission Number based on the bottom-most row in 'admissions'
 function generateNextAdmissionNo(admRows, stuRows = []) {
   for (let i = admRows.length - 1; i >= 0; i--) {
@@ -238,7 +245,7 @@ app.post('/login', async (req, res) => {
         can_attendanceveiw: parseInt(matchedUser.get('can_attendanceveiw') || 0),
         can_studet: parseInt(matchedUser.get('can_studet') || 0),
         can_admission: parseInt(matchedUser.get('can_admission') || 0),
-        role: String(matchedUser.get('role') || 'admin').trim(),
+        role: String(matchedUser.get('role') || 'sub_admin').trim(),
         allowed_batch: String(matchedUser.get('allowed_batch') || 'all').trim(),
         allowed_subject: String(matchedUser.get('allowed_subject') || 'all').trim(),
         can_update: matchedUser.get('can_update') !== undefined && matchedUser.get('can_update') !== '' 
@@ -273,13 +280,18 @@ app.get('/settings', requireAuth, checkManage, async (req, res) => {
 
     const batches = bRows.map(r => ({ id: r.get('id'), name: r.get('name') })).reverse();
     const subjects = sRows.map(r => ({ id: r.get('id'), name: r.get('name'), batch_id: r.get('batch_id') })).reverse();
-    const users = uRows.map(r => ({
-      id: r.get('id'),
-      name: r.get('name') || '',
-      phone: r.get('phone') || '',
-      username: r.get('username'),
-      role: r.get('role') || 'admin'
-    })).reverse();
+
+    // Hide both Developer ('super_admin') and Main Admin ('admin') from user dropdown list
+    const users = uRows
+      .filter(r => !isProtectedAdmin(r))
+      .map(r => ({
+        id: r.get('id'),
+        name: r.get('name') || '',
+        phone: r.get('phone') || '',
+        username: r.get('username'),
+        role: r.get('role') || 'sub_admin'
+      }))
+      .reverse();
 
     res.render('add', { batches, subjects, users });
   } catch (err) {
@@ -343,11 +355,16 @@ app.post('/api/users', requireAuth, checkManage, async (req, res) => {
 
   if (!username || !password) return res.status(400).json({ success: false, error: 'Username and password are required!' });
 
+  let finalRole = String(role || 'sub_admin').trim().toLowerCase();
+  if (finalRole === 'super_admin' || finalRole === 'admin') {
+    finalRole = 'sub_admin';
+  }
+
   let finalBatch = 'all';
   let finalSubject = 'all';
 
-  if (role === 'batch_leader' && allowed_batch) finalBatch = String(allowed_batch).trim();
-  else if (role === 'subject_leader' && allowed_batch && allowed_subject) {
+  if (finalRole === 'batch_leader' && allowed_batch) finalBatch = String(allowed_batch).trim();
+  else if (finalRole === 'subject_leader' && allowed_batch && allowed_subject) {
     finalBatch = String(allowed_batch).trim();
     finalSubject = String(allowed_subject).trim();
   }
@@ -368,7 +385,7 @@ app.post('/api/users', requireAuth, checkManage, async (req, res) => {
       phone: (phone || '').trim(),
       username: username.trim(),
       password: hashedPassword,
-      role: role || 'admin',
+      role: finalRole,
       allowed_batch: finalBatch,
       allowed_subject: finalSubject,
       can_attendance: can_attendance ? '1' : '0',
@@ -384,12 +401,23 @@ app.post('/api/users', requireAuth, checkManage, async (req, res) => {
   }
 });
 
+// Delete User (Strictly protects Developer 'super_admin' and Main Admin 'admin')
 app.delete('/api/users/:id', requireAuth, checkManage, async (req, res) => {
   try {
     const sheet = await getSheet('users');
     const rows = await sheet.getRows();
-    const row = rows.find(r => String(r.get('id')) === String(req.params.id));
-    if (row) await row.delete();
+    const targetId = String(req.params.id).trim();
+
+    const row = rows.find(r => String(r.get('id')).trim() === targetId);
+    if (!row) {
+      return res.status(404).json({ success: false, error: 'User not found!' });
+    }
+
+    if (isProtectedAdmin(row)) {
+      return res.status(403).json({ success: false, error: 'Protected Admin account cannot be deleted!' });
+    }
+
+    await row.delete();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -426,7 +454,7 @@ app.put('/api/change-password', requireAuth, async (req, res) => {
   }
 });
 
-// Clear All Data Route (Requires Main Admin Password Verification)
+// Clear All Data Route (Verifies Main Admin / Super Admin Password & Protects Both)
 app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
   const target = req.params.target;
   const { adminPassword } = req.body;
@@ -444,12 +472,19 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
     const userSheet = await getSheet('users');
     const uRows = await userSheet.getRows();
 
-    const mainAdmin = uRows.find(r => (r.get('role') || 'admin').trim().toLowerCase() === 'admin');
-    if (!mainAdmin) {
+    const protectedAdmins = uRows.filter(r => isProtectedAdmin(r));
+    if (protectedAdmins.length === 0) {
       return res.status(404).json({ success: false, error: 'Main Admin account not found!' });
     }
 
-    const isPasswordValid = await verifyPassword(adminPassword, mainAdmin.get('password'));
+    let isPasswordValid = false;
+    for (const adm of protectedAdmins) {
+      if (await verifyPassword(adminPassword, adm.get('password'))) {
+        isPasswordValid = true;
+        break;
+      }
+    }
+
     if (!isPasswordValid) {
       return res.status(401).json({ success: false, error: 'Incorrect Main Admin password!' });
     }
@@ -458,10 +493,11 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
     if (!sheet) return res.status(404).json({ success: false, error: `Sheet "${target}" not found!` });
 
     const rows = await sheet.getRows();
+
     for (let i = rows.length - 1; i >= 0; i--) {
       if (target === 'users') {
-        const rowUser = String(rows[i].get('username')).trim();
-        if (rowUser === String(mainAdmin.get('username')).trim() || rowUser === req.session.user.username) {
+        // Never delete Developer ('super_admin') or Main Admin ('admin') when clearing users
+        if (isProtectedAdmin(rows[i])) {
           continue;
         }
       }
@@ -655,7 +691,6 @@ app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async
   }
 });
 
-// Auto-Shift & Batch Save Roll Numbers across 'students' and 'admissions' (Zero API Rate Limit)
 // Auto-Shift & Batch Save Roll Numbers across 'students' and 'admissions' (Gap-Free Sequential Order)
 async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admSheet, sRows, aRows) {
   const newRoll = parseInt(desiredRollStr, 10);
@@ -664,7 +699,6 @@ async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admShe
   const items = [];
   const processedAdms = new Set();
 
-  // Prioritize 'students' rows first, then 'admissions' rows for current roll numbers
   [...sRows, ...aRows].forEach(r => {
     const adm = String(r.get('admission_no') || '').trim();
     if (!adm || adm === targetAdmNo || processedAdms.has(adm)) return;
@@ -676,13 +710,11 @@ async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admShe
     }
   });
 
-  // Sort all other students by their existing roll number
   items.sort((a, b) => a.roll - b.roll);
 
   const finalRollMap = new Map();
   finalRollMap.set(targetAdmNo, String(newRoll));
 
-  // Keep students before newRoll unchanged, and assign sequential numbers (newRoll + 1, +2...) after it
   const beforeTarget = items.filter(item => item.roll < newRoll);
   const afterTarget = items.filter(item => item.roll >= newRoll);
 

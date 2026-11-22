@@ -54,8 +54,7 @@
     <!-- Search Bar Card -->
     <div class="card" style="padding: 14px 16px; margin-bottom: 16px;">
       <div class="toolbar">
-        <input type="text" id="studentSearch" class="search-input" autocomplete="off" placeholder="Search by Name, Admission No, Roll No, Phone, or Main Batch..." onkeyup="filterStudentTable()">
-      </div>
+       <input type="text" id="studentSearch" class="search-input" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');" placeholder="Search by Name, Admission No, Roll No, Phone, or Main Batch..." onkeyup="filterStudentTable()">
     </div>
 
     <!-- Active Students Table -->
@@ -307,9 +306,9 @@
       }
     });
 
-    window.addEventListener('DOMContentLoaded', () => {
+   window.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('studentSearch');
-      if (searchInput && document.activeElement === searchInput) {
+      if (searchInput) {
         searchInput.blur();
       }
     });

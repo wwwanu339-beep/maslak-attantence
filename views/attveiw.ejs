@@ -9,7 +9,7 @@
 <body>
 
   <!-- Individual Student Detail Card -->
-  <div class="student-detail-card" id="studentDetailBox" style="display: none;">
+  <div class="student-detail-card no-print" id="studentDetailBox" style="display: none;">
     <div class="student-header">
       <div class="avatar" id="detailAvatar">01</div>
       <div>
@@ -32,11 +32,27 @@
     </table>
   </div>
 
-  <!-- Monthly Matrix Section -->
+  <!-- Attendance Report Section -->
   <div class="matrix-container">
-    <h2>Monthly Attendance Matrix</h2>
+    <div class="top-bar no-print">
+      <h2 id="reportHeading">Monthly Attendance Matrix</h2>
+      <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5"></path>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </a>
+    </div>
 
-    <div class="filter-bar">
+    <div class="filter-bar no-print">
+      <div class="filter-item">
+        <label>View Type</label>
+        <select id="viewMode" onchange="toggleViewMode()">
+          <option value="monthly" selected>Monthly View</option>
+          <option value="daily">Daily View (By Date)</option>
+        </select>
+      </div>
+
       <div class="filter-item">
         <label>Batch</label>
         <select id="filterBatch">
@@ -58,7 +74,8 @@
         </select>
       </div>
 
-      <div class="filter-item">
+      <!-- Monthly Filters -->
+      <div class="filter-item" id="monthFilterBox">
         <label>Month</label>
         <select id="filterMonth">
           <option value="1">January</option>
@@ -76,7 +93,7 @@
         </select>
       </div>
 
-      <div class="filter-item">
+      <div class="filter-item" id="yearFilterBox">
         <label>Year</label>
         <select id="filterYear">
           <option value="2026">2026</option>
@@ -85,8 +102,27 @@
         </select>
       </div>
 
-      <button type="button" class="btn-filter" onclick="loadAttendance()">Filter</button>
-      <button type="button" class="btn-filter" id="btnDownload" onclick="Attendancedownload()" style="display: none; background-color: #059669; color: #fff;">Download / Print</button>
+      <!-- Daily Filters (Date & P/A/L Status) -->
+      <div class="filter-item" id="dateFilterBox" style="display: none;">
+        <label>Select Date</label>
+        <input type="date" id="filterDate">
+      </div>
+
+      <div class="filter-item" id="statusFilterBox" style="display: none;">
+        <label>Status (P / A / L)</label>
+        <select id="filterDailyStatus" onchange="applyDailyStatusFilter()">
+          <option value="all" selected>All Status (P, A, L)</option>
+          <option value="present">Present (P)</option>
+          <option value="absent">Absent (A)</option>
+          <option value="leave">Leave (L)</option>
+          <option value="unmarked">Not Marked (-)</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="button" class="btn-filter" onclick="loadAttendance()">Filter</button>
+        <button type="button" class="btn-filter btn-print-action" id="btnDownload" onclick="Attendancedownload()" style="display: none;">Print / Save PDF</button>
+      </div>
     </div>
 
     <div class="table-wrapper" id="printArea">
@@ -107,13 +143,14 @@
       const now = new Date();
       document.getElementById('filterMonth').value = now.getMonth() + 1;
       document.getElementById('filterYear').value = now.getFullYear();
+      document.getElementById('filterDate').value = now.toISOString().split('T')[0];
 
       const batchSelect = document.getElementById('filterBatch');
       const subjectSelect = document.getElementById('filterSubject');
 
       if (batchSelect && subjectSelect) {
         batchSelect.addEventListener('change', () => {
-          const selectedBatch = batchSelect.value;
+          const selectedBatch = String(batchSelect.value || '').trim();
           subjectSelect.value = 'all';
 
           subjectSelect.querySelectorAll('option').forEach(opt => {
@@ -122,8 +159,8 @@
               opt.disabled = false;
               return;
             }
-            const optBatchId = opt.getAttribute('data-batch-id');
-            const show = selectedBatch === 'all' || optBatchId === selectedBatch;
+            const optBatchId = String(opt.getAttribute('data-batch-id') || '').trim();
+            const show = optBatchId === selectedBatch;
             opt.hidden = !show;
             opt.disabled = !show;
           });
@@ -131,16 +168,52 @@
       }
     });
 
+    function toggleViewMode() {
+      const mode = document.getElementById('viewMode').value;
+      const isDaily = mode === 'daily';
+
+      document.getElementById('monthFilterBox').style.display = isDaily ? 'none' : '';
+      document.getElementById('yearFilterBox').style.display = isDaily ? 'none' : '';
+      document.getElementById('dateFilterBox').style.display = isDaily ? '' : 'none';
+      document.getElementById('statusFilterBox').style.display = isDaily ? '' : 'none';
+
+      document.getElementById('reportHeading').innerText = isDaily
+        ? 'Daily Attendance Report'
+        : 'Monthly Attendance Matrix';
+
+      document.getElementById('btnDownload').style.display = 'none';
+      globalReportData = null;
+      document.getElementById('printArea').innerHTML = `
+        <table class="matrix-table">
+          <tbody>
+            <tr>
+              <td colspan="36" style="padding: 25px; color: #64748b; text-align: center;">Select filters and click 'Filter' to view the report.</td>
+            </tr>
+          </tbody>
+        </table>`;
+    }
+
     async function loadAttendance() {
+      const mode = document.getElementById('viewMode').value;
       const batch_id = document.getElementById('filterBatch').value;
       const subject_id = document.getElementById('filterSubject').value;
-      const month = document.getElementById('filterMonth').value;
-      const year = document.getElementById('filterYear').value;
       const downloadBtn = document.getElementById('btnDownload');
 
       downloadBtn.style.display = 'none';
 
       if (!batch_id) return alert('Please select a batch!');
+
+      let month, year, selectedDate = '';
+      if (mode === 'daily') {
+        selectedDate = document.getElementById('filterDate').value;
+        if (!selectedDate) return alert('Please select a date!');
+        const [yStr, mStr] = selectedDate.split('-');
+        year = parseInt(yStr, 10);
+        month = parseInt(mStr, 10);
+      } else {
+        month = document.getElementById('filterMonth').value;
+        year = document.getElementById('filterYear').value;
+      }
 
       const printArea = document.getElementById('printArea');
       printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: #475569;">Loading report data...</div>';
@@ -156,11 +229,163 @@
         }
 
         globalReportData = data;
-        renderPaginatedMatrix(data, batch_id, subject_id, month, year);
+        if (mode === 'daily') {
+          renderDailyReport(data, batch_id, subject_id, selectedDate);
+        } else {
+          renderPaginatedMatrix(data, batch_id, subject_id, month, year);
+        }
         downloadBtn.style.display = 'inline-block';
       } catch (err) {
         printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: red;">Failed to load attendance report.</div>';
       }
+    }
+
+    function applyDailyStatusFilter() {
+      if (document.getElementById('viewMode').value === 'daily' && globalReportData) {
+        const batch_id = document.getElementById('filterBatch').value;
+        const subject_id = document.getElementById('filterSubject').value;
+        const selectedDate = document.getElementById('filterDate').value;
+        renderDailyReport(globalReportData, batch_id, subject_id, selectedDate);
+      }
+    }
+
+    function renderDailyReport(data, batch_id, subject_id, selectedDate) {
+      const printArea = document.getElementById('printArea');
+      const isAllBatch = batch_id === 'all';
+      const batchText = document.getElementById('filterBatch').options[document.getElementById('filterBatch').selectedIndex].text;
+      const subjectText = document.getElementById('filterSubject').options[document.getElementById('filterSubject').selectedIndex].text;
+      const statusFilter = document.getElementById('filterDailyStatus').value;
+      const dayNum = parseInt(selectedDate.split('-')[2], 10);
+      const markedTeacherName = data.markedTeachers || '-';
+      const printedOn = new Date().toLocaleDateString('en-GB');
+
+      let studentList = [...data.students].sort((a, b) => {
+        const admA = parseInt(String(a.roll_no || a.admission_no).replace(/\D/g, '')) || 0;
+        const admB = parseInt(String(b.roll_no || b.admission_no).replace(/\D/g, '')) || 0;
+        return admA - admB;
+      });
+
+      let pTotal = 0, aTotal = 0, lTotal = 0;
+
+      const enriched = studentList.map(st => {
+        const rawStatus = (data.attMap[st.admission_no] && data.attMap[st.admission_no][dayNum])
+          ? String(data.attMap[st.admission_no][dayNum]).trim().toLowerCase()
+          : 'unmarked';
+
+        if (rawStatus === 'present') pTotal++;
+        else if (rawStatus === 'absent') aTotal++;
+        else if (rawStatus === 'leave') lTotal++;
+
+        return { ...st, dayStatus: rawStatus };
+      });
+
+      const filteredList = statusFilter === 'all'
+        ? enriched
+        : enriched.filter(st => st.dayStatus === statusFilter);
+
+      const filterLabelMap = {
+        all: 'All Students',
+        present: 'Present Only (P)',
+        absent: 'Absent Only (A)',
+        leave: 'Leave Only (L)',
+        unmarked: 'Not Marked (-)'
+      };
+
+      const pageSize = 35;
+      const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+      let fullHtml = '';
+
+      for (let pIdx = 0; pIdx < totalPages; pIdx++) {
+        const pageStudents = filteredList.slice(pIdx * pageSize, (pIdx + 1) * pageSize);
+        const pageClass = pIdx > 0 ? 'print-page page-break' : 'print-page';
+        const isFirstPage = pIdx === 0;
+        const isLastPage = pIdx === totalPages - 1;
+
+        fullHtml += `
+          <div class="${pageClass}">
+            ${isFirstPage ? `
+              <div class="print-header">
+                <div class="print-header-left">
+                  <h3>Daily Attendance Report</h3>
+                  <div class="print-meta-row">
+                    <span>Date: <strong>${selectedDate}</strong></span>
+                    <span>Batch: <strong>${isAllBatch ? 'All Classes' : batchText}</strong></span>
+                    <span>Subject: <strong>${subjectText}</strong></span>
+                    <span>Filter: <strong>${filterLabelMap[statusFilter]}</strong></span>
+                    <span>Total Pages: <strong>${totalPages}</strong></span>
+                  </div>
+                </div>
+                <div class="print-header-right">
+                  <div class="print-teacher-lbl">Marked Teacher</div>
+                  <p class="print-teacher-val">${markedTeacherName}</p>
+                  <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Printed: ${printedOn}</div>
+                </div>
+              </div>
+
+              <div class="daily-summary-strip" style="margin-top: 10px;">
+                <span class="sum-pill all">Total: ${enriched.length}</span>
+                <span class="sum-pill p">Present (P): ${pTotal}</span>
+                <span class="sum-pill a">Absent (A): ${aTotal}</span>
+                <span class="sum-pill l">Leave (L): ${lTotal}</span>
+              </div>
+            ` : ''}
+
+            <table class="matrix-table daily-table">
+              <thead>
+                <tr>
+                  <th class="center" style="width: 50px;">#</th>
+                  <th class="center" style="width: 80px;">Roll No</th>
+                  <th style="width: 115px;">Adm No</th>
+                  <th>Student Name</th>
+                  <th>Batch</th>
+                  <th class="center" style="width: 125px;">Status</th>
+                </tr>
+              </thead>
+              <tbody>`;
+
+        if (pageStudents.length === 0) {
+          fullHtml += `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">No students found for "${filterLabelMap[statusFilter]}" on ${selectedDate}.</td></tr>`;
+        } else {
+          pageStudents.forEach((st, idx) => {
+            const serialNo = (pIdx * pageSize) + idx + 1;
+            const rollNo = st.roll_no || st.admission_no || '-';
+            let statusCell = '<td class="center">-</td>';
+
+            if (st.dayStatus === 'present') {
+              statusCell = `<td class="status-p center" style="cursor: pointer;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')">P (Present)</td>`;
+            } else if (st.dayStatus === 'absent') {
+              statusCell = `<td class="status-a center" style="cursor: pointer;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')">A (Absent)</td>`;
+            } else if (st.dayStatus === 'leave') {
+              statusCell = `<td class="status-l center" style="cursor: pointer;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')">L (Leave)</td>`;
+            } else {
+              statusCell = `<td class="center" style="color: #94a3b8;">Not Marked</td>`;
+            }
+
+            fullHtml += `
+              <tr>
+                <td class="center">${serialNo}</td>
+                <td class="center"><strong>${rollNo}</strong></td>
+                <td>${st.admission_no}</td>
+                <td style="cursor: pointer; font-weight: 600;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')">${st.full_name || '-'}</td>
+                <td>${st.batch_name || '-'}</td>
+                ${statusCell}
+              </tr>`;
+          });
+        }
+
+        fullHtml += `
+              </tbody>
+            </table>
+            ${isLastPage ? `
+              <div class="print-footer-sign">
+                <div class="sign-box">Class Teacher / In-Charge</div>
+                <div class="sign-box">Principal / Authorized Sign</div>
+              </div>
+            ` : ''}
+          </div>`;
+      }
+
+      printArea.innerHTML = fullHtml;
     }
 
     function renderPaginatedMatrix(data, batch_id, subject_id, month, year) {
@@ -170,6 +395,7 @@
       const subjectText = document.getElementById('filterSubject').options[document.getElementById('filterSubject').selectedIndex].text;
       const monthText = document.getElementById('filterMonth').options[document.getElementById('filterMonth').selectedIndex].text;
       const markedTeacherName = data.markedTeachers || '-';
+      const printedOn = new Date().toLocaleDateString('en-GB');
 
       let studentList = [...data.students];
       if (isAllBatch) {
@@ -180,7 +406,7 @@
         });
       }
 
-      const pageSize = 30;
+      const pageSize = 28;
       const totalStudents = studentList.length;
       const totalPages = Math.ceil(totalStudents / pageSize);
 
@@ -189,32 +415,41 @@
       for (let pIdx = 0; pIdx < totalPages; pIdx++) {
         const pageStudents = studentList.slice(pIdx * pageSize, (pIdx + 1) * pageSize);
         const pageClass = pIdx > 0 ? 'print-page page-break' : 'print-page';
+        const isFirstPage = pIdx === 0;
+        const isLastPage = pIdx === totalPages - 1;
 
-        fullHtml += `<div class="${pageClass}">`;
         fullHtml += `
-          <div class="print-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <h3>Attendance Report - ${monthText} ${year}</h3>
-              <p>${!isAllBatch ? `Batch: <b>${batchText}</b> | ` : ''}Subject: <b>${subjectText}</b> | Page ${pIdx + 1} of ${totalPages}</p>
-            </div>
-            <div style="text-align: right;">
-              <h5 style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Marked Teacher</h5>
-              <p style="margin: 2px 0 0 0; font-weight: 700; font-size: 14px; color: #0f172a;">${markedTeacherName}</p>
-            </div>
-          </div>
-          <table class="matrix-table">
-            <thead>
-              <tr>
-                <th class="col-roll">Roll</th>
-                <th class="col-name">Student Name</th>`;
+          <div class="${pageClass}">
+            ${isFirstPage ? `
+              <div class="print-header">
+                <div class="print-header-left">
+                  <h3>Monthly Attendance Register — ${monthText} ${year}</h3>
+                  <div class="print-meta-row">
+                    <span>Batch: <strong>${isAllBatch ? 'All Classes' : batchText}</strong></span>
+                    <span>Subject: <strong>${subjectText}</strong></span>
+                    <span>Total Pages: <strong>${totalPages}</strong></span>
+                  </div>
+                </div>
+                <div class="print-header-right">
+                  <div class="print-teacher-lbl">Marked Teacher</div>
+                  <p class="print-teacher-val">${markedTeacherName}</p>
+                  <div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Printed: ${printedOn}</div>
+                </div>
+              </div>
+            ` : ''}
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th class="col-roll">Roll</th>
+                  <th class="col-name">Student Name</th>`;
 
         for (let d = 1; d <= data.daysInMonth; d++) {
           fullHtml += `<th>${d}</th>`;
         }
         fullHtml += `<th class="col-summary">P</th><th class="col-summary">A</th><th class="col-summary">L</th><th class="col-summary">%</th>
-              </tr>
-            </thead>
-            <tbody>`;
+                </tr>
+              </thead>
+              <tbody>`;
 
         pageStudents.forEach((st, idx) => {
           let p = 0, a = 0, l = 0;
@@ -257,7 +492,16 @@
           fullHtml += row;
         });
 
-        fullHtml += `</tbody></table></div>`;
+        fullHtml += `
+              </tbody>
+            </table>
+            ${isLastPage ? `
+              <div class="print-footer-sign">
+                <div class="sign-box">Class Teacher / In-Charge</div>
+                <div class="sign-box">Principal / Authorized Sign</div>
+              </div>
+            ` : ''}
+          </div>`;
       }
 
       printArea.innerHTML = fullHtml;
@@ -265,12 +509,17 @@
 
     function Attendancedownload() {
       if (!globalReportData || globalReportData.students.length === 0) {
-        return alert('Please filter records before downloading!');
+        return alert('Please filter records before printing!');
       }
       window.print();
     }
 
     function openLatestStudentDay(admissionNo) {
+      const mode = document.getElementById('viewMode').value;
+      if (mode === 'daily') {
+        const selectedDate = document.getElementById('filterDate').value;
+        return showStudentDay(admissionNo, selectedDate);
+      }
       const month = document.getElementById('filterMonth').value;
       const year = document.getElementById('filterYear').value;
       const today = new Date();

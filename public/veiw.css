@@ -6,114 +6,169 @@
 
 body {
   margin: 0;
-  padding: 20px;
-  background-color: #f8fafc;
+  padding: 24px 16px;
+  background-color: #f1f5f9;
   color: #1e293b;
-  overflow-x: hidden; /* പേജ് മുഴുവനായി വലതുവശത്തേക്ക് തള്ളിനിൽക്കുന്നത് തടയുന്നു */
+  overflow-x: hidden;
 }
 
 .matrix-container {
   width: 100%;
-  max-width: 100%;
+  max-width: 1180px;
   margin: 0 auto;
   background: #ffffff;
   padding: 24px;
   border-radius: 12px;
+  border: 1px solid #e2e8f0;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  overflow: hidden; /* ഉള്ളിലെ ടേബിൾ കണ്ടെയ്നറിന് പുറത്തേക്ക് പോകുന്നത് തടയുന്നു */
+  overflow: hidden;
 }
 
-h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
+/* ================= TOP BAR ================= */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.top-bar h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
   color: #0f172a;
+}
+
+.btn-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background-color: #eff6ff;
+  border: 1.5px solid #2563eb;
+  color: #1d4ed8;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.btn-header-icon:hover {
+  background-color: #dbeafe;
+  border-color: #1d4ed8;
 }
 
 /* ================= FILTER BAR ================= */
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 12px;
   align-items: flex-end;
-  margin-bottom: 25px;
-  background: #f1f5f9;
+  margin-bottom: 22px;
+  background: #f8fafc;
   padding: 16px;
-  border-radius: 8px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
 }
 
 .filter-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
+  min-width: 145px;
 }
 
 .filter-item label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #475569;
 }
 
-.filter-item select {
-  padding: 8px 12px;
+.filter-item select,
+.filter-item input[type="date"] {
+  padding: 9px 12px;
   border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border-radius: 7px;
   background: #ffffff;
   color: #1e293b;
-  font-size: 14px;
+  font-size: 13.5px;
+  font-weight: 500;
   outline: none;
-  min-width: 150px;
+  transition: border-color 0.2s ease;
+}
+
+.filter-item select:focus,
+.filter-item input[type="date"]:focus {
+  border-color: #2563eb;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn-filter {
   padding: 9px 18px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border: 1.5px solid #2563eb;
+  border-radius: 7px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  background-color: #2563eb;
-  color: #ffffff;
-  transition: opacity 0.2s ease;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  transition: all 0.18s ease;
 }
 
 .btn-filter:hover {
-  opacity: 0.9;
+  background-color: #dbeafe;
 }
 
-#btnDownload {
-  background-color: #059669 !important;
+.btn-print-action {
+  background-color: #f0fdf4;
+  border-color: #16a34a;
+  color: #15803d;
 }
 
-/* ================= REPORT HEADER (SCREEN & PRINT) ================= */
-.print-header {
+.btn-print-action:hover {
+  background-color: #dcfce7;
+}
+
+/* ================= DAILY SUMMARY PILLS ================= */
+.daily-summary-strip {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background-color: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  flex-wrap: wrap;
   gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
-.print-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #0f172a;
+.sum-pill {
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1.5px solid transparent;
 }
 
-.print-header p {
-  margin: 4px 0 0 0;
-  font-size: 13px;
-  color: #475569;
+.sum-pill.all { background: #f8fafc; border-color: #94a3b8; color: #334155; }
+.sum-pill.p { background: #f0fdf4; border-color: #16a34a; color: #15803d; }
+.sum-pill.a { background: #fef2f2; border-color: #dc2626; color: #b91c1c; }
+.sum-pill.l { background: #fffbeb; border-color: #d97706; color: #b45309; }
+
+/* ================= REPORT HEADER & FOOTER (HIDDEN ON SCREEN, SHOWN IN PRINT) ================= */
+.print-header,
+.print-footer-sign {
+  display: none;
 }
 
 /* ================= TABLE WRAPPER & SCREEN STYLES ================= */
 .table-wrapper {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto; /* 31 ദിവസങ്ങളും ഉള്ളതുകൊണ്ട് ടേബിളിനുള്ളിൽ മാത്രം സ്ക്രോൾ വരും */
-  margin-top: 15px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
 }
@@ -125,7 +180,8 @@ h2 {
   font-size: 13px;
 }
 
-.matrix-table th, .matrix-table td {
+.matrix-table th,
+.matrix-table td {
   border: 1px solid #e2e8f0;
   padding: 8px 6px;
 }
@@ -133,7 +189,7 @@ h2 {
 .matrix-table th {
   background-color: #f8fafc;
   color: #475569;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -141,10 +197,21 @@ h2 {
   background-color: #f8fafc;
 }
 
+.daily-table th,
+.daily-table td {
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.daily-table th.center,
+.daily-table td.center {
+  text-align: center;
+}
+
 .col-roll {
-  width: 45px;
-  font-weight: 600;
-  color: #64748b;
+  width: 48px;
+  font-weight: 700;
+  color: #475569;
 }
 
 .col-name {
@@ -163,33 +230,31 @@ h2 {
   font-weight: 700;
 }
 
-.total-p {
-  color: #16a34a;
-  font-weight: 600;
-}
-
-.total-a {
-  color: #dc2626;
-  font-weight: 600;
-}
-
-.total-pct {
-  font-weight: 700;
-  color: #0f172a;
-}
-
-/* മാട്രിക്സ് ടേബിളിലെ L (Leave) സെല്ലിന് മഞ്ഞ നിറം */
 .status-l {
   background-color: #fef9c3 !important;
   color: #854d0e !important;
   font-weight: 700;
 }
 
-/* ടേബിളിന്റെ അവസാനമുള്ള ആകെ Leave (L) കോളത്തിന് */
+.total-p {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.total-a {
+  color: #dc2626;
+  font-weight: 700;
+}
+
 .total-l {
   color: #a16207;
   font-weight: 700;
   background-color: #fefce8;
+}
+
+.total-pct {
+  font-weight: 700;
+  color: #0f172a;
 }
 
 /* ================= STUDENT DETAIL CARD ================= */
@@ -198,8 +263,9 @@ h2 {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 16px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+  margin: 0 auto 20px;
+  max-width: 1180px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
   overflow-x: auto;
 }
 
@@ -215,12 +281,14 @@ h2 {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: #e0e7ff;
-  color: #4338ca;
+  background: #eff6ff;
+  border: 1.5px solid #2563eb;
+  color: #1d4ed8;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
+  font-size: 13px;
 }
 
 .student-header h4 {
@@ -249,9 +317,10 @@ h2 {
   font-size: 13px;
 }
 
-.session-table th, .session-table td {
+.session-table th,
+.session-table td {
   border: 1px solid #e2e8f0;
-  padding: 6px 10px;
+  padding: 7px 10px;
   text-align: left;
 }
 
@@ -262,47 +331,82 @@ h2 {
   font-weight: 700;
 }
 
-.badge.p {
-  background: #dcfce7;
-  color: #15803d;
+.badge.p { background: #dcfce7; color: #15803d; }
+.badge.a { background: #fee2e2; color: #b91c1c; }
+.badge.l { background: #fef08a; color: #854d0e; }
+
+/* ================= MOBILE RESPONSIVE ================= */
+@media (max-width: 768px) {
+  body {
+    padding: 14px 10px;
+  }
+
+  .matrix-container {
+    padding: 16px 12px;
+  }
+
+  .top-bar h2 {
+    font-size: 18px;
+  }
+
+  .filter-bar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .filter-item {
+    width: 100%;
+  }
+
+  .filter-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .btn-filter {
+    width: 100%;
+    text-align: center;
+  }
 }
 
-.badge.a {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-/* പോപ്പ്-അപ്പ് കാർഡിലെ LEAVE ബാഡ്ജിന് */
-.badge.l {
-  background-color: #fef08a;
-  color: #854d0e;
-}
-
-/* ================= PRINT / PDF (A4 LANDSCAPE & 30 PER PAGE) ================= */
+/* ================= STANDARD PRINT VIEW (A4 CLEAN LAYOUT) ================= */
 @media print {
   @page {
     size: A4 landscape;
-    margin: 5mm 6mm;
+    margin: 8mm 10mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   body {
-    background: #fff !important;
-    color: #000 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  .matrix-container {
-    padding: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
+  .no-print,
+  .filter-bar,
+  .student-detail-card,
+  .btn-filter,
+  .top-bar {
+    display: none !important;
   }
 
-  .filter-bar, 
-  .student-detail-card, 
-  .btn-filter, 
-  h2 {
-    display: none !important;
+  .matrix-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
   }
 
   .table-wrapper {
@@ -321,45 +425,138 @@ h2 {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     width: 100% !important;
+    padding-top: 2mm;
   }
 
+  /* Single Formal Print Header (First Page Only) */
   .print-header {
     display: flex !important;
     justify-content: space-between !important;
-    align-items: center !important;
-    background: none !important;
-    border-bottom: 1px solid #333 !important;
-    padding: 0 0 4px 0 !important;
-    margin-bottom: 4px !important;
+    align-items: flex-end !important;
+    background: #f8fafc !important;
+    border: 1.5px solid #334155 !important;
+    border-bottom: 2.5px solid #0f172a !important;
+    border-radius: 0 !important;
+    padding: 8px 12px !important;
+    margin-bottom: 8px !important;
   }
 
-  .print-header h3 {
+  .print-header-left h3 {
     margin: 0 !important;
-    font-size: 13px !important;
-    text-transform: uppercase;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    color: #0f172a !important;
   }
 
-  .print-header p {
-    margin: 1px 0 0 !important;
+  .print-meta-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    font-size: 10.5px !important;
+    color: #1e293b !important;
+    margin-top: 3px !important;
+    gap: 12px !important;
+  }
+
+  .print-header-right {
+    text-align: right !important;
+  }
+
+  .print-teacher-lbl {
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    color: #475569 !important;
+  }
+
+  .print-teacher-val {
+    margin: 2px 0 0 !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    color: #0f172a !important;
+  }
+
+  /* Daily Summary Strip in Print */
+  .daily-summary-strip {
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+  }
+
+  .sum-pill {
+    padding: 3px 10px !important;
     font-size: 10px !important;
-    color: #222;
+    border-radius: 4px !important;
+    border-width: 1px !important;
   }
 
-  .matrix-table {
+  /* Monthly Matrix Table Print */
+  .matrix-table:not(.daily-table) {
     width: 100% !important;
     border-collapse: collapse !important;
     table-layout: fixed !important;
   }
 
-  .matrix-table th, 
-  .matrix-table td {
-    border: 1px solid #333 !important;
-    padding: 1.5px 0.5px !important;
-    font-size: 7.5px !important;
-    line-height: 1.1 !important;
-    text-align: center;
-    height: 5.2mm !important;
-    box-sizing: border-box !important;
+  .matrix-table:not(.daily-table) th,
+  .matrix-table:not(.daily-table) td {
+    border: 1px solid #475569 !important;
+    padding: 2px 1px !important;
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+    height: 5.3mm !important;
+  }
+
+  .matrix-table:not(.daily-table) th {
+    background-color: #e2e8f0 !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+  }
+
+  .matrix-table:not(.daily-table) tbody tr:nth-child(even) {
+    background-color: #f8fafc !important;
+  }
+
+  .col-roll {
+    width: 24px !important;
+    color: #0f172a !important;
+  }
+
+  .col-name {
+    width: 130px !important;
+    text-align: left !important;
+    padding-left: 4px !important;
+    font-size: 8.5px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .col-summary {
+    width: 19px !important;
+  }
+
+  /* Daily Table Print */
+  .daily-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .daily-table th,
+  .daily-table td {
+    border: 1px solid #475569 !important;
+    padding: 5px 8px !important;
+    font-size: 10.5px !important;
+  }
+
+  .daily-table th {
+    background-color: #e2e8f0 !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+  }
+
+  .daily-table tbody tr:nth-child(even) {
+    background-color: #f8fafc !important;
   }
 
   .matrix-table tr {
@@ -367,40 +564,42 @@ h2 {
     break-inside: avoid !important;
   }
 
-  .col-roll {
-    width: 20px !important;
-    color: #000 !important;
-  }
-
-  .col-name {
-    width: 120px !important; /* 4 സമ്മറി കോളങ്ങൾ (P, A, L, %) ഉള്ളതുകൊണ്ട് പേരിന്റെ വീതി അല്പം ക്രമീകരിച്ചു */
-    text-align: left !important;
-    padding-left: 3px !important;
-    font-size: 8px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-
-  .col-summary {
-    width: 16px !important;
-  }
-
   .status-p {
-    color: #000 !important;
-    font-weight: bold;
+    color: #15803d !important;
+    font-weight: 800 !important;
   }
 
   .status-a {
-    color: #dc2626 !important;
-    font-weight: bold;
+    color: #b91c1c !important;
+    background-color: #fef2f2 !important;
+    font-weight: 800 !important;
   }
 
   .status-l {
     background-color: #fef9c3 !important;
     color: #854d0e !important;
-    font-weight: bold;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    font-weight: 800 !important;
+  }
+
+  .total-p, .total-a, .total-l, .total-pct {
+    font-weight: 800 !important;
+  }
+
+  /* Print Signature Footer (Last Page Only) */
+  .print-footer-sign {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-top: 18px !important;
+    padding: 0 24px !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+  }
+
+  .sign-box {
+    border-top: 1px solid #334155 !important;
+    padding-top: 4px !important;
+    width: 160px !important;
+    text-align: center !important;
   }
 }
