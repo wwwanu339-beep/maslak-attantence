@@ -1,0 +1,385 @@
+/* ================= ID CARD STUDIO LAYOUT ================= */
+.studio-container {
+  max-width: 1260px;
+  margin: 0 auto;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.top-bar-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.top-bar-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background-color: #eff6ff;
+  border: 1.5px solid #2563eb;
+  color: #1d4ed8;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-header-icon:hover {
+  background-color: #dbeafe;
+  border-color: #1d4ed8;
+}
+
+/* Main 3-Column Studio Grid */
+.id-studio-grid {
+  display: grid;
+  grid-template-columns: 270px 340px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.panel-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+  max-height: 78vh;
+  overflow-y: auto;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.select-all-lbl {
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #2563eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Student Selector List */
+.stu-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 7px;
+  transition: background 0.15s ease;
+}
+
+.stu-pick-item:hover {
+  background: #eff6ff;
+}
+
+.stu-pick-meta {
+  font-size: 11px;
+  color: #64748b;
+  display: block;
+  margin-top: 1px;
+}
+
+/* Designer Controls */
+.ctrl-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.ctrl-section:last-child {
+  margin-bottom: 0;
+}
+
+.ctrl-section-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #2563eb;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.ctrl-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ctrl-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ctrl-lbl {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 3px;
+}
+
+.ctrl-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12.5px;
+  background: #ffffff;
+  color: #1e293b;
+}
+
+.ctrl-input:focus {
+  border-color: #2563eb;
+  outline: none;
+}
+
+.ctrl-color {
+  width: 100%;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #ffffff;
+}
+
+.ctrl-range {
+  width: 100%;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.align-btn-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.align-btn {
+  padding: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.align-btn:hover {
+  border-color: #2563eb;
+}
+
+.align-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.field-toggle-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.field-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  user-select: none;
+}
+
+.field-pill:has(input:checked) {
+  background: #eff6ff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+/* Live Preview Stage */
+.preview-stage {
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 78vh;
+  max-height: 78vh;
+  overflow: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.preview-empty-msg {
+  color: #475569;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+/* Rendered ID Card Box (Scaled cleanly using mm dimensions) */
+.id-card-box {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.id-card-header img {
+  width: 100%;
+  max-height: 16mm;
+  object-fit: contain;
+  display: block;
+}
+
+.id-card-body {
+  padding: 6px 10px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.id-card-body.side-layout {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.id-photo-frame {
+  overflow: hidden;
+  border: 2px solid #cbd5e1;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.id-photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.id-details-list {
+  width: 100%;
+  min-width: 0;
+}
+
+.id-barcode-wrap {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+}
+
+.id-barcode-wrap svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.id-card-footer {
+  font-weight: 600;
+}
+
+.id-card-footer img {
+  width: 100%;
+  max-height: 11mm;
+  object-fit: contain;
+  display: block;
+}
+
+/* Bottom Action Bar */
+.bottom-action-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+  body {
+    padding: 16px 10px;
+  }
+
+  .top-bar-title {
+    font-size: 18px;
+  }
+
+  .id-studio-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-box,
+  .preview-stage {
+    max-height: none;
+    min-height: auto;
+  }
+
+  .bottom-action-bar {
+    flex-direction: column;
+  }
+
+  .bottom-action-bar .btn {
+    width: 100%;
+  }
+}

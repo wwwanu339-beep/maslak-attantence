@@ -1,87 +1,776 @@
-// ID Card Dedicated Page
-app.get('/id-cards', requireAuth, checkAdmission, async (req, res) => {
-  try {
-    const admSheet = await getSheet('admissions');
-    const batchSheet = await getSheet('batches');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student ID Card Studio</title>
+  <link rel="stylesheet" href="/student.css">
+  <link rel="stylesheet" href="/id_cards.css">
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+</head>
+<body>
 
-    const [aRows, bRows] = await Promise.all([admSheet.getRows(), batchSheet.getRows()]);
+  <%
+    const safeIdBranding = (typeof idBranding !== 'undefined' && idBranding) ? idBranding : { headerUrl: '', footerUrl: '' };
+  %>
 
-    const batchMap = {};
-    const batches = bRows.map(r => {
-      batchMap[r.get('id')] = r.get('name');
-      return { id: r.get('id'), name: r.get('name') };
-    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  <div class="studio-container">
+    <!-- Top Header -->
+    <div class="top-bar">
+      <h1 class="top-bar-title">Student ID Card Studio</h1>
+      <div class="top-bar-actions-group">
+        <a href="/admissions" class="btn btn-sm btn-secondary">← Admissions</a>
+        <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5"></path>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </a>
+      </div>
+    </div>
 
-    const allStudents = aRows
-      .filter(r => (r.get('full_name') || '').trim() !== '')
-      .map(r => {
-        const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
-        const batchNamesList = rawBatchIds.map(id => batchMap[id]).filter(Boolean);
-        return {
-          admission_no: String(r.get('admission_no') || '').trim(),
-          roll_no: r.get('roll_no') || '',
-          full_name: r.get('full_name'),
-          dob: r.get('dob') || '',
-          father_name: r.get('father_name') || '',
-          phone: r.get('phone') || '',
-          photo_file: r.get('photo_file') || '',
-          address: r.get('address') || '',
-          batch_id: r.get('batch_id') || '',
-          main_batch_name: batchNamesList[0] || 'No Batch',
-          status: (r.get('status') || 'pending').trim().toLowerCase()
-        };
-      })
-      .reverse();
+    <div class="id-studio-grid">
+      <!-- Column 1: Select Students -->
+      <div class="panel-box">
+        <div class="panel-title">
+          <span>Select Students (<span id="selectedCountBadge">0</span>)</span>
+          <label class="select-all-lbl">
+            <input type="checkbox" id="chkSelectAllStu" onchange="toggleSelectAllStudents(this)"> All
+          </label>
+        </div>
 
-    const files = fs.existsSync(uploadDir) ? fs.readdirSync(uploadDir) : [];
-    const idHeaderFile = files.find(f => f.startsWith('id_card_header.'));
-    const idFooterFile = files.find(f => f.startsWith('id_card_footer.'));
-    const idBranding = {
-      headerUrl: idHeaderFile ? `/uploads/${idHeaderFile}?v=${Date.now()}` : '',
-      footerUrl: idFooterFile ? `/uploads/${idFooterFile}?v=${Date.now()}` : ''
+        <input type="text" id="stuFilterInput" class="ctrl-input" placeholder="Search Name / Adm No / Batch..." onkeyup="filterStudentList()" style="margin-bottom: 8px;">
+
+        <select id="batchQuickFilter" class="ctrl-input" onchange="filterStudentList()" style="margin-bottom: 10px;">
+          <option value="all">All Batches</option>
+          <% batches.forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+
+        <div id="studentPickerList">
+          <% allStudents.forEach((s, idx) => { %>
+            <label class="stu-pick-item"
+                   data-batch="<%= s.batch_id || '' %>"
+                   data-search="<%= `${s.admission_no} ${s.roll_no} ${s.full_name} ${s.main_batch_name}`.toLowerCase() %>">
+              <input type="checkbox" class="id-stu-chk" value="<%= idx %>" onchange="refreshPreview()">
+              <div>
+                <strong><%= s.full_name %></strong>
+                <span class="stu-pick-meta"><%= s.admission_no %> | Roll: <%= s.roll_no || '-' %> | <%= s.main_batch_name %></span>
+              </div>
+            </label>
+          <% }) %>
+        </div>
+      </div>
+
+      <!-- Column 2: Mini Poster Maker Designer Controls -->
+      <div class="panel-box">
+        <div class="panel-title">
+          <span>ID Card Design Settings</span>
+          <button type="button" class="btn btn-sm btn-warning" onclick="resetDefaultTemplate()" style="padding: 3px 8px; font-size: 11px;">Reset</button>
+        </div>
+
+        <!-- 1. Dedicated ID Card Header & Footer Image Upload -->
+        <div class="ctrl-section">
+          <span class="ctrl-section-title">1. ID Card Header & Footer Image</span>
+          <div style="margin-bottom: 6px;">
+            <label class="ctrl-lbl">Upload ID Header Banner:</label>
+            <input type="file" id="idHeaderFile" accept="image/*" class="ctrl-input" onchange="uploadIdBranding('header')">
+          </div>
+          <div style="margin-bottom: 6px;">
+            <label class="ctrl-lbl">Upload ID Footer Banner:</label>
+            <input type="file" id="idFooterFile" accept="image/*" class="ctrl-input" onchange="uploadIdBranding('footer')">
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="field-pill">
+              <input type="checkbox" id="idUseBannerImg" checked onchange="refreshPreview()">
+              <span>Show Uploaded Banners</span>
+            </label>
+            <button type="button" class="btn btn-sm btn-danger" onclick="clearIdBanners()" style="padding: 3px 8px; font-size: 11px;">Clear</button>
+          </div>
+        </div>
+
+        <!-- 2. Overall ID Card Size & Print Layout -->
+        <div class="ctrl-section">
+          <span class="ctrl-section-title">2. Overall ID Card Size & Print Mode</span>
+          <div class="ctrl-row-2">
+            <div>
+              <label class="ctrl-lbl">Card Preset Size</label>
+              <select id="idSizePreset" class="ctrl-input" onchange="applySizePreset()">
+                <option value="cr80_v">Standard Vertical (54×86mm)</option>
+                <option value="cr80_h">Standard Horizontal (86×54mm)</option>
+                <option value="large_v">Large Vertical (65×98mm)</option>
+                <option value="large_h">Large Horizontal (98×65mm)</option>
+                <option value="custom">Custom Size (mm)</option>
+              </select>
+            </div>
+            <div>
+              <label class="ctrl-lbl">Print Page Layout</label>
+              <select id="idPrintMode" class="ctrl-input">
+                <option value="separate">Separate Page per ID</option>
+                <option value="grid">Multiple on A4 Page</option>
+              </select>
+            </div>
+          </div>
+          <div class="ctrl-row-2" style="margin-bottom: 0;">
+            <div>
+              <label class="ctrl-lbl">Card Width (mm)</label>
+              <input type="number" id="idCardWidth" class="ctrl-input" min="40" max="150" value="54" oninput="onCustomSizeInput()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Card Height (mm)</label>
+              <input type="number" id="idCardHeight" class="ctrl-input" min="40" max="180" value="86" oninput="onCustomSizeInput()">
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Card Colors -->
+        <div class="ctrl-section">
+          <span class="ctrl-section-title">3. Card & Text Colors</span>
+          <div class="ctrl-row-3">
+            <div>
+              <label class="ctrl-lbl">Card Bg</label>
+              <input type="color" id="idCardBg" class="ctrl-color" value="#ffffff" oninput="refreshPreview()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Header Bg</label>
+              <input type="color" id="idHeaderBg" class="ctrl-color" value="#1e3a8a" oninput="refreshPreview()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Header Text</label>
+              <input type="color" id="idHeaderColor" class="ctrl-color" value="#ffffff" oninput="refreshPreview()">
+            </div>
+          </div>
+          <div class="ctrl-row-3" style="margin-bottom: 0;">
+            <div>
+              <label class="ctrl-lbl">Body Text</label>
+              <input type="color" id="idBodyColor" class="ctrl-color" value="#0f172a" oninput="refreshPreview()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Footer Bg</label>
+              <input type="color" id="idFooterBg" class="ctrl-color" value="#1e3a8a" oninput="refreshPreview()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Footer Text</label>
+              <input type="color" id="idFooterColor" class="ctrl-color" value="#ffffff" oninput="refreshPreview()">
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Text Header/Footer & Alignment -->
+        <div class="ctrl-section">
+          <span class="ctrl-section-title">4. Text Header, Footer & Align</span>
+          <div style="margin-bottom: 6px;">
+            <label class="ctrl-lbl">Header Title (If no image)</label>
+            <input type="text" id="idHeaderTitle" class="ctrl-input" value="STUDENT IDENTITY CARD" oninput="refreshPreview()">
+          </div>
+          <div class="ctrl-row-2">
+            <div>
+              <label class="ctrl-lbl">Sub-Title</label>
+              <input type="text" id="idHeaderSub" class="ctrl-input" value="Academic Year 2026-27" oninput="refreshPreview()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Header Align</label>
+              <div class="align-btn-group" data-target="idHeaderAlign">
+                <button type="button" class="align-btn" onclick="setAlign('idHeaderAlign', 'left', this)">Left</button>
+                <button type="button" class="align-btn active" onclick="setAlign('idHeaderAlign', 'center', this)">Center</button>
+                <button type="button" class="align-btn" onclick="setAlign('idHeaderAlign', 'right', this)">Right</button>
+              </div>
+              <input type="hidden" id="idHeaderAlign" value="center">
+            </div>
+          </div>
+          <div class="ctrl-row-2" style="margin-bottom: 0;">
+            <div>
+              <label class="ctrl-lbl">Footer Text</label>
+              <input type="text" id="idFooterText" class="ctrl-input" value="Authorized Student ID" oninput="refreshPreview()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Footer Align</label>
+              <div class="align-btn-group" data-target="idFooterAlign">
+                <button type="button" class="align-btn" onclick="setAlign('idFooterAlign', 'left', this)">Left</button>
+                <button type="button" class="align-btn active" onclick="setAlign('idFooterAlign', 'center', this)">Center</button>
+                <button type="button" class="align-btn" onclick="setAlign('idFooterAlign', 'right', this)">Right</button>
+              </div>
+              <input type="hidden" id="idFooterAlign" value="center">
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Text Size, Left/Right Offset & Line Gap -->
+        <div class="ctrl-section">
+          <span class="ctrl-section-title">5. Size, Left/Right Offset & Line Gap</span>
+          <div class="ctrl-row-3">
+            <div>
+              <label class="ctrl-lbl">Header Size</label>
+              <input type="number" id="idHeaderSize" class="ctrl-input" min="8" max="20" value="11" step="0.5" oninput="refreshPreview()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Name Size</label>
+              <input type="number" id="idNameSize" class="ctrl-input" min="9" max="22" value="12.5" step="0.5" oninput="refreshPreview()">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Text Size</label>
+              <input type="number" id="idTextSize" class="ctrl-input" min="7" max="16" value="9.5" step="0.5" oninput="refreshPreview()">
+            </div>
+          </div>
+
+          <div style="margin-bottom: 8px;">
+            <label class="ctrl-lbl">Text Alignment</label>
+            <div class="align-btn-group" data-target="idBodyAlign">
+              <button type="button" class="align-btn" onclick="setAlign('idBodyAlign', 'left', this)">Left</button>
+              <button type="button" class="align-btn active" onclick="setAlign('idBodyAlign', 'center', this)">Center</button>
+              <button type="button" class="align-btn" onclick="setAlign('idBodyAlign', 'right', this)">Right</button>
+            </div>
+            <input type="hidden" id="idBodyAlign" value="center">
+          </div>
+
+          <div class="ctrl-row-2">
+            <div>
+              <label class="ctrl-lbl">Left Offset (<span id="lblPadLeft">0</span>px)</label>
+              <input type="range" id="idPadLeft" class="ctrl-range" min="0" max="45" value="0" oninput="document.getElementById('lblPadLeft').innerText = this.value; refreshPreview();">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Right Offset (<span id="lblPadRight">0</span>px)</label>
+              <input type="range" id="idPadRight" class="ctrl-range" min="0" max="45" value="0" oninput="document.getElementById('lblPadRight').innerText = this.value; refreshPreview();">
+            </div>
+          </div>
+
+          <div>
+            <label class="ctrl-lbl">Line Gap (<span id="lblLineGap">2</span>px)</label>
+            <input type="range" id="idLineGap" class="ctrl-range" min="0" max="14" value="2" oninput="document.getElementById('lblLineGap').innerText = this.value; refreshPreview();">
+          </div>
+        </div>
+
+        <!-- 6. Photo Style, Align & Rotate -->
+        <div class="ctrl-section">
+          <span class="ctrl-section-title">6. Photo Style, Align & Rotate</span>
+          <div class="ctrl-row-2">
+            <div>
+              <label class="ctrl-lbl">Photo Shape</label>
+              <select id="idPhotoShape" class="ctrl-input" onchange="refreshPreview()">
+                <option value="8px">Rounded Box</option>
+                <option value="50%">Circle</option>
+                <option value="0px">Square</option>
+              </select>
+            </div>
+            <div>
+              <label class="ctrl-lbl">Photo Size (px)</label>
+              <input type="number" id="idPhotoSize" class="ctrl-input" min="40" max="115" value="68" oninput="refreshPreview()">
+            </div>
+          </div>
+          <div class="ctrl-row-2" style="margin-bottom: 0;">
+            <div>
+              <label class="ctrl-lbl">Photo Align</label>
+              <div class="align-btn-group" data-target="idPhotoAlign">
+                <button type="button" class="align-btn" onclick="setAlign('idPhotoAlign', 'flex-start', this)">Left</button>
+                <button type="button" class="align-btn active" onclick="setAlign('idPhotoAlign', 'center', this)">Center</button>
+                <button type="button" class="align-btn" onclick="setAlign('idPhotoAlign', 'flex-end', this)">Right</button>
+              </div>
+              <input type="hidden" id="idPhotoAlign" value="center">
+            </div>
+            <div>
+              <label class="ctrl-lbl">Rotate (<span id="lblPhotoRotate">0</span>°)</label>
+              <input type="range" id="idPhotoRotate" class="ctrl-range" min="-180" max="180" step="5" value="0" oninput="document.getElementById('lblPhotoRotate').innerText = this.value; refreshPreview();">
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. Auto Barcode & Visible Fields -->
+        <div class="ctrl-section">
+          <span class="ctrl-section-title">7. Auto Barcode & Fields</span>
+          <div class="ctrl-row-2" style="align-items: center;">
+            <label class="field-pill">
+              <input type="checkbox" id="idShowBarcode" checked onchange="refreshPreview()">
+              <span>Adm No Barcode</span>
+            </label>
+            <div>
+              <label class="ctrl-lbl">Barcode Height (<span id="lblBarHeight">22</span>px)</label>
+              <input type="range" id="idBarcodeHeight" class="ctrl-range" min="14" max="42" value="22" oninput="document.getElementById('lblBarHeight').innerText = this.value; refreshPreview();">
+            </div>
+          </div>
+          <div class="field-toggle-wrap">
+            <label class="field-pill"><input type="checkbox" name="idField" value="admission_no" checked onchange="refreshPreview()"> Adm No</label>
+            <label class="field-pill"><input type="checkbox" name="idField" value="roll_no" checked onchange="refreshPreview()"> Roll No</label>
+            <label class="field-pill"><input type="checkbox" name="idField" value="main_batch_name" checked onchange="refreshPreview()"> Batch</label>
+            <label class="field-pill"><input type="checkbox" name="idField" value="father_name" checked onchange="refreshPreview()"> Father</label>
+            <label class="field-pill"><input type="checkbox" name="idField" value="dob" checked onchange="refreshPreview()"> DOB</label>
+            <label class="field-pill"><input type="checkbox" name="idField" value="phone" checked onchange="refreshPreview()"> Phone</label>
+            <label class="field-pill"><input type="checkbox" name="idField" value="address" onchange="refreshPreview()"> Address</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Live ID Card Preview Stage -->
+      <div class="preview-stage" id="idPreviewStage"></div>
+    </div>
+
+    <!-- Bottom Global Save & Print Actions -->
+    <div class="bottom-action-bar">
+      <button type="button" class="btn btn-primary" onclick="saveTemplateForAll()">Save Style for All Students</button>
+      <button type="button" class="btn btn-success" onclick="printAllSelectedCards()">Print / Download ID Cards</button>
+    </div>
+  </div>
+
+  <script id="studentsDataJson" type="application/json"><%- JSON.stringify(allStudents).replace(/</g, '\\u003c') %></script>
+  <script id="idBrandingJson" type="application/json"><%- JSON.stringify(safeIdBranding).replace(/</g, '\\u003c') %></script>
+
+  <script>
+    const STUDENTS = JSON.parse(document.getElementById('studentsDataJson').textContent || '[]');
+    const ID_BRAND = JSON.parse(document.getElementById('idBrandingJson').textContent || '{}');
+    let SERVER_ID_HEADER = ID_BRAND.headerUrl || '';
+    let SERVER_ID_FOOTER = ID_BRAND.footerUrl || '';
+
+    const SIZE_PRESETS = {
+      cr80_v: { width: 54, height: 86 },
+      cr80_h: { width: 86, height: 54 },
+      large_v: { width: 65, height: 98 },
+      large_h: { width: 98, height: 65 }
     };
 
-    res.render('id_cards', { batches, allStudents, idBranding });
-  } catch (err) {
-    res.status(500).send('Database Error: ' + err.message);
-  }
-});
+    const DEFAULT_CFG = {
+      useBannerImg: true,
+      sizePreset: 'cr80_v',
+      cardWidth: 54,
+      cardHeight: 86,
+      printMode: 'separate',
+      cardBg: '#ffffff',
+      headerBg: '#1e3a8a',
+      headerColor: '#ffffff',
+      bodyColor: '#0f172a',
+      footerBg: '#1e3a8a',
+      footerColor: '#ffffff',
+      headerTitle: 'STUDENT IDENTITY CARD',
+      headerSub: 'Academic Year 2026-27',
+      headerAlign: 'center',
+      footerText: 'Authorized Student ID',
+      footerAlign: 'center',
+      headerSize: 11,
+      nameSize: 12.5,
+      textSize: 9.5,
+      bodyAlign: 'center',
+      padLeft: 0,
+      padRight: 0,
+      lineGap: 2,
+      photoShape: '8px',
+      photoSize: 68,
+      photoAlign: 'center',
+      photoRotate: 0,
+      showBarcode: true,
+      barcodeHeight: 22,
+      fields: ['admission_no', 'roll_no', 'main_batch_name', 'father_name', 'dob', 'phone']
+    };
 
-// Upload Dedicated ID Card Header & Footer
-const idBrandingUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname) || '.png';
-      cb(null, `${file.fieldname}${ext}`);
-    }
-  })
-}).fields([
-  { name: 'id_card_header', maxCount: 1 },
-  { name: 'id_card_footer', maxCount: 1 }
-]);
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedTemplate();
 
-app.post('/api/id-card-branding', requireAuth, checkAdmission, idBrandingUpload, (req, res) => {
-  try {
-    if (req.files?.id_card_header?.[0]) {
-      fs.readdirSync(uploadDir)
-        .filter(f => f.startsWith('id_card_header.') && f !== req.files.id_card_header[0].filename)
-        .forEach(f => fs.unlinkSync(path.join(uploadDir, f)));
-    }
-    if (req.files?.id_card_footer?.[0]) {
-      fs.readdirSync(uploadDir)
-        .filter(f => f.startsWith('id_card_footer.') && f !== req.files.id_card_footer[0].filename)
-        .forEach(f => fs.unlinkSync(path.join(uploadDir, f)));
-    }
-    const files = fs.existsSync(uploadDir) ? fs.readdirSync(uploadDir) : [];
-    const hFile = files.find(f => f.startsWith('id_card_header.'));
-    const fFile = files.find(f => f.startsWith('id_card_footer.'));
-    res.json({
-      success: true,
-      headerUrl: hFile ? `/uploads/${hFile}?v=${Date.now()}` : '',
-      footerUrl: fFile ? `/uploads/${fFile}?v=${Date.now()}` : ''
+      const params = new URLSearchParams(window.location.search);
+      const preAdms = (params.get('adms') || '').split(',').map(a => a.trim()).filter(Boolean);
+
+      const checkboxes = document.querySelectorAll('.id-stu-chk');
+      if (preAdms.length > 0) {
+        checkboxes.forEach(cb => {
+          const st = STUDENTS[Number(cb.value)];
+          if (st && preAdms.includes(st.admission_no)) cb.checked = true;
+        });
+      } else if (checkboxes.length > 0) {
+        checkboxes[0].checked = true;
+        if (checkboxes[1]) checkboxes[1].checked = true;
+      }
+
+      refreshPreview();
     });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+
+    function applySizePreset() {
+      const preset = document.getElementById('idSizePreset').value;
+      if (SIZE_PRESETS[preset]) {
+        document.getElementById('idCardWidth').value = SIZE_PRESETS[preset].width;
+        document.getElementById('idCardHeight').value = SIZE_PRESETS[preset].height;
+      }
+      refreshPreview();
+    }
+
+    function onCustomSizeInput() {
+      document.getElementById('idSizePreset').value = 'custom';
+      refreshPreview();
+    }
+
+    function filterStudentList() {
+      const q = document.getElementById('stuFilterInput').value.toLowerCase().trim();
+      const bId = document.getElementById('batchQuickFilter').value;
+
+      document.querySelectorAll('#studentPickerList .stu-pick-item').forEach(item => {
+        const textMatch = (item.dataset.search || '').includes(q);
+        const batches = (item.dataset.batch || '').split(',').map(x => x.trim());
+        const batchMatch = (bId === 'all') || batches.includes(bId);
+        item.style.display = (textMatch && batchMatch) ? 'flex' : 'none';
+      });
+    }
+
+    function toggleSelectAllStudents(master) {
+      document.querySelectorAll('#studentPickerList .stu-pick-item').forEach(item => {
+        if (item.style.display !== 'none') {
+          const chk = item.querySelector('.id-stu-chk');
+          if (chk) chk.checked = master.checked;
+        }
+      });
+      refreshPreview();
+    }
+
+    function setAlign(hiddenId, val, btn) {
+      document.getElementById(hiddenId).value = val;
+      const group = btn.closest('.align-btn-group');
+      if (group) group.querySelectorAll('.align-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      refreshPreview();
+    }
+
+    function syncAlignUI(hiddenId, val) {
+      document.getElementById(hiddenId).value = val;
+      const group = document.querySelector(`.align-btn-group[data-target="${hiddenId}"]`);
+      if (!group) return;
+      group.querySelectorAll('.align-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('onclick').includes(`'${val}'`));
+      });
+    }
+
+    async function uploadIdBranding(type) {
+      const input = type === 'header' ? document.getElementById('idHeaderFile') : document.getElementById('idFooterFile');
+      if (!input.files || !input.files[0]) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (type === 'header') localStorage.setItem('id_card_only_header', e.target.result);
+        else localStorage.setItem('id_card_only_footer', e.target.result);
+        refreshPreview();
+      };
+      reader.readAsDataURL(input.files[0]);
+
+      const formData = new FormData();
+      formData.append(type === 'header' ? 'id_card_header' : 'id_card_footer', input.files[0]);
+      try {
+        const res = await fetch('/api/id-card-branding', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          if (data.headerUrl) SERVER_ID_HEADER = data.headerUrl;
+          if (data.footerUrl) SERVER_ID_FOOTER = data.footerUrl;
+        }
+      } catch (err) {}
+    }
+
+    function clearIdBanners() {
+      localStorage.removeItem('id_card_only_header');
+      localStorage.removeItem('id_card_only_footer');
+      SERVER_ID_HEADER = '';
+      SERVER_ID_FOOTER = '';
+      document.getElementById('idHeaderFile').value = '';
+      document.getElementById('idFooterFile').value = '';
+      refreshPreview();
+    }
+
+    function getTemplateConfig() {
+      const fields = Array.from(document.querySelectorAll('input[name="idField"]:checked')).map(c => c.value);
+      return {
+        useBannerImg: document.getElementById('idUseBannerImg').checked,
+        sizePreset: document.getElementById('idSizePreset').value,
+        cardWidth: parseFloat(document.getElementById('idCardWidth').value) || 54,
+        cardHeight: parseFloat(document.getElementById('idCardHeight').value) || 86,
+        printMode: document.getElementById('idPrintMode').value,
+        cardBg: document.getElementById('idCardBg').value,
+        headerBg: document.getElementById('idHeaderBg').value,
+        headerColor: document.getElementById('idHeaderColor').value,
+        bodyColor: document.getElementById('idBodyColor').value,
+        footerBg: document.getElementById('idFooterBg').value,
+        footerColor: document.getElementById('idFooterColor').value,
+        headerTitle: document.getElementById('idHeaderTitle').value,
+        headerSub: document.getElementById('idHeaderSub').value,
+        headerAlign: document.getElementById('idHeaderAlign').value,
+        footerText: document.getElementById('idFooterText').value,
+        footerAlign: document.getElementById('idFooterAlign').value,
+        headerSize: parseFloat(document.getElementById('idHeaderSize').value) || 11,
+        nameSize: parseFloat(document.getElementById('idNameSize').value) || 12.5,
+        textSize: parseFloat(document.getElementById('idTextSize').value) || 9.5,
+        bodyAlign: document.getElementById('idBodyAlign').value,
+        padLeft: parseInt(document.getElementById('idPadLeft').value, 10) || 0,
+        padRight: parseInt(document.getElementById('idPadRight').value, 10) || 0,
+        lineGap: parseInt(document.getElementById('idLineGap').value, 10) || 0,
+        photoShape: document.getElementById('idPhotoShape').value,
+        photoSize: parseInt(document.getElementById('idPhotoSize').value, 10) || 68,
+        photoAlign: document.getElementById('idPhotoAlign').value,
+        photoRotate: parseInt(document.getElementById('idPhotoRotate').value, 10) || 0,
+        showBarcode: document.getElementById('idShowBarcode').checked,
+        barcodeHeight: parseInt(document.getElementById('idBarcodeHeight').value, 10) || 22,
+        fields
+      };
+    }
+
+    function applyConfigToUI(cfg) {
+      const c = { ...DEFAULT_CFG, ...cfg };
+      document.getElementById('idUseBannerImg').checked = Boolean(c.useBannerImg);
+      document.getElementById('idSizePreset').value = c.sizePreset || 'cr80_v';
+      document.getElementById('idCardWidth').value = c.cardWidth;
+      document.getElementById('idCardHeight').value = c.cardHeight;
+      document.getElementById('idPrintMode').value = c.printMode;
+      document.getElementById('idCardBg').value = c.cardBg;
+      document.getElementById('idHeaderBg').value = c.headerBg;
+      document.getElementById('idHeaderColor').value = c.headerColor;
+      document.getElementById('idBodyColor').value = c.bodyColor;
+      document.getElementById('idFooterBg').value = c.footerBg;
+      document.getElementById('idFooterColor').value = c.footerColor;
+      document.getElementById('idHeaderTitle').value = c.headerTitle;
+      document.getElementById('idHeaderSub').value = c.headerSub;
+      syncAlignUI('idHeaderAlign', c.headerAlign);
+      document.getElementById('idFooterText').value = c.footerText;
+      syncAlignUI('idFooterAlign', c.footerAlign);
+      document.getElementById('idHeaderSize').value = c.headerSize;
+      document.getElementById('idNameSize').value = c.nameSize;
+      document.getElementById('idTextSize').value = c.textSize;
+      syncAlignUI('idBodyAlign', c.bodyAlign);
+      document.getElementById('idPadLeft').value = c.padLeft;
+      document.getElementById('lblPadLeft').innerText = c.padLeft;
+      document.getElementById('idPadRight').value = c.padRight;
+      document.getElementById('lblPadRight').innerText = c.padRight;
+      document.getElementById('idLineGap').value = c.lineGap;
+      document.getElementById('lblLineGap').innerText = c.lineGap;
+      document.getElementById('idPhotoShape').value = c.photoShape;
+      document.getElementById('idPhotoSize').value = c.photoSize;
+      syncAlignUI('idPhotoAlign', c.photoAlign);
+      document.getElementById('idPhotoRotate').value = c.photoRotate;
+      document.getElementById('lblPhotoRotate').innerText = c.photoRotate;
+      document.getElementById('idShowBarcode').checked = Boolean(c.showBarcode);
+      document.getElementById('idBarcodeHeight').value = c.barcodeHeight;
+      document.getElementById('lblBarHeight').innerText = c.barcodeHeight;
+
+      document.querySelectorAll('input[name="idField"]').forEach(cb => {
+        cb.checked = c.fields.includes(cb.value);
+      });
+    }
+
+    function saveTemplateForAll() {
+      localStorage.setItem('id_studio_global_tpl', JSON.stringify(getTemplateConfig()));
+      alert('Design & size saved! All student ID cards will use this layout.');
+    }
+
+    function loadSavedTemplate() {
+      try {
+        const saved = localStorage.getItem('id_studio_global_tpl');
+        if (saved) applyConfigToUI(JSON.parse(saved));
+      } catch (e) {}
+    }
+
+    function resetDefaultTemplate() {
+      localStorage.removeItem('id_studio_global_tpl');
+      applyConfigToUI(DEFAULT_CFG);
+      refreshPreview();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '-')
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"');
+    }
+
+    function getSelectedStudents() {
+      return Array.from(document.querySelectorAll('.id-stu-chk:checked'))
+        .map(cb => STUDENTS[Number(cb.value)])
+        .filter(Boolean);
+    }
+
+    function buildCardHtml(st, cfg, headerImg, footerImg, uniqueIdx) {
+      const isHoriz = cfg.cardWidth > cfg.cardHeight;
+      const sideLayout = isHoriz && cfg.photoAlign !== 'center';
+
+      const headerBlock = (cfg.useBannerImg && headerImg)
+        ? `<img src="${headerImg}" alt="Header">`
+        : `<div style="font-size:${cfg.headerSize}px; font-weight:800; line-height:1.2;">${escapeHtml(cfg.headerTitle)}</div>
+           ${cfg.headerSub ? `<div style="font-size:${Math.max(7.5, cfg.headerSize - 2.5)}px; opacity:0.9; margin-top:2px;">${escapeHtml(cfg.headerSub)}</div>` : ''}`;
+
+      const footerBlock = (cfg.useBannerImg && footerImg)
+        ? `<img src="${footerImg}" alt="Footer">`
+        : `<div style="font-size:${Math.max(8, cfg.textSize - 1)}px;">${escapeHtml(cfg.footerText)}</div>`;
+
+      const photoBlock = st.photo_file
+        ? `<img src="${st.photo_file}" alt="Photo" style="transform: rotate(${cfg.photoRotate}deg);">`
+        : `<span style="font-size:10px; color:#64748b; font-weight:700;">PHOTO</span>`;
+
+      const labels = {
+        admission_no: 'Adm No',
+        roll_no: 'Roll No',
+        main_batch_name: 'Batch',
+        father_name: 'Father',
+        dob: 'DOB',
+        phone: 'Phone',
+        address: 'Address'
+      };
+
+      const linesHtml = cfg.fields.map(key => {
+        const val = st[key] || '-';
+        return `<div style="font-size:${cfg.textSize}px; margin-top:${cfg.lineGap}px; line-height:1.25;">
+                  <span style="opacity:0.75; font-weight:600;">${labels[key]}:</span> <strong>${escapeHtml(val)}</strong>
+                </div>`;
+      }).join('');
+
+      const barcodeHtml = (cfg.showBarcode && st.admission_no)
+        ? `<div class="id-barcode-wrap" style="align-items:${cfg.bodyAlign === 'left' ? 'flex-start' : (cfg.bodyAlign === 'right' ? 'flex-end' : 'center')};">
+             <svg class="stu-barcode-svg" data-adm="${escapeHtml(st.admission_no)}" id="bc_${uniqueIdx}"></svg>
+           </div>`
+        : '';
+
+      return `
+        <div class="id-card-box" style="width:${cfg.cardWidth}mm; height:${cfg.cardHeight}mm; background:${cfg.cardBg}; color:${cfg.bodyColor};">
+          <div class="id-card-header" style="background:${(cfg.useBannerImg && headerImg) ? 'transparent' : cfg.headerBg}; color:${cfg.headerColor}; text-align:${cfg.headerAlign}; padding:${(cfg.useBannerImg && headerImg) ? '0' : '6px 8px'};">
+            ${headerBlock}
+          </div>
+
+          <div class="id-card-body ${sideLayout ? 'side-layout' : ''}" style="${sideLayout && cfg.photoAlign === 'flex-end' ? 'flex-direction: row-reverse;' : ''}">
+            <div style="display:flex; justify-content:${cfg.photoAlign}; width:${sideLayout ? 'auto' : '100%'};">
+              <div class="id-photo-frame" style="width:${cfg.photoSize}px; height:${cfg.photoSize}px; border-radius:${cfg.photoShape};">
+                ${photoBlock}
+              </div>
+            </div>
+
+            <div class="id-details-list" style="text-align:${cfg.bodyAlign}; padding-left:${cfg.padLeft}px; padding-right:${cfg.padRight}px;">
+              <div style="font-size:${cfg.nameSize}px; font-weight:800; margin-bottom:${cfg.lineGap}px; line-height:1.2;">
+                ${escapeHtml(st.full_name)}
+              </div>
+              ${linesHtml}
+              ${barcodeHtml}
+            </div>
+          </div>
+
+          <div class="id-card-footer" style="background:${(cfg.useBannerImg && footerImg) ? 'transparent' : cfg.footerBg}; color:${cfg.footerColor}; text-align:${cfg.footerAlign}; padding:${(cfg.useBannerImg && footerImg) ? '0' : '4px 8px'};">
+            ${footerBlock}
+          </div>
+        </div>`;
+    }
+
+    function renderAllBarcodes(containerEl, cfg) {
+      if (!cfg.showBarcode || typeof JsBarcode === 'undefined') return;
+      containerEl.querySelectorAll('.stu-barcode-svg').forEach(svg => {
+        const adm = svg.getAttribute('data-adm');
+        if (adm) {
+          try {
+            JsBarcode(svg, adm, {
+              format: 'CODE128',
+              width: 1.25,
+              height: cfg.barcodeHeight,
+              displayValue: true,
+              fontSize: 8.5,
+              margin: 2,
+              background: 'transparent',
+              lineColor: cfg.bodyColor
+            });
+          } catch (e) {}
+        }
+      });
+    }
+
+    function refreshPreview() {
+      const selected = getSelectedStudents();
+      document.getElementById('selectedCountBadge').innerText = selected.length;
+      const stage = document.getElementById('idPreviewStage');
+
+      if (selected.length === 0) {
+        stage.innerHTML = '<div class="preview-empty-msg">Select at least one student from the left list to preview ID Card.</div>';
+        return;
+      }
+
+      const cfg = getTemplateConfig();
+      const headerImg = localStorage.getItem('id_card_only_header') || SERVER_ID_HEADER;
+      const footerImg = localStorage.getItem('id_card_only_footer') || SERVER_ID_FOOTER;
+
+      stage.innerHTML = selected.map((st, idx) => buildCardHtml(st, cfg, headerImg, footerImg, idx)).join('');
+      renderAllBarcodes(stage, cfg);
+    }
+
+    function printAllSelectedCards() {
+      const selected = getSelectedStudents();
+      if (selected.length === 0) return alert('Please select at least one student!');
+
+      const cfg = getTemplateConfig();
+      const headerImg = localStorage.getItem('id_card_only_header') || SERVER_ID_HEADER;
+      const footerImg = localStorage.getItem('id_card_only_footer') || SERVER_ID_FOOTER;
+      const isSeparate = cfg.printMode === 'separate';
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = selected.map((st, idx) => {
+        const cardMarkup = buildCardHtml(st, cfg, headerImg, footerImg, `p_${idx}`);
+        return isSeparate ? `<div class="separate-page">${cardMarkup}</div>` : cardMarkup;
+      }).join('');
+      renderAllBarcodes(tempDiv, cfg);
+
+      const pageRule = isSeparate
+        ? `@page { size: ${cfg.cardWidth}mm ${cfg.cardHeight}mm; margin: 0; }`
+        : '@page { size: A4; margin: 10mm; }';
+
+      const printWin = window.open('', '_blank', 'width=920,height=950');
+      if (!printWin) return alert('Please allow pop-ups in your browser to print!');
+
+      printWin.document.open();
+      printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Student ID Cards</title>
+          <style>
+            ${pageRule}
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              margin: 0;
+              padding: 0;
+              background: #ffffff;
+            }
+            .grid-sheet {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8mm;
+              justify-content: flex-start;
+            }
+            .separate-page {
+              page-break-after: always;
+              break-after: page;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+            .separate-page:last-child {
+              page-break-after: auto;
+              break-after: auto;
+            }
+            .id-card-box {
+              border-radius: ${isSeparate ? '0' : '8px'};
+              overflow: hidden;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              border: ${isSeparate ? 'none' : '1.5px solid #334155'};
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            .id-card-header img { width: 100%; max-height: 16mm; object-fit: contain; display: block; }
+            .id-card-body { padding: 6px 10px; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+            .id-card-body.side-layout { flex-direction: row; align-items: center; gap: 8px; }
+            .id-photo-frame { overflow: hidden; border: 1.5px solid #94a3b8; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+            .id-photo-frame img { width: 100%; height: 100%; object-fit: cover; }
+            .id-details-list { width: 100%; }
+            .id-barcode-wrap { margin-top: 4px; display: flex; flex-direction: column; }
+            .id-barcode-wrap svg { max-width: 100%; height: auto; }
+            .id-card-footer { font-weight: 600; }
+            .id-card-footer img { width: 100%; max-height: 11mm; object-fit: contain; display: block; }
+          </style>
+        </head>
+        <body>
+          ${isSeparate ? tempDiv.innerHTML : `<div class="grid-sheet">${tempDiv.innerHTML}</div>`}
+        </body>
+        </html>
+      `);
+      printWin.document.close();
+      printWin.onload = () => {
+        setTimeout(() => printWin.print(), 250);
+      };
+    }
+  </script>
+</body>
+</html>
