@@ -7,6 +7,92 @@
   <link rel="stylesheet" href="/student.css">
   <link rel="stylesheet" href="/id_cards.css">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    /* Fixed-Place Collapsible Workspace Layout */
+    .studio-dynamic-grid {
+      display: grid;
+      grid-template-columns: 265px 1fr;
+      gap: 16px;
+      align-items: start;
+      transition: all 0.2s ease;
+    }
+    .studio-dynamic-grid.editor-open {
+      grid-template-columns: 265px 350px 1fr;
+    }
+    .exec-toolbar-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .editor-dock-panel {
+      display: none;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+      max-height: 78vh;
+      overflow-y: auto;
+    }
+    .studio-dynamic-grid.editor-open .editor-dock-panel {
+      display: block;
+    }
+    .editor-dock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      position: sticky;
+      top: -14px;
+      background: #ffffff;
+      z-index: 5;
+      padding-top: 2px;
+    }
+    .editor-dock-header h3 {
+      margin: 0;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .btn-hide-dock {
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      border-radius: 6px;
+      background: #f1f5f9;
+      border: 1px solid #94a3b8;
+      color: #334155;
+      cursor: pointer;
+    }
+    .btn-hide-dock:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    .editor-dock-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .editor-dock-actions .btn {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 12.5px;
+    }
+    @media (max-width: 1060px) {
+      .studio-dynamic-grid,
+      .studio-dynamic-grid.editor-open {
+        grid-template-columns: 1fr;
+      }
+      .editor-dock-panel {
+        max-height: none;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -15,12 +101,19 @@
   %>
 
   <div class="studio-container">
-    <!-- Top Header -->
+    <!-- Executive Top Header -->
     <div class="top-bar">
       <h1 class="top-bar-title">Student ID Card Studio</h1>
-      <div class="top-bar-actions-group">
+
+      <div class="exec-toolbar-btns">
+        <button type="button" id="toggleEditorBtn" class="btn btn-sm btn-primary" onclick="toggleDesignPanel()">
+          Edit Design Settings
+        </button>
+        <button type="button" class="btn btn-sm btn-success" onclick="openPrintPopupModal()">
+          Print / Download (<span id="topSelectedCount">0</span>)
+        </button>
         <a href="/admissions" class="btn btn-sm btn-secondary">← Admissions</a>
-        <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
+        <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 12H5"></path>
             <polyline points="12 19 5 12 12 5"></polyline>
@@ -29,17 +122,19 @@
       </div>
     </div>
 
-    <div class="id-studio-grid">
-      <!-- Column 1: Select Students -->
+    <!-- Workspace Grid (Student List + Fixed-Place Collapsible Editor + Live Preview) -->
+    <div class="studio-dynamic-grid" id="studioWorkspaceGrid">
+      
+      <!-- Column 1: Student Selector -->
       <div class="panel-box">
         <div class="panel-title">
-          <span>Select Students (<span id="selectedCountBadge">0</span>)</span>
+          <span>Students (<span id="selectedCountBadge">0</span> Selected)</span>
           <label class="select-all-lbl">
             <input type="checkbox" id="chkSelectAllStu" onchange="toggleSelectAllStudents(this)"> All
           </label>
         </div>
 
-        <input type="text" id="stuFilterInput" class="ctrl-input" placeholder="Search Name / Adm No / Batch..." onkeyup="filterStudentList()" style="margin-bottom: 8px;">
+        <input type="text" id="stuFilterInput" class="ctrl-input" placeholder="Search Name / Adm No..." onkeyup="filterStudentList()" style="margin-bottom: 8px;">
 
         <select id="batchQuickFilter" class="ctrl-input" onchange="filterStudentList()" style="margin-bottom: 10px;">
           <option value="all">All Batches</option>
@@ -56,23 +151,23 @@
               <input type="checkbox" class="id-stu-chk" value="<%= idx %>" onchange="refreshPreview()">
               <div>
                 <strong><%= s.full_name %></strong>
-                <span class="stu-pick-meta"><%= s.admission_no %> | Roll: <%= s.roll_no || '-' %> | <%= s.main_batch_name %></span>
+                <span class="stu-pick-meta"><%= s.admission_no %> | Roll: <%= s.roll_no || '-' %></span>
               </div>
             </label>
           <% }) %>
         </div>
       </div>
 
-      <!-- Column 2: Mini Poster Maker Designer Controls -->
-      <div class="panel-box">
-        <div class="panel-title">
-          <span>ID Card Design Settings</span>
-          <button type="button" class="btn btn-sm btn-warning" onclick="resetDefaultTemplate()" style="padding: 3px 8px; font-size: 11px;">Reset</button>
+      <!-- Column 2: Fixed-Place Docked Editor (Opens in place without covering preview, can be hidden anytime) -->
+      <div class="editor-dock-panel" id="designEditorDock">
+        <div class="editor-dock-header">
+          <h3>Design & Layout</h3>
+          <button type="button" class="btn-hide-dock" onclick="toggleDesignPanel(false)">Hide ×</button>
         </div>
 
-        <!-- 1. Dedicated ID Card Header & Footer Image Upload -->
+        <!-- 1. Header & Footer Image Upload -->
         <div class="ctrl-section">
-          <span class="ctrl-section-title">1. ID Card Header & Footer Image</span>
+          <span class="ctrl-section-title">1. ID Header & Footer Banners</span>
           <div style="margin-bottom: 6px;">
             <label class="ctrl-lbl">Upload ID Header Banner:</label>
             <input type="file" id="idHeaderFile" accept="image/*" class="ctrl-input" onchange="uploadIdBranding('header')">
@@ -84,84 +179,57 @@
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <label class="field-pill">
               <input type="checkbox" id="idUseBannerImg" checked onchange="refreshPreview()">
-              <span>Show Uploaded Banners</span>
+              <span>Show Banners</span>
             </label>
-            <button type="button" class="btn btn-sm btn-danger" onclick="clearIdBanners()" style="padding: 3px 8px; font-size: 11px;">Clear</button>
+            <button type="button" class="btn btn-sm btn-danger" onclick="clearIdBanners()" style="padding: 3px 8px; font-size: 11px;">Remove</button>
           </div>
         </div>
 
-        <!-- 2. Overall ID Card Size & Print Layout -->
+        <!-- 2. Overall ID Card Dimensions -->
         <div class="ctrl-section">
-          <span class="ctrl-section-title">2. Overall ID Card Size & Print Mode</span>
-          <div class="ctrl-row-2">
-            <div>
-              <label class="ctrl-lbl">Card Preset Size</label>
-              <select id="idSizePreset" class="ctrl-input" onchange="applySizePreset()">
-                <option value="cr80_v">Standard Vertical (54×86mm)</option>
-                <option value="cr80_h">Standard Horizontal (86×54mm)</option>
-                <option value="large_v">Large Vertical (65×98mm)</option>
-                <option value="large_h">Large Horizontal (98×65mm)</option>
-                <option value="custom">Custom Size (mm)</option>
-              </select>
-            </div>
-            <div>
-              <label class="ctrl-lbl">Print Page Layout</label>
-              <select id="idPrintMode" class="ctrl-input">
-                <option value="separate">Separate Page per ID</option>
-                <option value="grid">Multiple on A4 Page</option>
-              </select>
-            </div>
+          <span class="ctrl-section-title">2. Card Size & Orientation</span>
+          <div style="margin-bottom: 6px;">
+            <label class="ctrl-lbl">Preset Size</label>
+            <select id="idSizePreset" class="ctrl-input" onchange="applySizePreset()">
+              <option value="cr80_v">Vertical (54×86mm)</option>
+              <option value="cr80_h">Horizontal (86×54mm)</option>
+              <option value="large_v">Large Vertical (65×98mm)</option>
+              <option value="large_h">Large Horizontal (98×65mm)</option>
+              <option value="custom">Custom (mm)</option>
+            </select>
           </div>
           <div class="ctrl-row-2" style="margin-bottom: 0;">
             <div>
-              <label class="ctrl-lbl">Card Width (mm)</label>
+              <label class="ctrl-lbl">Width (mm)</label>
               <input type="number" id="idCardWidth" class="ctrl-input" min="40" max="150" value="54" oninput="onCustomSizeInput()">
             </div>
             <div>
-              <label class="ctrl-lbl">Card Height (mm)</label>
+              <label class="ctrl-lbl">Height (mm)</label>
               <input type="number" id="idCardHeight" class="ctrl-input" min="40" max="180" value="86" oninput="onCustomSizeInput()">
             </div>
           </div>
         </div>
 
-        <!-- 3. Card Colors -->
+        <!-- 3. Colors -->
         <div class="ctrl-section">
-          <span class="ctrl-section-title">3. Card & Text Colors</span>
+          <span class="ctrl-section-title">3. Color Palette</span>
           <div class="ctrl-row-3">
-            <div>
-              <label class="ctrl-lbl">Card Bg</label>
-              <input type="color" id="idCardBg" class="ctrl-color" value="#ffffff" oninput="refreshPreview()">
-            </div>
-            <div>
-              <label class="ctrl-lbl">Header Bg</label>
-              <input type="color" id="idHeaderBg" class="ctrl-color" value="#1e3a8a" oninput="refreshPreview()">
-            </div>
-            <div>
-              <label class="ctrl-lbl">Header Text</label>
-              <input type="color" id="idHeaderColor" class="ctrl-color" value="#ffffff" oninput="refreshPreview()">
-            </div>
+            <div><label class="ctrl-lbl">Card Bg</label><input type="color" id="idCardBg" class="ctrl-color" value="#ffffff" oninput="refreshPreview()"></div>
+            <div><label class="ctrl-lbl">Header Bg</label><input type="color" id="idHeaderBg" class="ctrl-color" value="#1e3a8a" oninput="refreshPreview()"></div>
+            <div><label class="ctrl-lbl">Header Text</label><input type="color" id="idHeaderColor" class="ctrl-color" value="#ffffff" oninput="refreshPreview()"></div>
           </div>
           <div class="ctrl-row-3" style="margin-bottom: 0;">
-            <div>
-              <label class="ctrl-lbl">Body Text</label>
-              <input type="color" id="idBodyColor" class="ctrl-color" value="#0f172a" oninput="refreshPreview()">
-            </div>
-            <div>
-              <label class="ctrl-lbl">Footer Bg</label>
-              <input type="color" id="idFooterBg" class="ctrl-color" value="#1e3a8a" oninput="refreshPreview()">
-            </div>
-            <div>
-              <label class="ctrl-lbl">Footer Text</label>
-              <input type="color" id="idFooterColor" class="ctrl-color" value="#ffffff" oninput="refreshPreview()">
-            </div>
+            <div><label class="ctrl-lbl">Body Text</label><input type="color" id="idBodyColor" class="ctrl-color" value="#0f172a" oninput="refreshPreview()"></div>
+            <div><label class="ctrl-lbl">Footer Bg</label><input type="color" id="idFooterBg" class="ctrl-color" value="#1e3a8a" oninput="refreshPreview()"></div>
+            <div><label class="ctrl-lbl">Footer Text</label><input type="color" id="idFooterColor" class="ctrl-color" value="#ffffff" oninput="refreshPreview()"></div>
           </div>
         </div>
 
-        <!-- 4. Text Header/Footer & Alignment -->
+        <!-- 4. Header/Footer Text & Alignment -->
         <div class="ctrl-section">
           <span class="ctrl-section-title">4. Text Header, Footer & Align</span>
           <div style="margin-bottom: 6px;">
-            <label class="ctrl-lbl">Header Title (If no image)</label>
+            <label class="ctrl-lbl">Header Title</label>
             <input type="text" id="idHeaderTitle" class="ctrl-input" value="STUDENT IDENTITY CARD" oninput="refreshPreview()">
           </div>
           <div class="ctrl-row-2">
@@ -172,9 +240,9 @@
             <div>
               <label class="ctrl-lbl">Header Align</label>
               <div class="align-btn-group" data-target="idHeaderAlign">
-                <button type="button" class="align-btn" onclick="setAlign('idHeaderAlign', 'left', this)">Left</button>
-                <button type="button" class="align-btn active" onclick="setAlign('idHeaderAlign', 'center', this)">Center</button>
-                <button type="button" class="align-btn" onclick="setAlign('idHeaderAlign', 'right', this)">Right</button>
+                <button type="button" class="align-btn" onclick="setAlign('idHeaderAlign', 'left', this)">L</button>
+                <button type="button" class="align-btn active" onclick="setAlign('idHeaderAlign', 'center', this)">C</button>
+                <button type="button" class="align-btn" onclick="setAlign('idHeaderAlign', 'right', this)">R</button>
               </div>
               <input type="hidden" id="idHeaderAlign" value="center">
             </div>
@@ -187,35 +255,25 @@
             <div>
               <label class="ctrl-lbl">Footer Align</label>
               <div class="align-btn-group" data-target="idFooterAlign">
-                <button type="button" class="align-btn" onclick="setAlign('idFooterAlign', 'left', this)">Left</button>
-                <button type="button" class="align-btn active" onclick="setAlign('idFooterAlign', 'center', this)">Center</button>
-                <button type="button" class="align-btn" onclick="setAlign('idFooterAlign', 'right', this)">Right</button>
+                <button type="button" class="align-btn" onclick="setAlign('idFooterAlign', 'left', this)">L</button>
+                <button type="button" class="align-btn active" onclick="setAlign('idFooterAlign', 'center', this)">C</button>
+                <button type="button" class="align-btn" onclick="setAlign('idFooterAlign', 'right', this)">R</button>
               </div>
               <input type="hidden" id="idFooterAlign" value="center">
             </div>
           </div>
         </div>
 
-        <!-- 5. Text Size, Left/Right Offset & Line Gap -->
+        <!-- 5. Typography, Offset & Line Gap -->
         <div class="ctrl-section">
-          <span class="ctrl-section-title">5. Size, Left/Right Offset & Line Gap</span>
+          <span class="ctrl-section-title">5. Font Size, Offset & Line Gap</span>
           <div class="ctrl-row-3">
-            <div>
-              <label class="ctrl-lbl">Header Size</label>
-              <input type="number" id="idHeaderSize" class="ctrl-input" min="8" max="20" value="11" step="0.5" oninput="refreshPreview()">
-            </div>
-            <div>
-              <label class="ctrl-lbl">Name Size</label>
-              <input type="number" id="idNameSize" class="ctrl-input" min="9" max="22" value="12.5" step="0.5" oninput="refreshPreview()">
-            </div>
-            <div>
-              <label class="ctrl-lbl">Text Size</label>
-              <input type="number" id="idTextSize" class="ctrl-input" min="7" max="16" value="9.5" step="0.5" oninput="refreshPreview()">
-            </div>
+            <div><label class="ctrl-lbl">Header</label><input type="number" id="idHeaderSize" class="ctrl-input" min="8" max="20" value="11" step="0.5" oninput="refreshPreview()"></div>
+            <div><label class="ctrl-lbl">Name</label><input type="number" id="idNameSize" class="ctrl-input" min="9" max="22" value="12.5" step="0.5" oninput="refreshPreview()"></div>
+            <div><label class="ctrl-lbl">Details</label><input type="number" id="idTextSize" class="ctrl-input" min="7" max="16" value="9.5" step="0.5" oninput="refreshPreview()"></div>
           </div>
-
           <div style="margin-bottom: 8px;">
-            <label class="ctrl-lbl">Text Alignment</label>
+            <label class="ctrl-lbl">Details Text Align</label>
             <div class="align-btn-group" data-target="idBodyAlign">
               <button type="button" class="align-btn" onclick="setAlign('idBodyAlign', 'left', this)">Left</button>
               <button type="button" class="align-btn active" onclick="setAlign('idBodyAlign', 'center', this)">Center</button>
@@ -223,27 +281,25 @@
             </div>
             <input type="hidden" id="idBodyAlign" value="center">
           </div>
-
           <div class="ctrl-row-2">
             <div>
               <label class="ctrl-lbl">Left Offset (<span id="lblPadLeft">0</span>px)</label>
-              <input type="range" id="idPadLeft" class="ctrl-range" min="0" max="45" value="0" oninput="document.getElementById('lblPadLeft').innerText = this.value; refreshPreview();">
+              <input type="range" id="idPadLeft" class="ctrl-range" min="0" max="40" value="0" oninput="document.getElementById('lblPadLeft').innerText = this.value; refreshPreview();">
             </div>
             <div>
               <label class="ctrl-lbl">Right Offset (<span id="lblPadRight">0</span>px)</label>
-              <input type="range" id="idPadRight" class="ctrl-range" min="0" max="45" value="0" oninput="document.getElementById('lblPadRight').innerText = this.value; refreshPreview();">
+              <input type="range" id="idPadRight" class="ctrl-range" min="0" max="40" value="0" oninput="document.getElementById('lblPadRight').innerText = this.value; refreshPreview();">
             </div>
           </div>
-
           <div>
             <label class="ctrl-lbl">Line Gap (<span id="lblLineGap">2</span>px)</label>
             <input type="range" id="idLineGap" class="ctrl-range" min="0" max="14" value="2" oninput="document.getElementById('lblLineGap').innerText = this.value; refreshPreview();">
           </div>
         </div>
 
-        <!-- 6. Photo Style, Align & Rotate -->
+        <!-- 6. Photo & Barcode -->
         <div class="ctrl-section">
-          <span class="ctrl-section-title">6. Photo Style, Align & Rotate</span>
+          <span class="ctrl-section-title">6. Photo, Rotation & Barcode</span>
           <div class="ctrl-row-2">
             <div>
               <label class="ctrl-lbl">Photo Shape</label>
@@ -258,13 +314,13 @@
               <input type="number" id="idPhotoSize" class="ctrl-input" min="40" max="115" value="68" oninput="refreshPreview()">
             </div>
           </div>
-          <div class="ctrl-row-2" style="margin-bottom: 0;">
+          <div class="ctrl-row-2">
             <div>
               <label class="ctrl-lbl">Photo Align</label>
               <div class="align-btn-group" data-target="idPhotoAlign">
-                <button type="button" class="align-btn" onclick="setAlign('idPhotoAlign', 'flex-start', this)">Left</button>
-                <button type="button" class="align-btn active" onclick="setAlign('idPhotoAlign', 'center', this)">Center</button>
-                <button type="button" class="align-btn" onclick="setAlign('idPhotoAlign', 'flex-end', this)">Right</button>
+                <button type="button" class="align-btn" onclick="setAlign('idPhotoAlign', 'flex-start', this)">L</button>
+                <button type="button" class="align-btn active" onclick="setAlign('idPhotoAlign', 'center', this)">C</button>
+                <button type="button" class="align-btn" onclick="setAlign('idPhotoAlign', 'flex-end', this)">R</button>
               </div>
               <input type="hidden" id="idPhotoAlign" value="center">
             </div>
@@ -273,41 +329,63 @@
               <input type="range" id="idPhotoRotate" class="ctrl-range" min="-180" max="180" step="5" value="0" oninput="document.getElementById('lblPhotoRotate').innerText = this.value; refreshPreview();">
             </div>
           </div>
-        </div>
-
-        <!-- 7. Auto Barcode & Visible Fields -->
-        <div class="ctrl-section">
-          <span class="ctrl-section-title">7. Auto Barcode & Fields</span>
           <div class="ctrl-row-2" style="align-items: center;">
             <label class="field-pill">
               <input type="checkbox" id="idShowBarcode" checked onchange="refreshPreview()">
-              <span>Adm No Barcode</span>
+              <span>Auto Barcode</span>
             </label>
             <div>
-              <label class="ctrl-lbl">Barcode Height (<span id="lblBarHeight">22</span>px)</label>
+              <label class="ctrl-lbl">Bar Height (<span id="lblBarHeight">22</span>px)</label>
               <input type="range" id="idBarcodeHeight" class="ctrl-range" min="14" max="42" value="22" oninput="document.getElementById('lblBarHeight').innerText = this.value; refreshPreview();">
             </div>
           </div>
           <div class="field-toggle-wrap">
             <label class="field-pill"><input type="checkbox" name="idField" value="admission_no" checked onchange="refreshPreview()"> Adm No</label>
             <label class="field-pill"><input type="checkbox" name="idField" value="roll_no" checked onchange="refreshPreview()"> Roll No</label>
-            <label class="field-pill"><input type="checkbox" name="idField" value="main_batch_name" checked onchange="refreshPreview()"> Batch</label>
+            <label class="field-pill"><input type="checkbox" name="idField" value="main_batch_name" onchange="refreshPreview()"> Batch</label>
             <label class="field-pill"><input type="checkbox" name="idField" value="father_name" checked onchange="refreshPreview()"> Father</label>
             <label class="field-pill"><input type="checkbox" name="idField" value="dob" checked onchange="refreshPreview()"> DOB</label>
             <label class="field-pill"><input type="checkbox" name="idField" value="phone" checked onchange="refreshPreview()"> Phone</label>
             <label class="field-pill"><input type="checkbox" name="idField" value="address" onchange="refreshPreview()"> Address</label>
           </div>
         </div>
+
+        <div class="editor-dock-actions">
+          <button type="button" class="btn btn-warning" onclick="resetDefaultTemplate()">Reset</button>
+          <button type="button" class="btn btn-primary" onclick="saveTemplateForAll()">Save for All</button>
+        </div>
       </div>
 
-      <!-- Column 3: Live ID Card Preview Stage -->
+      <!-- Column 3: Live ID Card Preview Stage (Always visible alongside editor) -->
       <div class="preview-stage" id="idPreviewStage"></div>
     </div>
+  </div>
 
-    <!-- Bottom Global Save & Print Actions -->
-    <div class="bottom-action-bar">
-      <button type="button" class="btn btn-primary" onclick="saveTemplateForAll()">Save Style for All Students</button>
-      <button type="button" class="btn btn-success" onclick="printAllSelectedCards()">Print / Download ID Cards</button>
+  <!-- Print & Export Options Modal -->
+  <div id="printOptionsModal" class="modal" onclick="if(event.target === this) closePrintPopupModal()">
+    <div class="modal-content" style="max-width: 440px; border-radius: 14px;">
+      <div class="modal-header">
+        <h3>Print / Download ID Cards</h3>
+        <button type="button" class="modal-close" onclick="closePrintPopupModal()">×</button>
+      </div>
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
+        Choose how you want to arrange the selected <strong><span id="modalPrintCount">0</span></strong> student ID card(s):
+      </p>
+
+      <div class="modal-form-body">
+        <label class="field-label">Page Layout Mode:</label>
+        <select id="idPrintMode" class="ctrl-input" style="padding: 10px;">
+          <option value="separate">Separate Page per ID Card (1 Card = 1 Page)</option>
+          <option value="grid">Multiple ID Cards on A4 Sheet</option>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closePrintPopupModal()">Cancel</button>
+        <button type="button" class="btn btn-success" onclick="closePrintPopupModal(); printAllSelectedCards();">
+          Print / Save PDF Now
+        </button>
+      </div>
     </div>
   </div>
 
@@ -357,7 +435,7 @@
       photoRotate: 0,
       showBarcode: true,
       barcodeHeight: 22,
-      fields: ['admission_no', 'roll_no', 'main_batch_name', 'father_name', 'dob', 'phone']
+      fields: ['admission_no', 'roll_no', 'father_name', 'dob', 'phone']
     };
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -379,6 +457,28 @@
 
       refreshPreview();
     });
+
+    // Toggle Fixed-Place Editor Panel (Show / Hide without covering preview)
+    function toggleDesignPanel(forceState) {
+      const grid = document.getElementById('studioWorkspaceGrid');
+      const btn = document.getElementById('toggleEditorBtn');
+      const isCurrentlyOpen = grid.classList.contains('editor-open');
+      const nextState = typeof forceState === 'boolean' ? forceState : !isCurrentlyOpen;
+
+      grid.classList.toggle('editor-open', nextState);
+      btn.innerText = nextState ? 'Hide Design Settings' : 'Edit Design Settings';
+    }
+
+    function openPrintPopupModal() {
+      const selected = getSelectedStudents();
+      if (selected.length === 0) return alert('Please select at least one student first!');
+      document.getElementById('modalPrintCount').innerText = selected.length;
+      document.getElementById('printOptionsModal').style.display = 'flex';
+    }
+
+    function closePrintPopupModal() {
+      document.getElementById('printOptionsModal').style.display = 'none';
+    }
 
     function applySizePreset() {
       const preset = document.getElementById('idSizePreset').value;
@@ -547,7 +647,7 @@
 
     function saveTemplateForAll() {
       localStorage.setItem('id_studio_global_tpl', JSON.stringify(getTemplateConfig()));
-      alert('Design & size saved! All student ID cards will use this layout.');
+      alert('Design & size saved! All student ID cards will now use this layout.');
     }
 
     function loadSavedTemplate() {
@@ -669,6 +769,7 @@
     function refreshPreview() {
       const selected = getSelectedStudents();
       document.getElementById('selectedCountBadge').innerText = selected.length;
+      document.getElementById('topSelectedCount').innerText = selected.length;
       const stage = document.getElementById('idPreviewStage');
 
       if (selected.length === 0) {

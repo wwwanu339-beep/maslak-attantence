@@ -54,7 +54,15 @@
     <!-- Search Bar Card -->
     <div class="card" style="padding: 14px 16px; margin-bottom: 16px;">
       <div class="toolbar">
-       <input type="text" id="studentSearch" class="search-input" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');" placeholder="Search by Name, Admission No, Roll No, Phone, or Main Batch..." onkeyup="filterStudentTable()">
+        <input type="text"
+               id="studentSearch"
+               class="search-input"
+               autocomplete="off"
+               readonly
+               onfocus="this.removeAttribute('readonly');"
+               placeholder="Search by Name, Admission No, Roll No, Phone, or Main Batch..."
+               onkeyup="filterStudentTable()">
+      </div>
     </div>
 
     <!-- Active Students Table -->
@@ -126,6 +134,41 @@
             <% }) %>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assign Batch by Roll Numbers Modal (Opened from Menu) -->
+  <div id="bulkBatchModal" class="modal" onclick="if(event.target === this) closeBulkBatchModal()">
+    <div class="modal-content" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3>Assign Batch by Roll Numbers</h3>
+        <button type="button" class="modal-close" onclick="closeBulkBatchModal()">×</button>
+      </div>
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
+        Enter individual roll numbers (<strong>1, 2, 5</strong>) or ranges (<strong>1-20</strong>), or combine both (e.g., <strong>1, 3, 10-15</strong>).
+      </p>
+
+      <div class="modal-form-body">
+        <label class="field-label">Select Batch to Add:</label>
+        <select id="bulkTargetBatch">
+          <option value="" disabled selected>-- Select Batch --</option>
+          <% batches.forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+
+        <label class="field-label" style="margin-top: 6px;">Roll Numbers / Range:</label>
+        <input type="text"
+               id="bulkRollExpression"
+               autocomplete="off"
+               placeholder="e.g., 1, 2, 3 or 1-20"
+               onkeyup="if(event.key === 'Enter') executeBulkBatchAssign()">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeBulkBatchModal()">Cancel</button>
+        <button type="button" id="bulkAssignBtn" class="btn btn-primary" onclick="executeBulkBatchAssign()">Assign Batch</button>
       </div>
     </div>
   </div>
@@ -243,45 +286,6 @@
     </div>
   </div>
 
-  <!-- Bulk Assign Batch by Roll Range Modal -->
-  <div id="bulkBatchModal" class="modal" onclick="if(event.target === this) closeBulkBatchModal()">
-    <div class="modal-content" style="max-width: 400px;">
-      <div class="modal-header">
-        <h3>Assign Batch by Roll Range</h3>
-        <button type="button" class="modal-close" onclick="closeBulkBatchModal()">×</button>
-      </div>
-      <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
-        Add a secondary/sub batch to all active students within a specific roll number range (e.g., Roll 1 to 20).
-      </p>
-
-      <div class="modal-form-body">
-        <label class="field-label">Select Batch to Add:</label>
-        <select id="bulkTargetBatch">
-          <option value="" disabled selected>-- Select Batch --</option>
-          <% batches.forEach(b => { %>
-            <option value="<%= b.id %>"><%= b.name %></option>
-          <% }) %>
-        </select>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px;">
-          <div>
-            <label class="field-label">From Roll No:</label>
-            <input type="number" id="bulkFromRoll" min="1" placeholder="e.g., 1">
-          </div>
-          <div>
-            <label class="field-label">To Roll No:</label>
-            <input type="number" id="bulkToRoll" min="1" placeholder="e.g., 20">
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closeBulkBatchModal()">Cancel</button>
-        <button type="button" id="bulkAssignBtn" class="btn btn-primary" onclick="executeBulkBatchAssign()">Assign Batch</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     // Header Dropdown Menu Toggle
     function toggleHeaderMenu(e) {
@@ -306,11 +310,9 @@
       }
     });
 
-   window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('studentSearch');
-      if (searchInput) {
-        searchInput.blur();
-      }
+      if (searchInput) searchInput.blur();
     });
 
     function filterStudentTable() {
@@ -330,6 +332,100 @@
           if (chk) chk.checked = masterChk.checked;
         }
       });
+    }
+
+    // Assign Batch by Roll Numbers Modal Controls
+    function openBulkBatchModal() {
+      document.getElementById('bulkTargetBatch').value = '';
+      document.getElementById('bulkRollExpression').value = '';
+      document.getElementById('bulkBatchModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('bulkRollExpression').focus(), 100);
+    }
+
+    function closeBulkBatchModal() {
+      document.getElementById('bulkBatchModal').style.display = 'none';
+    }
+
+    function parseRollNumbersClient(inputStr) {
+      const clean = String(inputStr || '').trim();
+      if (!clean) return { error: 'Please enter roll numbers (e.g., 1, 2, 3 or 1-20)!' };
+      if (!/^[0-9,\-\s]+$/.test(clean)) {
+        return { error: 'Only numbers, commas (,), and hyphens (-) are allowed!' };
+      }
+
+      const rollSet = new Set();
+      const parts = clean.split(',').map(p => p.trim()).filter(Boolean);
+      if (parts.length === 0) return { error: 'Please enter valid roll numbers!' };
+
+      for (const part of parts) {
+        if (part.includes('-')) {
+          const bounds = part.split('-').map(b => b.trim());
+          if (bounds.length !== 2 || !bounds[0] || !bounds[1]) {
+            return { error: `Invalid range format "${part}". Use format like 1-20.` };
+          }
+          const start = parseInt(bounds[0], 10);
+          const end = parseInt(bounds[1], 10);
+          if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
+            return { error: `Invalid roll range "${part}". Start must be <= End.` };
+          }
+          if (end - start > 500) {
+            return { error: 'Range cannot exceed 500 roll numbers at once!' };
+          }
+          for (let n = start; n <= end; n++) {
+            rollSet.add(n);
+          }
+        } else {
+          const num = parseInt(part, 10);
+          if (isNaN(num) || num < 1) {
+            return { error: `Invalid roll number "${part}".` };
+          }
+          rollSet.add(num);
+        }
+      }
+
+      if (rollSet.size === 0 || rollSet.size > 500) {
+        return { error: 'Please enter between 1 and 500 valid roll numbers!' };
+      }
+
+      return { rolls: Array.from(rollSet).sort((a, b) => a - b) };
+    }
+
+    async function executeBulkBatchAssign() {
+      const batch_id = document.getElementById('bulkTargetBatch').value;
+      const roll_expression = document.getElementById('bulkRollExpression').value.trim();
+      const btn = document.getElementById('bulkAssignBtn');
+
+      if (!batch_id) {
+        return alert('Please select a batch first!');
+      }
+
+      const parsed = parseRollNumbersClient(roll_expression);
+      if (parsed.error) {
+        return alert(parsed.error);
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'Assigning...';
+
+      try {
+        const res = await fetch('/api/students/bulk-assign-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch_id, roll_expression })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message);
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to assign batch!'));
+        }
+      } catch (err) {
+        alert('Server error while assigning batch!');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Assign Batch';
+      }
     }
 
     function openExportModal(format) {
@@ -557,51 +653,6 @@
         else alert('Error: ' + data.error);
       } catch (err) {
         alert('Failed to remove student!');
-      }
-    }
-
-    function openBulkBatchModal() {
-      document.getElementById('bulkTargetBatch').value = '';
-      document.getElementById('bulkFromRoll').value = '';
-      document.getElementById('bulkToRoll').value = '';
-      document.getElementById('bulkBatchModal').style.display = 'flex';
-    }
-
-    function closeBulkBatchModal() {
-      document.getElementById('bulkBatchModal').style.display = 'none';
-    }
-
-    async function executeBulkBatchAssign() {
-      const batch_id = document.getElementById('bulkTargetBatch').value;
-      const from_roll = document.getElementById('bulkFromRoll').value.trim();
-      const to_roll = document.getElementById('bulkToRoll').value.trim();
-      const btn = document.getElementById('bulkAssignBtn');
-
-      if (!batch_id || !from_roll || !to_roll) {
-        return alert('Please select a batch and enter both From and To roll numbers!');
-      }
-
-      btn.disabled = true;
-      btn.innerText = 'Assigning...';
-
-      try {
-        const res = await fetch('/api/students/bulk-assign-batch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ batch_id, from_roll, to_roll })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert(data.message);
-          location.reload();
-        } else {
-          alert('Error: ' + (data.error || 'Failed to assign batch!'));
-        }
-      } catch (err) {
-        alert('Server error while assigning batch!');
-      } finally {
-        btn.disabled = false;
-        btn.innerText = 'Assign Batch';
       }
     }
   </script>

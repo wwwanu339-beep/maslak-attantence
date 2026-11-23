@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Online Student Admission Form</title>
+  <link rel="stylesheet" href="/student.css">
+  <link rel="stylesheet" href="/admission.css">
+  <style>
+    body {
+      background: #f1f5f9;
+      padding: 20px 12px;
+    }
+    .public-form-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .brand-top-banner {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .brand-top-banner img {
+      width: 100%;
+      max-height: 110px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+    }
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 36px 20px;
+    }
+    .success-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #dcfce7;
+      color: #16a34a;
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .adm-no-highlight {
+      display: inline-block;
+      margin: 12px 0;
+      padding: 10px 20px;
+      background: #eff6ff;
+      border: 1.5px solid #2563eb;
+      color: #1d4ed8;
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <%
+    const safeBranding = (typeof branding !== 'undefined' && branding) ? branding : { headerUrl: '', footerUrl: '' };
+  %>
+
+  <div class="public-form-wrap">
+    <!-- Institution Header Banner -->
+    <div class="brand-top-banner">
+      <% if (safeBranding.headerUrl) { %>
+        <img src="<%= safeBranding.headerUrl %>" alt="Institution Header">
+      <% } else { %>
+        <h2 style="margin: 4px 0; color: #0f172a;">STUDENT ADMISSION APPLICATION</h2>
+        <p style="margin: 0; font-size: 13px; color: #64748b;">Fill in your details carefully and submit below</p>
+      <% } %>
+    </div>
+
+    <!-- Admission Form Card -->
+    <div class="card" id="formCardBox">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+        <h3 style="margin: 0;">Online Admission Form</h3>
+        <% if (user) { %>
+          <a href="/admissions" class="btn btn-sm btn-secondary">← Back to Admissions</a>
+        <% } %>
+      </div>
+
+      <form id="publicAdmissionForm" enctype="multipart/form-data">
+        <div class="form-grid">
+          <div class="field-box">
+            <label>Application / Admission No:</label>
+            <input type="text" id="admNo" value="<%= nextAdmissionNo %>" class="readonly-adm" readonly>
+          </div>
+
+          <div class="field-box">
+            <label>Full Name: <span class="req-star">*</span></label>
+            <input type="text" id="stName" name="full_name" placeholder="Student Full Name" required>
+          </div>
+
+          <div class="field-box">
+            <label>Date of Birth: <span class="req-star">*</span></label>
+            <input type="date" id="stDob" name="dob" required>
+          </div>
+
+          <div class="field-box">
+            <label>Father's Name:</label>
+            <input type="text" id="stFather" name="father_name" placeholder="Father's Name">
+          </div>
+
+          <div class="field-box">
+            <label>Aadhaar Number:</label>
+            <input type="text" id="stAadhaar" name="aadhaar_no" placeholder="12-digit Aadhaar Number" maxlength="14">
+          </div>
+
+          <div class="field-box">
+            <label>Student Phone Number:</label>
+            <input type="text" id="stPhone" name="phone" placeholder="Student Phone Number">
+          </div>
+
+          <div class="field-box">
+            <label>Parent / Guardian Phone Number: <span class="req-star">*</span></label>
+            <input type="text" id="stGuardianPhone" name="guardian_phone" placeholder="Parent / Guardian Phone" required>
+          </div>
+
+          <div class="field-box">
+            <label>PIN Code (Auto-fills District & State): <span id="pubPinStatus" style="font-size:11px; color:#2563eb;"></span></label>
+            <input type="text" id="stPin" name="pin" placeholder="6-digit PIN Code" maxlength="6" oninput="lookupPinCode(this.value)">
+          </div>
+
+          <div class="field-box">
+            <label>Place:</label>
+            <input type="text" id="stPlace" name="place" placeholder="Place / Locality">
+          </div>
+
+          <div class="field-box">
+            <label>District:</label>
+            <input type="text" id="stDistrict" name="district" placeholder="District">
+          </div>
+
+          <div class="field-box">
+            <label>State:</label>
+            <input type="text" id="stState" name="state" placeholder="State">
+          </div>
+
+          <div class="field-box full-span">
+            <label>House Name / Full Address:</label>
+            <textarea id="stAddress" name="address" rows="2" placeholder="House Name, Post Office, Street"></textarea>
+          </div>
+
+          <!-- Muthallim Previous Study Toggle -->
+          <div class="field-box">
+            <label>Studied as Muthallim Previously?</label>
+            <select id="stIsMuthallim" name="is_muthallim" onchange="toggleMuthallimFields()">
+              <option value="no" selected>No (Fresh)</option>
+              <option value="yes">Yes (Studied Previously)</option>
+            </select>
+          </div>
+
+          <div class="field-box">
+            <label>Student Portal Password (Optional):</label>
+            <input type="password" id="stPass" name="password" placeholder="Defaults to Admission No if empty">
+          </div>
+
+          <div id="pubMuthallimBox" class="form-grid full-span" style="display: none; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px dashed #94a3b8;">
+            <div class="field-box">
+              <label>Previous Institution Name:</label>
+              <input type="text" id="stPrevInst" name="prev_institution" placeholder="Name of Previous Madrasa / Dars / College">
+            </div>
+            <div class="field-box">
+              <label>Institution Place:</label>
+              <input type="text" id="stPrevPlace" name="prev_place" placeholder="Location / Place of Institution">
+            </div>
+          </div>
+
+          <div class="field-box">
+            <label>Current Madrasa Class:</label>
+            <input type="text" id="stMadrasaClass" name="madrasa_class" placeholder="e.g., Class 5 / Hifz">
+          </div>
+
+          <div class="field-box">
+            <label>Current School Class:</label>
+            <input type="text" id="stSchoolClass" name="school_class" placeholder="e.g., 5th Standard / Plus One">
+          </div>
+
+          <div class="field-box">
+            <label>Student Photo Upload:</label>
+            <input type="file" id="stPhoto" name="photo" accept="image/*">
+          </div>
+
+          <div class="field-box">
+            <label>Aadhaar Document Upload (Image/PDF):</label>
+            <input type="file" id="stAadhaarFile" name="aadhaar_doc" accept="image/*,.pdf">
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="pubSubmitBtn" class="btn btn-primary" style="padding: 11px 24px; font-size: 14px;" onclick="submitPublicAdmission()">
+            Final Submit Admission
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Success Screen -->
+    <div class="card success-screen" id="successCardBox">
+      <div class="success-badge">✓</div>
+      <h2 style="margin: 0 0 6px; color: #0f172a;">Admission Submitted Successfully!</h2>
+      <p style="color: #475569; font-size: 14px; margin: 0;">Your application has been added to the admission list.</p>
+      <div class="adm-no-highlight" id="finalAdmNoDisplay">ADM1001</div>
+      <p style="color: #64748b; font-size: 13px; margin-bottom: 20px;">Please save your Admission Number for future reference.</p>
+
+      <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-primary" onclick="location.reload()">Submit Another Application</button>
+        <% if (user) { %>
+          <a href="/admissions" class="btn btn-secondary">Go to Admission List</a>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (safeBranding.footerUrl) { %>
+      <div class="brand-top-banner" style="margin-top: 16px;">
+        <img src="<%= safeBranding.footerUrl %>" alt="Institution Footer">
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    function toggleMuthallimFields() {
+      const val = document.getElementById('stIsMuthallim').value;
+      document.getElementById('pubMuthallimBox').style.display = val === 'yes' ? 'grid' : 'none';
+    }
+
+    async function lookupPinCode(pinVal) {
+      const cleanPin = String(pinVal || '').replace(/\D/g, '');
+      const statusEl = document.getElementById('pubPinStatus');
+      if (cleanPin.length !== 6) {
+        statusEl.innerText = '';
+        return;
+      }
+
+      statusEl.innerText = 'Fetching...';
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+          const po = data[0].PostOffice[0];
+          const placeEl = document.getElementById('stPlace');
+          if (!placeEl.value.trim()) placeEl.value = po.Name || '';
+          document.getElementById('stDistrict').value = po.District || '';
+          document.getElementById('stState').value = po.State || '';
+          statusEl.innerText = '✓ Found';
+        } else {
+          statusEl.innerText = 'Invalid PIN';
+        }
+      } catch (err) {
+        statusEl.innerText = '';
+      }
+    }
+
+    async function submitPublicAdmission() {
+      const full_name = document.getElementById('stName').value.trim();
+      const dob = document.getElementById('stDob').value.trim();
+      const guardian_phone = document.getElementById('stGuardianPhone').value.trim();
+
+      if (!full_name || !dob) {
+        return alert('Please enter Full Name and Date of Birth!');
+      }
+      if (!guardian_phone) {
+        return alert('Please enter Parent / Guardian Phone Number!');
+      }
+
+      const btn = document.getElementById('pubSubmitBtn');
+      btn.disabled = true;
+      btn.innerText = 'Submitting...';
+
+      const formData = new FormData();
+      formData.append('full_name', full_name);
+      formData.append('dob', dob);
+      formData.append('father_name', document.getElementById('stFather').value.trim());
+      formData.append('aadhaar_no', document.getElementById('stAadhaar').value.trim());
+      formData.append('phone', document.getElementById('stPhone').value.trim());
+      formData.append('guardian_phone', guardian_phone);
+      formData.append('pin', document.getElementById('stPin').value.trim());
+      formData.append('place', document.getElementById('stPlace').value.trim());
+      formData.append('district', document.getElementById('stDistrict').value.trim());
+      formData.append('state', document.getElementById('stState').value.trim());
+      formData.append('address', document.getElementById('stAddress').value.trim());
+      formData.append('is_muthallim', document.getElementById('stIsMuthallim').value);
+      formData.append('prev_institution', document.getElementById('stPrevInst').value.trim());
+      formData.append('prev_place', document.getElementById('stPrevPlace').value.trim());
+      formData.append('madrasa_class', document.getElementById('stMadrasaClass').value.trim());
+      formData.append('school_class', document.getElementById('stSchoolClass').value.trim());
+      formData.append('password', document.getElementById('stPass').value.trim());
+      formData.append('status', 'pending');
+
+      const photoInput = document.getElementById('stPhoto');
+      if (photoInput.files[0]) formData.append('photo', photoInput.files[0]);
+
+      const aadhaarInput = document.getElementById('stAadhaarFile');
+      if (aadhaarInput.files[0]) formData.append('aadhaar_doc', aadhaarInput.files[0]);
+
+      try {
+        const res = await fetch('/api/public-admissions', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('formCardBox').style.display = 'none';
+          document.getElementById('finalAdmNoDisplay').innerText = `Admission No: ${data.admission_no}`;
+          document.getElementById('successCardBox').style.display = 'block';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          alert('Error: ' + (data.error || 'Failed to submit admission!'));
+        }
+      } catch (err) {
+        alert('Server connection failed. Please try again!');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Final Submit Admission';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -653,6 +653,79 @@ app.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req,
   }
 });
 
+// ================= PUBLIC ONLINE ADMISSION PORTAL (Link / QR Code) =================
+app.get('/apply', async (req, res) => {
+  try {
+    const admSheet = await getSheet('admissions');
+    const stuSheet = await getSheet('students');
+    const [aRows, sRows] = await Promise.all([admSheet.getRows(), stuSheet.getRows()]);
+
+    const nextAdmissionNo = generateNextAdmissionNo(aRows, sRows);
+    const branding = getBrandingUrls();
+
+    res.render('apply_admission', { nextAdmissionNo, branding });
+  } catch (err) {
+    res.status(500).send('Error loading admission form: ' + err.message);
+  }
+});
+
+// Public & Admin Admission Submission (No requireAuth so QR/Link users can submit)
+app.post('/api/public-admissions', admUploads, async (req, res) => {
+  try {
+    const {
+      full_name, dob, roll_no, father_name, phone, guardian_phone, aadhaar_no,
+      address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
+      school_class, madrasa_class, password, status
+    } = req.body;
+
+    if (!full_name || !dob) {
+      return res.status(400).json({ success: false, error: 'Full Name and Date of Birth are required!' });
+    }
+
+    const admSheet = await getSheet('admissions');
+    const stuSheet = await getSheet('students');
+    const [aRows, sRows] = await Promise.all([admSheet.getRows(), stuSheet.getRows()]);
+
+    const permanentAdmNo = generateNextAdmissionNo(aRows, sRows);
+    const rawPass = password ? String(password).trim() : permanentAdmNo;
+    const hashedPassword = await hashPassword(rawPass);
+
+    const photoPath = req.files?.photo?.[0] ? `/uploads/${req.files.photo[0].filename}` : '';
+    const aadhaarPath = req.files?.aadhaar_doc?.[0] ? `/uploads/${req.files.aadhaar_doc[0].filename}` : '';
+
+    await admSheet.addRow({
+      admission_no: permanentAdmNo,
+      roll_no: roll_no ? String(roll_no).trim() : '',
+      full_name: full_name.trim(),
+      dob: String(dob).trim(),
+      father_name: father_name ? father_name.trim() : '',
+      address: address ? address.trim() : '',
+      place: place ? place.trim() : '',
+      pin: pin ? String(pin).trim() : '',
+      district: district ? district.trim() : '',
+      state: state ? state.trim() : '',
+      is_muthallim: is_muthallim === 'yes' ? 'yes' : 'no',
+      prev_institution: (is_muthallim === 'yes' && prev_institution) ? prev_institution.trim() : '',
+      prev_place: (is_muthallim === 'yes' && prev_place) ? prev_place.trim() : '',
+      school_class: school_class ? String(school_class).trim() : '',
+      madrasa_class: madrasa_class ? String(madrasa_class).trim() : '',
+      aadhaar_no: aadhaar_no ? String(aadhaar_no).trim() : '',
+      aadhaar_file: aadhaarPath,
+      photo_file: photoPath,
+      phone: phone ? String(phone).trim() : '',
+      guardian_phone: guardian_phone ? String(guardian_phone).trim() : '',
+      batch_id: '',
+      password: hashedPassword,
+      status: status === 'draft' ? 'draft' : 'pending',
+      created_at: new Date().toISOString().split('T')[0]
+    });
+
+    res.json({ success: true, admission_no: permanentAdmNo });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Edit Admission by admission_no (with Cascade Roll Reorder)
 app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
@@ -918,16 +991,93 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
     res.status(500).send("Database Error: " + err.message);
   }
 });
+// Helper: Strictly parse and validate print-style roll expressions ("1, 2, 5, 10-20")
+function parseRollExpressionServer(expr) {
+  const clean = String(expr || '').trim();
+  if (!clean || clean.length > 300) {
+    return { error: 'Invalid or overly long roll number input!' };
+  }
+  if (!/^[0-9,\-\s]+$/.test(clean)) {
+    return { error: 'Invalid characters! Use only numbers, commas (,), and hyphens (-).' };
+  }
 
+  const rollSet = new Set();
+  const parts = clean.split(',').map(p => p.trim()).filter(Boolean);
+  if (parts.length === 0) {
+    return { error: 'Please provide at least one roll number!' };
+  }
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const bounds = part.split('-').map(b => b.trim());
+      if (bounds.length !== 2 || !bounds[0] || !bounds[1]) {
+        return { error: `Invalid range syntax "${part}".` };
+      }
+      const start = parseInt(bounds[0], 10);
+      const end = parseInt(bounds[1], 10);
+      if (isNaN(start) || isNaN(end) || start < 1 || end < start || end > 100000) {
+        return { error: `Invalid roll range "${part}".` };
+      }
+      if (end - start > 500) {
+        return { error: 'Range cannot exceed 500 roll numbers per request!' };
+      }
+      for (let n = start; n <= end; n++) {
+        rollSet.add(n);
+      }
+    } else {
+      const num = parseInt(part, 10);
+      if (isNaN(num) || num < 1 || num > 100000) {
+        return { error: `Invalid roll number "${part}".` };
+      }
+      rollSet.add(num);
+    }
+  }
+
+  if (rollSet.size === 0 || rollSet.size > 500) {
+    return { error: 'Please specify between 1 and 500 valid roll numbers!' };
+  }
+
+  return { rollSet };
+}
+
+// Bulk Assign Batch by Print-Style Roll Expression ("1, 2, 3" or "1-20") with Security Checks
 app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (req, res) => {
   try {
-    const { batch_id, from_roll, to_roll } = req.body;
+    const { batch_id, roll_expression, from_roll, to_roll } = req.body;
     const targetBatch = String(batch_id || '').trim();
-    const startRoll = parseInt(from_roll);
-    const endRoll = parseInt(to_roll);
+    const sessionUser = req.session?.user || {};
 
-    if (!targetBatch || isNaN(startRoll) || isNaN(endRoll) || startRoll > endRoll) {
-      return res.status(400).json({ success: false, error: 'Please select a valid batch and roll number range!' });
+    if (!targetBatch) {
+      return res.status(400).json({ success: false, error: 'Please select a valid batch!' });
+    }
+
+    // Security Check 1: Enforce user-level batch scope restriction if applicable
+    if (sessionUser.allowed_batch && sessionUser.allowed_batch !== 'all') {
+      if (targetBatch !== String(sessionUser.allowed_batch).trim()) {
+        return res.status(403).json({
+          success: false,
+          error: 'Permission Denied: You are not authorized to assign this batch!'
+        });
+      }
+    }
+
+    // Support both new `roll_expression` ("1, 2, 10-20") and legacy `from_roll`/`to_roll`
+    const rawExpr = roll_expression !== undefined
+      ? roll_expression
+      : (from_roll && to_roll ? `${from_roll}-${to_roll}` : '');
+
+    const parsed = parseRollExpressionServer(rawExpr);
+    if (parsed.error) {
+      return res.status(400).json({ success: false, error: parsed.error });
+    }
+    const targetRollSet = parsed.rollSet;
+
+    // Security Check 2: Verify targetBatch exists in the 'batches' sheet
+    const batchSheet = await getSheet('batches');
+    const bRows = await batchSheet.getRows();
+    const validBatch = bRows.find(r => String(r.get('id') || '').trim() === targetBatch);
+    if (!validBatch) {
+      return res.status(400).json({ success: false, error: 'Selected batch does not exist!' });
     }
 
     const stuSheet = await getSheet('students');
@@ -958,8 +1108,8 @@ app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (re
           if (st !== 'active') continue;
         }
 
-        const rollVal = parseInt(String(sheet.getCell(r, rollIdx).value || '').trim());
-        if (!isNaN(rollVal) && rollVal >= startRoll && rollVal <= endRoll) {
+        const rollVal = parseInt(String(sheet.getCell(r, rollIdx).value || '').trim(), 10);
+        if (!isNaN(rollVal) && targetRollSet.has(rollVal)) {
           const batchCell = sheet.getCell(r, batchIdx);
           const existingBatches = String(batchCell.value || '')
             .split(',')
@@ -987,13 +1137,12 @@ app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (re
 
     res.json({
       success: true,
-      message: `Batch assigned successfully to ${stuUpdated} student(s) (Roll ${startRoll} to ${endRoll})!`
+      message: `Batch "${validBatch.get('name')}" assigned successfully to ${stuUpdated} student(s)!`
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Failed to assign batch: ' + err.message });
   }
 });
-
 app.put('/api/students/:admNo/password', requireAuth, checkStudent, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
