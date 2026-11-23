@@ -281,7 +281,6 @@ app.get('/settings', requireAuth, checkManage, async (req, res) => {
     const batches = bRows.map(r => ({ id: r.get('id'), name: r.get('name') })).reverse();
     const subjects = sRows.map(r => ({ id: r.get('id'), name: r.get('name'), batch_id: r.get('batch_id') })).reverse();
 
-    // Hide both Developer ('super_admin') and Main Admin ('admin') from user dropdown list
     const users = uRows
       .filter(r => !isProtectedAdmin(r))
       .map(r => ({
@@ -401,7 +400,6 @@ app.post('/api/users', requireAuth, checkManage, async (req, res) => {
   }
 });
 
-// Delete User (Strictly protects Developer 'super_admin' and Main Admin 'admin')
 app.delete('/api/users/:id', requireAuth, checkManage, async (req, res) => {
   try {
     const sheet = await getSheet('users');
@@ -424,7 +422,6 @@ app.delete('/api/users/:id', requireAuth, checkManage, async (req, res) => {
   }
 });
 
-// Change Logged-in User Password
 app.put('/api/change-password', requireAuth, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword) {
@@ -454,7 +451,6 @@ app.put('/api/change-password', requireAuth, async (req, res) => {
   }
 });
 
-// Clear All Data Route (Verifies Main Admin / Super Admin Password & Protects Both)
 app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
   const target = req.params.target;
   const { adminPassword } = req.body;
@@ -519,7 +515,7 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
   }
 });
 
-// ================= 3. ADMISSIONS (Controlled by admission_no & checkAdmission) =================
+// ================= 3. ADMISSIONS =================
 app.post('/api/admission-branding', requireAuth, checkAdmission, brandingUpload, (req, res) => {
   try {
     if (req.files?.print_header?.[0]) {
@@ -564,7 +560,6 @@ app.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
       .map(r => {
         const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
         const batchNamesList = rawBatchIds.map(id => batchMap[id]).filter(Boolean);
-        const mainBatchName = batchNamesList[0] || 'No Batch';
 
         return {
           admission_no: String(r.get('admission_no') || '').trim(),
@@ -573,12 +568,21 @@ app.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
           dob: r.get('dob') || '',
           father_name: r.get('father_name') || '',
           phone: r.get('phone') || '',
+          guardian_phone: r.get('guardian_phone') || '',
           aadhaar_no: r.get('aadhaar_no') || '',
           aadhaar_file: r.get('aadhaar_file') || '',
           photo_file: r.get('photo_file') || '',
           address: r.get('address') || '',
+          place: r.get('place') || '',
+          pin: r.get('pin') || '',
+          district: r.get('district') || '',
+          state: r.get('state') || '',
+          is_muthallim: r.get('is_muthallim') || 'no',
+          prev_institution: r.get('prev_institution') || '',
+          prev_place: r.get('prev_place') || '',
+          school_class: r.get('school_class') || '',
+          madrasa_class: r.get('madrasa_class') || '',
           batch_id: r.get('batch_id') || '',
-          main_batch_name: mainBatchName,
           batch_name: batchNamesList.join(', ') || 'No Batch',
           status: (r.get('status') || 'pending').trim().toLowerCase()
         };
@@ -595,7 +599,12 @@ app.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
 // Create Admission / Draft
 app.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
-    const { full_name, dob, roll_no, father_name, phone, aadhaar_no, address, batch_id, password, status } = req.body;
+    const {
+      full_name, dob, roll_no, father_name, phone, guardian_phone, aadhaar_no,
+      address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
+      school_class, madrasa_class, batch_id, password, status
+    } = req.body;
+
     if (!full_name || !dob) {
       return res.status(400).json({ success: false, error: 'Full Name and Date of Birth are required!' });
     }
@@ -618,10 +627,20 @@ app.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req,
       dob: String(dob).trim(),
       father_name: father_name ? father_name.trim() : '',
       address: address ? address.trim() : '',
+      place: place ? place.trim() : '',
+      pin: pin ? String(pin).trim() : '',
+      district: district ? district.trim() : '',
+      state: state ? state.trim() : '',
+      is_muthallim: is_muthallim === 'yes' ? 'yes' : 'no',
+      prev_institution: (is_muthallim === 'yes' && prev_institution) ? prev_institution.trim() : '',
+      prev_place: (is_muthallim === 'yes' && prev_place) ? prev_place.trim() : '',
+      school_class: school_class ? String(school_class).trim() : '',
+      madrasa_class: madrasa_class ? String(madrasa_class).trim() : '',
       aadhaar_no: aadhaar_no ? String(aadhaar_no).trim() : '',
       aadhaar_file: aadhaarPath,
       photo_file: photoPath,
       phone: phone ? String(phone).trim() : '',
+      guardian_phone: guardian_phone ? String(guardian_phone).trim() : '',
       batch_id: batch_id ? String(batch_id).trim() : '',
       password: hashedPassword,
       status: status === 'draft' ? 'draft' : 'pending',
@@ -638,7 +657,11 @@ app.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req,
 app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
-    const { full_name, dob, roll_no, father_name, phone, aadhaar_no, address, batch_id, password, status } = req.body;
+    const {
+      full_name, dob, roll_no, father_name, phone, guardian_phone, aadhaar_no,
+      address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
+      school_class, madrasa_class, batch_id, password, status
+    } = req.body;
 
     const admSheet = await getSheet('admissions');
     const stuSheet = await getSheet('students');
@@ -656,9 +679,19 @@ app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async
     admRow.set('roll_no', cleanRoll);
     admRow.set('father_name', father_name ? father_name.trim() : '');
     admRow.set('phone', phone ? String(phone).trim() : '');
+    admRow.set('guardian_phone', guardian_phone ? String(guardian_phone).trim() : '');
     admRow.set('aadhaar_no', aadhaar_no ? String(aadhaar_no).trim() : '');
     admRow.set('address', address ? address.trim() : '');
-    admRow.set('batch_id', batch_id ? String(batch_id).trim() : '');
+    admRow.set('place', place ? place.trim() : '');
+    admRow.set('pin', pin ? String(pin).trim() : '');
+    admRow.set('district', district ? district.trim() : '');
+    admRow.set('state', state ? state.trim() : '');
+    admRow.set('is_muthallim', is_muthallim === 'yes' ? 'yes' : 'no');
+    admRow.set('prev_institution', (is_muthallim === 'yes' && prev_institution) ? prev_institution.trim() : '');
+    admRow.set('prev_place', (is_muthallim === 'yes' && prev_place) ? prev_place.trim() : '');
+    admRow.set('school_class', school_class ? String(school_class).trim() : '');
+    admRow.set('madrasa_class', madrasa_class ? String(madrasa_class).trim() : '');
+    if (batch_id !== undefined) admRow.set('batch_id', String(batch_id).trim());
     if (password && password.trim() !== '') {
       admRow.set('password', await hashPassword(password));
     }
@@ -691,7 +724,6 @@ app.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async
 });
 
 // Cascade Shift & Gap-Free Sequential Reorder across 'students' and 'admissions'
-// Moving a roll down (e.g. 2 -> 5) shifts 3,4,5 up to 2,3,4; moving up (e.g. 5 -> 2) shifts 2,3,4 down to 3,4,5.
 async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admSheet, sRows, aRows) {
   const newRoll = parseInt(desiredRollStr, 10);
   if (isNaN(newRoll) || newRoll < 1) return;
@@ -710,10 +742,8 @@ async function syncAndReorderRolls(targetAdmNo, desiredRollStr, stuSheet, admShe
     }
   });
 
-  // Sort all other students by their existing roll order
   items.sort((a, b) => a.roll - b.roll);
 
-  // Insert the target student at exact 1-based position `newRoll` and re-number sequentially (1, 2, 3...)
   const targetIndex = Math.min(Math.max(0, newRoll - 1), items.length);
   items.splice(targetIndex, 0, { adm: targetAdmNo, roll: newRoll });
 
@@ -843,7 +873,7 @@ app.delete('/api/admissions/:admNo', requireAuth, checkAdmission, async (req, re
   }
 });
 
-// ================= 4. ACTIVE STUDENTS LIST (Controlled by admission_no & checkStudent) =================
+// ================= 4. ACTIVE STUDENTS LIST =================
 app.get('/students', requireAuth, checkStudent, async (req, res) => {
   try {
     const studentSheet = await getSheet('students');
@@ -889,7 +919,6 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
   }
 });
 
-// Bulk Assign Batch by Roll Number Range (Zero Rate Limit via saveUpdatedCells)
 app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (req, res) => {
   try {
     const { batch_id, from_roll, to_roll } = req.body;
@@ -965,7 +994,6 @@ app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (re
   }
 });
 
-// Set Hashed Password by admission_no
 app.put('/api/students/:admNo/password', requireAuth, checkStudent, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
@@ -1003,7 +1031,6 @@ app.put('/api/students/:admNo/password', requireAuth, checkStudent, async (req, 
   }
 });
 
-// Update Student by admission_no (with Cascade Roll Reorder)
 app.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
@@ -1048,7 +1075,6 @@ app.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) => {
   }
 });
 
-// Remove from Active Students by admission_no
 app.delete('/api/students/:admNo', requireAuth, checkStudent, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
@@ -1072,7 +1098,7 @@ app.delete('/api/students/:admNo', requireAuth, checkStudent, async (req, res) =
   }
 });
 
-// ================= 5. ATTENDANCE (Controlled by admission_no) =================
+// ================= 5. ATTENDANCE =================
 app.get('/attendance', requireAuth, checkAttendance, async (req, res) => {
   try {
     const batchSheet = await getSheet('batches');
@@ -1268,7 +1294,7 @@ app.post('/api/save-attendance', requireAuth, checkAttendance, async (req, res) 
   }
 });
 
-// ================= 6. MONTHLY MATRIX (Controlled by admission_no) =================
+// ================= 6. MONTHLY MATRIX =================
 app.get('/monthly-report', requireAuth, checkAttendanceView, async (req, res) => {
   try {
     const batchSheet = await getSheet('batches');
@@ -1418,7 +1444,7 @@ app.get('/api/student-day-details', requireAuth, checkAttendanceView, async (req
   }
 });
 
-// ================= 7. STUDENT PORTAL (Controlled by admission_no) =================
+// ================= 7. STUDENT PORTAL =================
 app.get('/student-login', (req, res) => {
   if (req.session && req.session.student) return res.redirect('/my-attendance');
   res.render('student_login', { error: null });
@@ -1564,8 +1590,10 @@ app.get('/id-cards', requireAuth, checkAdmission, async (req, res) => {
           dob: r.get('dob') || '',
           father_name: r.get('father_name') || '',
           phone: r.get('phone') || '',
+          guardian_phone: r.get('guardian_phone') || '',
           photo_file: r.get('photo_file') || '',
           address: r.get('address') || '',
+          place: r.get('place') || '',
           batch_id: r.get('batch_id') || '',
           main_batch_name: batchNamesList[0] || 'No Batch',
           status: (r.get('status') || 'pending').trim().toLowerCase()
