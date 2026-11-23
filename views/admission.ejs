@@ -49,6 +49,9 @@
             <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openBrandingModal();">
               <span>Print Header / Footer</span>
             </button>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); downloadBlankAdmissionForm();">
+              <span>Download Blank Form</span>
+            </button>
             <div class="menu-divider"></div>
             <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openAdmExportModal('csv');">
               <span>Download CSV</span>
@@ -70,7 +73,7 @@
                autocomplete="off"
                readonly
                onfocus="this.removeAttribute('readonly');"
-               placeholder="Search by Name, Adm No, Father's Name, Phone, Batch, or Status..."
+               placeholder="Search by Name, Adm No, Father's Name, Place, Phone, or Status..."
                onkeyup="filterAdmissionTable()">
       </div>
     </div>
@@ -89,8 +92,7 @@
               <th>Adm No</th>
               <th>Student & Father</th>
               <th>DOB</th>
-              <th>ID / Docs</th>
-              <th>Main Batch</th>
+              <th>Aadhaar / Docs</th>
               <th>Status</th>
               <th style="text-align: center;">Action</th>
             </tr>
@@ -98,7 +100,7 @@
           <tbody>
             <% if (allStudents.length === 0) { %>
               <tr>
-                <td colspan="9" class="empty-row">
+                <td colspan="8" class="empty-row">
                   No admission records found. Tap the menu icon (<strong>⋮</strong>) above to add a new admission.
                 </td>
               </tr>
@@ -107,7 +109,7 @@
             <% allStudents.forEach((s, index) => { %>
               <tr class="adm-row"
                   data-index="<%= index %>"
-                  data-search="<%= `${s.admission_no || ''} ${s.roll_no || ''} ${s.full_name || ''} ${s.father_name || ''} ${s.phone || ''} ${s.main_batch_name || ''} ${s.batch_name || ''} ${s.status || ''}`.toLowerCase() %>">
+                  data-search="<%= `${s.admission_no || ''} ${s.roll_no || ''} ${s.full_name || ''} ${s.father_name || ''} ${s.place || ''} ${s.phone || ''} ${s.guardian_phone || ''} ${s.status || ''}`.toLowerCase() %>">
                 <td class="chk-col" data-label="Select">
                   <input type="checkbox" class="adm-select-chk" value="<%= index %>">
                 </td>
@@ -128,7 +130,7 @@
                   </div>
                 </td>
                 <td data-label="DOB"><%= s.dob || '-' %></td>
-                <td data-label="ID / Docs">
+                <td data-label="Aadhaar / Docs">
                   <div>
                     <div class="aadhaar-text"><%= s.aadhaar_no || '-' %></div>
                     <% if (s.aadhaar_file) { %>
@@ -136,7 +138,6 @@
                     <% } %>
                   </div>
                 </td>
-                <td data-label="Main Batch"><span class="badge"><%= s.main_batch_name || s.batch_name || 'No Batch' %></span></td>
                 <td data-label="Status">
                   <select class="status-select st-<%= s.status %>"
                           data-current="<%= s.status %>"
@@ -172,7 +173,7 @@
 
   <!-- Column Selection Modal for Export (CSV / PDF) -->
   <div id="admExportModal" class="modal" onclick="if(event.target === this) closeAdmExportModal()">
-    <div class="modal-content" style="max-width: 440px;">
+    <div class="modal-content" style="max-width: 460px;">
       <div class="modal-header">
         <h3 id="admExportTitle">Select Columns to Download</h3>
         <button type="button" class="modal-close" onclick="closeAdmExportModal()">×</button>
@@ -202,20 +203,48 @@
           <span>Date of Birth</span>
         </label>
         <label class="col-chk-item">
-          <input type="checkbox" name="admExportCols" value="phone" data-label="Phone" checked>
-          <span>Phone Number</span>
+          <input type="checkbox" name="admExportCols" value="phone" data-label="Student Phone" checked>
+          <span>Student Phone</span>
         </label>
         <label class="col-chk-item">
-          <input type="checkbox" name="admExportCols" value="aadhaar_no" data-label="ID No">
-          <span>ID Number</span>
+          <input type="checkbox" name="admExportCols" value="guardian_phone" data-label="Guardian Phone" checked>
+          <span>Guardian Phone</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="aadhaar_no" data-label="Aadhaar No">
+          <span>Aadhaar Number</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="school_class" data-label="School Class" checked>
+          <span>School Class</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="madrasa_class" data-label="Madrasa Class" checked>
+          <span>Madrasa Class</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="prev_institution" data-label="Prev Institution">
+          <span>Prev. Institution</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="place" data-label="Place" checked>
+          <span>Place</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="pin" data-label="PIN">
+          <span>PIN Code</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="district" data-label="District">
+          <span>District</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="admExportCols" value="state" data-label="State">
+          <span>State</span>
         </label>
         <label class="col-chk-item">
           <input type="checkbox" name="admExportCols" value="address" data-label="Address">
           <span>Full Address</span>
-        </label>
-        <label class="col-chk-item">
-          <input type="checkbox" name="admExportCols" value="main_batch_name" data-label="Main Batch" checked>
-          <span>Main Batch</span>
         </label>
         <label class="col-chk-item">
           <input type="checkbox" name="admExportCols" value="status" data-label="Status" checked>
@@ -230,7 +259,7 @@
     </div>
   </div>
 
-  <!-- 2. New Admission Popup Modal -->
+  <!-- 2. New Admission Popup Modal (No Batch Checkboxes) -->
   <div id="newAdmModal" class="modal" onclick="if(event.target === this) closeNewAdmModal()">
     <div class="modal-content modal-lg">
       <div class="modal-header">
@@ -266,13 +295,52 @@
           </div>
 
           <div class="field-box">
-            <label>Phone Number:</label>
-            <input type="text" id="stPhone" name="phone" placeholder="Phone Number">
+            <label>Aadhaar Number:</label>
+            <input type="text" id="stAadhaar" name="aadhaar_no" placeholder="12-digit Aadhaar Number" maxlength="14">
           </div>
 
           <div class="field-box">
-            <label>ID Number:</label>
-            <input type="text" id="stAadhaar" name="aadhaar_no" placeholder="12-digit ID Number" maxlength="14">
+            <label>Student Phone Number:</label>
+            <input type="text" id="stPhone" name="phone" placeholder="Student Phone Number">
+          </div>
+
+          <div class="field-box">
+            <label>Parent / Guardian Phone Number:</label>
+            <input type="text" id="stGuardianPhone" name="guardian_phone" placeholder="Parent / Guardian Phone">
+          </div>
+
+          <div class="field-box">
+            <label>PIN Code (Auto-fills District & State): <span id="newPinStatus" style="font-size:11px; color:#2563eb;"></span></label>
+            <input type="text" id="stPin" name="pin" placeholder="6-digit PIN Code" maxlength="6" oninput="lookupPinCode(this.value, 'stPlace', 'stDistrict', 'stState', 'newPinStatus')">
+          </div>
+
+          <div class="field-box">
+            <label>Place:</label>
+            <input type="text" id="stPlace" name="place" placeholder="Place / Locality">
+          </div>
+
+          <div class="field-box">
+            <label>District:</label>
+            <input type="text" id="stDistrict" name="district" placeholder="District">
+          </div>
+
+          <div class="field-box">
+            <label>State:</label>
+            <input type="text" id="stState" name="state" placeholder="State">
+          </div>
+
+          <div class="field-box full-span">
+            <label>House Name / Full Address:</label>
+            <textarea id="stAddress" name="address" rows="2" placeholder="House Name, Post Office, Street"></textarea>
+          </div>
+
+          <!-- Muthallim Previous Study Toggle before Madrasa Class -->
+          <div class="field-box">
+            <label>Studied as Muthallim Previously?</label>
+            <select id="stIsMuthallim" name="is_muthallim" onchange="toggleMuthallimFields('stIsMuthallim', 'newMuthallimBox')">
+              <option value="no" selected>No (Fresh)</option>
+              <option value="yes">Yes (Studied Previously)</option>
+            </select>
           </div>
 
           <div class="field-box">
@@ -280,9 +348,25 @@
             <input type="password" id="stPass" name="password" placeholder="Defaults to Admission No if empty">
           </div>
 
-          <div class="field-box full-span">
-            <label>Full Address:</label>
-            <textarea id="stAddress" name="address" rows="2" placeholder="House Name, Place, Post, District, PIN"></textarea>
+          <div id="newMuthallimBox" class="form-grid full-span" style="display: none; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #94a3b8;">
+            <div class="field-box">
+              <label>Previous Institution Name:</label>
+              <input type="text" id="stPrevInst" name="prev_institution" placeholder="Name of Previous Madrasa / Dars / College">
+            </div>
+            <div class="field-box">
+              <label>Institution Place:</label>
+              <input type="text" id="stPrevPlace" name="prev_place" placeholder="Location / Place of Institution">
+            </div>
+          </div>
+
+          <div class="field-box">
+            <label>Current Madrasa Class:</label>
+            <input type="text" id="stMadrasaClass" name="madrasa_class" placeholder="e.g., Class 5 / Hifz">
+          </div>
+
+          <div class="field-box">
+            <label>Current School Class:</label>
+            <input type="text" id="stSchoolClass" name="school_class" placeholder="e.g., 5th Standard / Plus One">
           </div>
 
           <div class="field-box">
@@ -291,20 +375,8 @@
           </div>
 
           <div class="field-box">
-            <label>ID Document Upload (Image/PDF):</label>
+            <label>Aadhaar Document Upload (Image/PDF):</label>
             <input type="file" id="stAadhaarFile" name="aadhaar_doc" accept="image/*,.pdf">
-          </div>
-
-          <div class="batch-selection-wrapper full-span">
-            <span class="batch-selection-title">Select Batches (First checked is Main Batch):</span>
-            <div class="batch-checkbox-group">
-              <% batches.forEach(b => { %>
-                <label class="batch-chip">
-                  <input type="checkbox" name="admBatches" value="<%= b.id %>" data-name="<%= b.name %>">
-                  <span><%= b.name %></span>
-                </label>
-              <% }) %>
-            </div>
           </div>
         </div>
 
@@ -354,13 +426,51 @@
         </div>
 
         <div class="field-box">
-          <label>Phone Number:</label>
-          <input type="text" id="editAdmPhone" placeholder="Phone Number">
+          <label>Aadhaar Number:</label>
+          <input type="text" id="editAdmAadhaar" maxlength="14" placeholder="12-digit Aadhaar Number">
         </div>
 
         <div class="field-box">
-          <label>ID Number:</label>
-          <input type="text" id="editAdmAadhaar" maxlength="14" placeholder="12-digit ID Number">
+          <label>Student Phone Number:</label>
+          <input type="text" id="editAdmPhone" placeholder="Student Phone Number">
+        </div>
+
+        <div class="field-box">
+          <label>Parent / Guardian Phone Number:</label>
+          <input type="text" id="editAdmGuardianPhone" placeholder="Parent / Guardian Phone">
+        </div>
+
+        <div class="field-box">
+          <label>PIN Code (Auto-fills District & State): <span id="editPinStatus" style="font-size:11px; color:#2563eb;"></span></label>
+          <input type="text" id="editAdmPin" placeholder="6-digit PIN Code" maxlength="6" oninput="lookupPinCode(this.value, 'editAdmPlace', 'editAdmDistrict', 'editAdmState', 'editPinStatus')">
+        </div>
+
+        <div class="field-box">
+          <label>Place:</label>
+          <input type="text" id="editAdmPlace" placeholder="Place / Locality">
+        </div>
+
+        <div class="field-box">
+          <label>District:</label>
+          <input type="text" id="editAdmDistrict" placeholder="District">
+        </div>
+
+        <div class="field-box">
+          <label>State:</label>
+          <input type="text" id="editAdmState" placeholder="State">
+        </div>
+
+        <div class="field-box full-span">
+          <label>House Name / Full Address:</label>
+          <textarea id="editAdmAddress" rows="2" placeholder="Full Address"></textarea>
+        </div>
+
+        <div class="field-box">
+          <label>Studied as Muthallim Previously?</label>
+          <select id="editAdmIsMuthallim" onchange="toggleMuthallimFields('editAdmIsMuthallim', 'editMuthallimBox')">
+            <option value="no">No (Fresh)</option>
+            <option value="yes">Yes (Studied Previously)</option>
+          </select>
         </div>
 
         <div class="field-box">
@@ -368,9 +478,25 @@
           <input type="password" id="editAdmPass" placeholder="Optional">
         </div>
 
-        <div class="field-box full-span">
-          <label>Full Address:</label>
-          <textarea id="editAdmAddress" rows="2" placeholder="Full Address"></textarea>
+        <div id="editMuthallimBox" class="form-grid full-span" style="display: none; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #94a3b8;">
+          <div class="field-box">
+            <label>Previous Institution Name:</label>
+            <input type="text" id="editAdmPrevInst" placeholder="Name of Previous Institution">
+          </div>
+          <div class="field-box">
+            <label>Institution Place:</label>
+            <input type="text" id="editAdmPrevPlace" placeholder="Location / Place">
+          </div>
+        </div>
+
+        <div class="field-box">
+          <label>Current Madrasa Class:</label>
+          <input type="text" id="editAdmMadrasaClass" placeholder="e.g., Class 5">
+        </div>
+
+        <div class="field-box">
+          <label>Current School Class:</label>
+          <input type="text" id="editAdmSchoolClass" placeholder="e.g., 5th Standard">
         </div>
 
         <div class="field-box">
@@ -379,12 +505,12 @@
         </div>
 
         <div class="field-box">
-          <label>Update ID Doc (Optional): <span id="currentDocLink"></span></label>
+          <label>Update Aadhaar Doc (Optional): <span id="currentDocLink"></span></label>
           <input type="file" id="editAdmAadhaarFile" accept="image/*,.pdf">
         </div>
 
         <div class="batch-selection-wrapper full-span">
-          <span class="batch-selection-title">Select Batches (First checked is Main Batch):</span>
+          <span class="batch-selection-title">Assign Batches (Required before activating student):</span>
           <div class="batch-checkbox-group">
             <% batches.forEach(b => { %>
               <label class="batch-chip">
@@ -412,7 +538,7 @@
         <button type="button" class="modal-close" onclick="closeBrandingModal()">×</button>
       </div>
       <p class="branding-desc">
-        Upload header and footer banner images to automatically include them in every Admission Form printout.
+        Upload header and footer banner images to automatically include them in every filled & blank Admission Form printout.
       </p>
 
       <div class="modal-form-body">
@@ -447,7 +573,6 @@
     const SERVER_HEADER_URL = BRANDING_CFG.headerUrl || '';
     const SERVER_FOOTER_URL = BRANDING_CFG.footerUrl || '';
 
-    let selectedNewBatches = [];
     let selectedEditBatches = [];
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -455,7 +580,45 @@
       if (searchInput) searchInput.blur();
     });
 
-    // Navigate to Dedicated ID Card Studio (Passing selected checkboxes if any)
+    // Toggle Muthallim Previous Institution Fields
+    function toggleMuthallimFields(selectId, boxId) {
+      const val = document.getElementById(selectId).value;
+      const box = document.getElementById(boxId);
+      if (box) {
+        box.style.display = val === 'yes' ? 'grid' : 'none';
+      }
+    }
+
+    // Auto-Fill District & State from 6-digit Indian PIN Code
+    async function lookupPinCode(pinVal, placeId, distId, stateId, statusId) {
+      const cleanPin = String(pinVal || '').replace(/\D/g, '');
+      const statusEl = document.getElementById(statusId);
+      if (cleanPin.length !== 6) {
+        if (statusEl) statusEl.innerText = '';
+        return;
+      }
+
+      if (statusEl) statusEl.innerText = 'Fetching...';
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${cleanPin}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+          const po = data[0].PostOffice[0];
+          const placeEl = document.getElementById(placeId);
+          if (placeEl && !placeEl.value.trim()) {
+            placeEl.value = po.Name || '';
+          }
+          document.getElementById(distId).value = po.District || '';
+          document.getElementById(stateId).value = po.State || '';
+          if (statusEl) statusEl.innerText = '✓ Found';
+        } else {
+          if (statusEl) statusEl.innerText = 'Invalid PIN';
+        }
+      } catch (err) {
+        if (statusEl) statusEl.innerText = '';
+      }
+    }
+
     function goToIdCardsPage() {
       const checkedAdms = Array.from(document.querySelectorAll('.adm-select-chk:checked'))
         .map(chk => ADMISSIONS_LIST[Number(chk.value)]?.admission_no)
@@ -468,7 +631,6 @@
       }
     }
 
-    // Live Search Filter
     function filterAdmissionTable() {
       const query = document.getElementById('admissionSearch').value.toLowerCase().trim();
       const rows = document.querySelectorAll('#admissionsTable tbody tr.adm-row');
@@ -485,7 +647,6 @@
       if (countEl) countEl.innerText = visibleCount;
     }
 
-    // Header Dropdown Menu Toggle
     function toggleHeaderMenu(e) {
       e.stopPropagation();
       const menu = document.getElementById('headerDropdownMenu');
@@ -508,7 +669,6 @@
       }
     });
 
-    // Checkbox Selection & Export (CSV / PDF)
     function toggleSelectAllAdm(masterChk) {
       document.querySelectorAll('#admissionsTable tbody tr.adm-row').forEach(row => {
         if (row.style.display !== 'none') {
@@ -642,14 +802,7 @@
     }
 
     document.addEventListener('change', (e) => {
-      if (e.target.name === 'admBatches') {
-        const val = e.target.value;
-        if (e.target.checked) {
-          if (!selectedNewBatches.includes(val)) selectedNewBatches.push(val);
-        } else {
-          selectedNewBatches = selectedNewBatches.filter(item => item !== val);
-        }
-      } else if (e.target.name === 'editAdmBatches') {
+      if (e.target.name === 'editAdmBatches') {
         const val = e.target.value;
         if (e.target.checked) {
           if (!selectedEditBatches.includes(val)) selectedEditBatches.push(val);
@@ -660,8 +813,8 @@
     });
 
     function openNewAdmModal() {
-      selectedNewBatches = [];
-      document.querySelectorAll('input[name="admBatches"]').forEach(cb => cb.checked = false);
+      document.getElementById('stIsMuthallim').value = 'no';
+      toggleMuthallimFields('stIsMuthallim', 'newMuthallimBox');
       document.getElementById('newAdmModal').style.display = 'flex';
       setTimeout(() => document.getElementById('stName').focus(), 100);
     }
@@ -700,22 +853,22 @@
       const roll_no = document.getElementById('stRoll').value.trim();
       const father_name = document.getElementById('stFather').value.trim();
       const phone = document.getElementById('stPhone').value.trim();
+      const guardian_phone = document.getElementById('stGuardianPhone').value.trim();
       const aadhaar_no = document.getElementById('stAadhaar').value.trim();
+      const is_muthallim = document.getElementById('stIsMuthallim').value;
+      const prev_institution = document.getElementById('stPrevInst').value.trim();
+      const prev_place = document.getElementById('stPrevPlace').value.trim();
+      const school_class = document.getElementById('stSchoolClass').value.trim();
+      const madrasa_class = document.getElementById('stMadrasaClass').value.trim();
+      const place = document.getElementById('stPlace').value.trim();
+      const pin = document.getElementById('stPin').value.trim();
+      const district = document.getElementById('stDistrict').value.trim();
+      const state = document.getElementById('stState').value.trim();
       const address = document.getElementById('stAddress').value.trim();
 
       if (!full_name || !dob) {
         return alert('Please enter both Full Name and Date of Birth!');
       }
-
-      const batch_id = selectedNewBatches.join(',');
-      if (saveMode === 'pending' && !batch_id) {
-        return alert('Please select at least one batch to submit! (Or click Save Draft)');
-      }
-
-      const firstBatchCheckbox = selectedNewBatches.length > 0
-        ? document.querySelector(`input[name="admBatches"][value="${selectedNewBatches[0]}"]`)
-        : null;
-      const mainBatchName = firstBatchCheckbox ? firstBatchCheckbox.getAttribute('data-name') : 'No Batch';
 
       const formData = new FormData();
       formData.append('full_name', full_name);
@@ -723,10 +876,20 @@
       formData.append('roll_no', roll_no);
       formData.append('father_name', father_name);
       formData.append('phone', phone);
+      formData.append('guardian_phone', guardian_phone);
       formData.append('aadhaar_no', aadhaar_no);
+      formData.append('is_muthallim', is_muthallim);
+      formData.append('prev_institution', prev_institution);
+      formData.append('prev_place', prev_place);
+      formData.append('school_class', school_class);
+      formData.append('madrasa_class', madrasa_class);
+      formData.append('place', place);
+      formData.append('pin', pin);
+      formData.append('district', district);
+      formData.append('state', state);
       formData.append('address', address);
       formData.append('password', document.getElementById('stPass').value.trim());
-      formData.append('batch_id', batch_id);
+      formData.append('batch_id', '');
       formData.append('status', saveMode);
 
       const photoInput = document.getElementById('stPhoto');
@@ -750,17 +913,26 @@
               dob: dob,
               father_name: father_name,
               phone: phone,
+              guardian_phone: guardian_phone,
               aadhaar_no: aadhaar_no,
+              is_muthallim: is_muthallim,
+              prev_institution: prev_institution,
+              prev_place: prev_place,
+              school_class: school_class,
+              madrasa_class: madrasa_class,
+              place: place,
+              pin: pin,
+              district: district,
+              state: state,
               address: address,
-              main_batch_name: mainBatchName,
               status: saveMode,
               photo_file: ''
-            });
+            }, false);
             setTimeout(() => location.reload(), 600);
           } else {
             const msg = saveMode === 'draft'
               ? `Saved as Draft! Admission No: ${data.admission_no}`
-              : `Admission submitted! Admission No: ${data.admission_no}\n(Select "Active" in Status dropdown to move student to Active List)`;
+              : `Admission submitted! Admission No: ${data.admission_no}`;
             alert(msg);
             location.reload();
           }
@@ -791,7 +963,21 @@
       document.getElementById('editAdmDob').value = formattedDob;
       document.getElementById('editAdmFather').value = s.father_name || '';
       document.getElementById('editAdmPhone').value = s.phone || '';
+      document.getElementById('editAdmGuardianPhone').value = s.guardian_phone || '';
       document.getElementById('editAdmAadhaar').value = s.aadhaar_no || '';
+
+      const isMuth = (String(s.is_muthallim || 'no').toLowerCase() === 'yes') ? 'yes' : 'no';
+      document.getElementById('editAdmIsMuthallim').value = isMuth;
+      document.getElementById('editAdmPrevInst').value = s.prev_institution || '';
+      document.getElementById('editAdmPrevPlace').value = s.prev_place || '';
+      toggleMuthallimFields('editAdmIsMuthallim', 'editMuthallimBox');
+
+      document.getElementById('editAdmSchoolClass').value = s.school_class || '';
+      document.getElementById('editAdmMadrasaClass').value = s.madrasa_class || '';
+      document.getElementById('editAdmPlace').value = s.place || '';
+      document.getElementById('editAdmPin').value = s.pin || '';
+      document.getElementById('editAdmDistrict').value = s.district || '';
+      document.getElementById('editAdmState').value = s.state || '';
       document.getElementById('editAdmAddress').value = s.address || '';
       document.getElementById('editAdmPass').value = '';
       document.getElementById('editAdmPhoto').value = '';
@@ -832,7 +1018,6 @@
       if (mode === 'draft') {
         newStatus = 'draft';
       } else if (currentStatus === 'draft') {
-        if (!batch_id) return alert('Please select at least one batch before submitting!');
         newStatus = 'pending';
       }
 
@@ -842,7 +1027,17 @@
       formData.append('roll_no', document.getElementById('editAdmRoll').value.trim());
       formData.append('father_name', document.getElementById('editAdmFather').value.trim());
       formData.append('phone', document.getElementById('editAdmPhone').value.trim());
+      formData.append('guardian_phone', document.getElementById('editAdmGuardianPhone').value.trim());
       formData.append('aadhaar_no', document.getElementById('editAdmAadhaar').value.trim());
+      formData.append('is_muthallim', document.getElementById('editAdmIsMuthallim').value);
+      formData.append('prev_institution', document.getElementById('editAdmPrevInst').value.trim());
+      formData.append('prev_place', document.getElementById('editAdmPrevPlace').value.trim());
+      formData.append('school_class', document.getElementById('editAdmSchoolClass').value.trim());
+      formData.append('madrasa_class', document.getElementById('editAdmMadrasaClass').value.trim());
+      formData.append('place', document.getElementById('editAdmPlace').value.trim());
+      formData.append('pin', document.getElementById('editAdmPin').value.trim());
+      formData.append('district', document.getElementById('editAdmDistrict').value.trim());
+      formData.append('state', document.getElementById('editAdmState').value.trim());
       formData.append('address', document.getElementById('editAdmAddress').value.trim());
       formData.append('password', document.getElementById('editAdmPass').value.trim());
       formData.append('batch_id', batch_id);
@@ -949,65 +1144,78 @@
     function printAdmByIndex(idx) {
       const s = ADMISSIONS_LIST[Number(idx)];
       if (!s) return;
-      printAdmissionRecord(s);
+      printAdmissionRecord(s, false);
     }
 
-    function escapeHtml(str) {
-      return String(str || '-')
+    // Download / Print Blank Admission Form with Uploaded Header & Footer
+    function downloadBlankAdmissionForm() {
+      printAdmissionRecord({}, true);
+    }
+
+    function escapeHtml(str, fallback = '-') {
+      if (str === null || str === undefined || String(str).trim() === '') return fallback;
+      return String(str)
         .replace(/&/g, '&')
         .replace(/</g, '<')
         .replace(/>/g, '>')
         .replace(/"/g, '"');
     }
 
-    function printAdmissionRecord(info) {
+    function printAdmissionRecord(info, isBlank = false) {
       const headerImg = localStorage.getItem('adm_print_header') || SERVER_HEADER_URL;
       const footerImg = localStorage.getItem('adm_print_footer') || SERVER_FOOTER_URL;
-      const today = new Date().toLocaleDateString('en-GB');
+      const today = isBlank ? '____ / ____ / 202__' : new Date().toLocaleDateString('en-GB');
+      const fb = isBlank ? ' ' : '-';
+
+      const muthallimText = isBlank
+        ? '[   ] Yes     [   ] No'
+        : (String(info.is_muthallim || 'no').toLowerCase() === 'yes' ? 'Yes' : 'No');
 
       const printWin = window.open('', '_blank', 'width=820,height=950');
       if (!printWin) return alert('Please allow pop-ups in your browser to print!');
 
       const htmlParts = [
-        '<!DOCTYPE html><html><head><title>Admission Form - ' + escapeHtml(info.admission_no) + '</title>',
+        '<!DOCTYPE html><html><head><title>' + (isBlank ? 'Blank Admission Form' : 'Admission Form - ' + escapeHtml(info.admission_no)) + '</title>',
         '<style>',
         '@page { size: A4; margin: 12mm; }',
         'body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; padding: 0; }',
         '.page-wrap { display: flex; flex-direction: column; min-height: 270mm; justify-content: space-between; }',
         '.header-banner img, .footer-banner img { width: 100%; max-height: 115px; object-fit: contain; display: block; }',
         '.default-header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 16px; }',
-        '.form-title { text-align: center; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; margin: 12px 0 18px; }',
-        '.top-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }',
-        '.photo-box { width: 110px; height: 130px; border: 1px solid #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #64748b; overflow: hidden; }',
+        '.form-title { text-align: center; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; margin: 12px 0 16px; }',
+        '.top-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }',
+        '.photo-box { width: 105px; height: 125px; border: 1px solid #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #64748b; overflow: hidden; }',
         '.photo-box img { width: 100%; height: 100%; object-fit: cover; }',
-        'table.details { width: 100%; border-collapse: collapse; font-size: 13.5px; }',
-        'table.details td { padding: 10px 12px; border: 1px solid #cbd5e1; }',
-        'table.details td.lbl { width: 32%; font-weight: 700; background: #f8fafc; color: #334155; }',
-        '.sig-row { display: flex; justify-content: space-between; margin-top: 45px; padding: 0 20px; font-size: 13px; font-weight: 600; }',
+        'table.details { width: 100%; border-collapse: collapse; font-size: 13px; }',
+        'table.details td { padding: ' + (isBlank ? '11px 10px' : '8px 10px') + '; border: 1px solid #cbd5e1; }',
+        'table.details td.lbl { width: 23%; font-weight: 700; background: #f8fafc; color: #334155; }',
+        '.sig-row { display: flex; justify-content: space-between; margin-top: 42px; padding: 0 20px; font-size: 13px; font-weight: 600; }',
         '.sig-line { border-top: 1px solid #334155; padding-top: 6px; width: 180px; text-align: center; }',
         '</style></head><body><div class="page-wrap"><div>',
         headerImg
           ? '<div class="header-banner"><img src="' + headerImg + '" alt="Header"></div>'
           : '<div class="default-header"><h2 style="margin:0;">STUDENT ADMISSION FORM</h2></div>',
-        '<div class="form-title">Student Admission Record</div>',
+        '<div class="form-title">' + (isBlank ? 'Student Admission Application Form' : 'Student Admission Record') + '</div>',
         '<div class="top-meta"><div>',
-        '<p style="margin:4px 0;font-size:14px;"><strong>Admission No:</strong> ' + escapeHtml(info.admission_no) + '</p>',
-        '<p style="margin:4px 0;font-size:14px;"><strong>Main Batch:</strong> ' + escapeHtml(info.main_batch_name || info.batch_name) + '</p>',
-        '<p style="margin:4px 0;font-size:13px;color:#475569;"><strong>Date:</strong> ' + today + '</p>',
+        '<p style="margin:5px 0;font-size:14px;"><strong>Admission No:</strong> ' + (isBlank ? '_______________________' : escapeHtml(info.admission_no)) + '</p>',
+        '<p style="margin:5px 0;font-size:14px;"><strong>Roll Number:</strong> ' + (isBlank ? '_______________________' : escapeHtml(info.roll_no)) + '</p>',
+        '<p style="margin:5px 0;font-size:13px;color:#475569;"><strong>Date:</strong> ' + today + '</p>',
         '</div><div class="photo-box">',
-        info.photo_file ? '<img src="' + info.photo_file + '" alt="Student Photo">' : 'Passport Photo',
+        (!isBlank && info.photo_file) ? '<img src="' + info.photo_file + '" alt="Student Photo">' : 'Affix Photo',
         '</div></div>',
         '<table class="details">',
-        '<tr><td class="lbl">Full Name</td><td><strong>' + escapeHtml(info.full_name) + '</strong></td></tr>',
-        '<tr><td class="lbl">Roll Number</td><td>' + escapeHtml(info.roll_no) + '</td></tr>',
-        '<tr><td class="lbl">Date of Birth</td><td>' + escapeHtml(info.dob) + '</td></tr>',
-        '<tr><td class="lbl">Father\'s Name</td><td>' + escapeHtml(info.father_name) + '</td></tr>',
-        '<tr><td class="lbl">Phone Number</td><td>' + escapeHtml(info.phone) + '</td></tr>',
-        '<tr><td class="lbl">ID Number</td><td>' + escapeHtml(info.aadhaar_no) + '</td></tr>',
-        '<tr><td class="lbl">Full Address</td><td>' + escapeHtml(info.address) + '</td></tr>',
-        '<tr><td class="lbl">Admission Status</td><td style="text-transform:uppercase;font-weight:700;">' + escapeHtml(info.status) + '</td></tr>',
+        '<tr><td class="lbl">Full Name</td><td colspan="3"><strong>' + escapeHtml(info.full_name, fb) + '</strong></td></tr>',
+        '<tr><td class="lbl">Date of Birth</td><td>' + escapeHtml(info.dob, fb) + '</td><td class="lbl">Aadhaar Number</td><td>' + escapeHtml(info.aadhaar_no, fb) + '</td></tr>',
+        '<tr><td class="lbl">Father\'s Name</td><td colspan="3">' + escapeHtml(info.father_name, fb) + '</td></tr>',
+        '<tr><td class="lbl">Student Phone</td><td>' + escapeHtml(info.phone, fb) + '</td><td class="lbl">Guardian Phone</td><td>' + escapeHtml(info.guardian_phone, fb) + '</td></tr>',
+        '<tr><td class="lbl">Studied as Muthallim?</td><td colspan="3">' + muthallimText + '</td></tr>',
+        '<tr><td class="lbl">Previous Institution</td><td>' + escapeHtml(info.prev_institution, fb) + '</td><td class="lbl">Institution Place</td><td>' + escapeHtml(info.prev_place, fb) + '</td></tr>',
+        '<tr><td class="lbl">Madrasa Class</td><td>' + escapeHtml(info.madrasa_class, fb) + '</td><td class="lbl">School Class</td><td>' + escapeHtml(info.school_class, fb) + '</td></tr>',
+        '<tr><td class="lbl">House / Address</td><td colspan="3">' + escapeHtml(info.address, fb) + '</td></tr>',
+        '<tr><td class="lbl">Place</td><td>' + escapeHtml(info.place, fb) + '</td><td class="lbl">PIN Code</td><td>' + escapeHtml(info.pin, fb) + '</td></tr>',
+        '<tr><td class="lbl">District</td><td>' + escapeHtml(info.district, fb) + '</td><td class="lbl">State</td><td>' + escapeHtml(info.state, fb) + '</td></tr>',
         '</table>',
-        '<div class="sig-row"><div class="sig-line">Parent / Student Signature</div><div class="sig-line">Authorized Signature</div></div>',
+        '<div class="sig-row"><div class="sig-line">Parent / Guardian Signature</div><div class="sig-line">Authorized Signature</div></div>',
         '</div>',
         footerImg ? '<div class="footer-banner"><img src="' + footerImg + '" alt="Footer"></div>' : '',
         '</div></body></html>'
