@@ -10,11 +10,49 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    .list-switch-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .tab-switch-btn {
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: 1.5px solid #cbd5e1;
+      background: #ffffff;
+      color: #334155;
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .tab-switch-btn.active {
+      background: #eff6ff;
+      border-color: #2563eb;
+      color: #1d4ed8;
+    }
+    .count-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 99px;
+      font-size: 11px;
+      background: #e2e8f0;
+      color: #0f172a;
+      margin-left: 4px;
+    }
+    .tab-switch-btn.active .count-pill {
+      background: #2563eb;
+      color: #ffffff;
+    }
+  </style>
 </head>
 <body>
 
   <%
     const safeBranding = (typeof branding !== 'undefined' && branding) ? branding : { headerUrl: '', footerUrl: '' };
+    const safeOnlineApps = (typeof onlineApplications !== 'undefined' && Array.isArray(onlineApplications)) ? onlineApplications : [];
   %>
 
   <div class="container">
@@ -39,8 +77,11 @@
           </button>
 
           <div class="header-dropdown-menu" id="headerDropdownMenu">
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openStaffNewAdmModal();">
+              <span>+ Staff Direct Admission</span>
+            </button>
             <a href="/apply" target="_blank" class="menu-drop-item">
-              <span>+ Open Admission Form ↗</span>
+              <span>Online Form Link ↗</span>
             </a>
             <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openShareQrModal();">
               <span>Share Form Link / QR</span>
@@ -73,6 +114,16 @@
       </div>
     </div>
 
+    <!-- Switch Between Confirmed Admissions & Online Applications -->
+    <div class="list-switch-bar">
+      <button type="button" id="tabBtnConfirmed" class="tab-switch-btn active" onclick="switchAdmissionTab('confirmed')">
+        Admission List (With Adm No) <span class="count-pill"><%= allStudents.length %></span>
+      </button>
+      <button type="button" id="tabBtnOnline" class="tab-switch-btn" onclick="switchAdmissionTab('online')">
+        Online Applications (Pending Approval) <span class="count-pill"><%= safeOnlineApps.length %></span>
+      </button>
+    </div>
+
     <!-- Search Bar Card -->
     <div class="card" style="padding: 14px 16px; margin-bottom: 16px;">
       <div class="toolbar">
@@ -87,9 +138,9 @@
       </div>
     </div>
 
-    <!-- All Admissions Table -->
-    <div class="card">
-      <h3>All Admissions (<span id="visibleAdmCount"><%= allStudents.length %></span>)</h3>
+    <!-- SECTION A: Staff Confirmed Admissions List (With Adm No) -->
+    <div class="card" id="confirmedAdmissionsCard">
+      <h3>Confirmed Admissions (<span id="visibleAdmCount"><%= allStudents.length %></span>)</h3>
       <p class="card-subtitle">Only active students appear in the Active Student List & Attendance.</p>
 
       <div class="table-responsive">
@@ -110,7 +161,7 @@
             <% if (allStudents.length === 0) { %>
               <tr>
                 <td colspan="8" class="empty-row">
-                  No admission records found. Tap the menu icon (<strong>⋮</strong>) above to open or share the Admission Form.
+                  No confirmed admission records found. Approve online applications or add a Staff Direct Admission.
                 </td>
               </tr>
             <% } %>
@@ -178,6 +229,210 @@
         </table>
       </div>
     </div>
+
+    <!-- SECTION B: Online Applications List (No Adm No until Staff Final Submits) -->
+    <div class="card" id="onlineApplicationsCard" style="display: none;">
+      <h3>Online Applications (<span id="visibleOnlineCount"><%= safeOnlineApps.length %></span>)</h3>
+      <p class="card-subtitle">Applications submitted via online link/QR. Click <strong>Final Submit</strong> to allot an Admission No and move to the Admission List.</p>
+
+      <div class="table-responsive">
+        <table id="onlineApplicationsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Photo</th>
+              <th>Student & Father</th>
+              <th>DOB</th>
+              <th>Phone / Place</th>
+              <th>Class</th>
+              <th>Applied On</th>
+              <th style="text-align: center;">Staff Verification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (safeOnlineApps.length === 0) { %>
+              <tr>
+                <td colspan="8" class="empty-row">
+                  No pending online applications at the moment.
+                </td>
+              </tr>
+            <% } %>
+
+            <% safeOnlineApps.forEach((appItem, idx) => { %>
+              <tr class="online-row"
+                  data-search="<%= `${appItem.full_name || ''} ${appItem.father_name || ''} ${appItem.place || ''} ${appItem.phone || ''} ${appItem.guardian_phone || ''}`.toLowerCase() %>">
+                <td><strong><%= idx + 1 %></strong></td>
+                <td>
+                  <% if (appItem.photo_file) { %>
+                    <a href="<%= appItem.photo_file %>" target="_blank">
+                      <img src="<%= appItem.photo_file %>" alt="Photo" class="student-thumb">
+                    </a>
+                  <% } else { %>
+                    <span class="no-photo-tag">No<br>Photo</span>
+                  <% } %>
+                </td>
+                <td>
+                  <div>
+                    <strong><%= appItem.full_name %></strong>
+                    <span class="student-meta-sub">Father: <%= appItem.father_name || '-' %></span>
+                  </div>
+                </td>
+                <td><%= appItem.dob || '-' %></td>
+                <td>
+                  <div><%= appItem.guardian_phone || appItem.phone || '-' %></div>
+                  <span class="student-meta-sub"><%= appItem.place || '-' %></span>
+                </td>
+                <td>
+                  <div>Madrasa: <%= appItem.madrasa_class || '-' %></div>
+                  <span class="student-meta-sub">School: <%= appItem.school_class || '-' %></span>
+                </td>
+                <td><%= appItem.created_at || '-' %></td>
+                <td>
+                  <div class="action-btns">
+                    <button type="button" class="btn btn-sm btn-success" onclick="approveOnlineApp('<%= appItem.app_id %>', this)">
+                      Final Submit
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteOnlineApp('<%= appItem.app_id %>')">
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Staff Direct Admission Modal (Includes Auto Admission No) -->
+  <div id="staffNewAdmModal" class="modal" onclick="if(event.target === this) closeStaffNewAdmModal()">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>Staff Direct Student Admission</h3>
+        <button type="button" class="modal-close" onclick="closeStaffNewAdmModal()">×</button>
+      </div>
+
+      <form id="staffAdmissionForm" enctype="multipart/form-data">
+        <div class="form-grid">
+          <div class="field-box">
+            <label>Auto Admission No:</label>
+            <input type="text" id="admNo" value="<%= nextAdmissionNo %>" class="readonly-adm" readonly>
+          </div>
+
+          <div class="field-box">
+            <label>Roll No (Optional):</label>
+            <input type="number" id="stRoll" name="roll_no" placeholder="Roll No (e.g., 1)" min="1">
+          </div>
+
+          <div class="field-box">
+            <label>Full Name: <span class="req-star">*</span></label>
+            <input type="text" id="stName" name="full_name" placeholder="Student Full Name" required>
+          </div>
+
+          <div class="field-box">
+            <label>Date of Birth: <span class="req-star">*</span></label>
+            <input type="date" id="stDob" name="dob" required>
+          </div>
+
+          <div class="field-box">
+            <label>Father's Name:</label>
+            <input type="text" id="stFather" name="father_name" placeholder="Father's Name">
+          </div>
+
+          <div class="field-box">
+            <label>Aadhaar Number:</label>
+            <input type="text" id="stAadhaar" name="aadhaar_no" placeholder="12-digit Aadhaar Number" maxlength="14">
+          </div>
+
+          <div class="field-box">
+            <label>Student Phone Number:</label>
+            <input type="text" id="stPhone" name="phone" placeholder="Student Phone Number">
+          </div>
+
+          <div class="field-box">
+            <label>Parent / Guardian Phone Number:</label>
+            <input type="text" id="stGuardianPhone" name="guardian_phone" placeholder="Parent / Guardian Phone">
+          </div>
+
+          <div class="field-box">
+            <label>PIN Code (Auto-fills District & State): <span id="newPinStatus" style="font-size:11px; color:#2563eb;"></span></label>
+            <input type="text" id="stPin" name="pin" placeholder="6-digit PIN Code" maxlength="6" oninput="lookupPinCode(this.value, 'stPlace', 'stDistrict', 'stState', 'newPinStatus')">
+          </div>
+
+          <div class="field-box">
+            <label>Place:</label>
+            <input type="text" id="stPlace" name="place" placeholder="Place / Locality">
+          </div>
+
+          <div class="field-box">
+            <label>District:</label>
+            <input type="text" id="stDistrict" name="district" placeholder="District">
+          </div>
+
+          <div class="field-box">
+            <label>State:</label>
+            <input type="text" id="stState" name="state" placeholder="State">
+          </div>
+
+          <div class="field-box full-span">
+            <label>House Name / Full Address:</label>
+            <textarea id="stAddress" name="address" rows="2" placeholder="House Name, Post Office, Street"></textarea>
+          </div>
+
+          <div class="field-box">
+            <label>Studied as Muthallim Previously?</label>
+            <select id="stIsMuthallim" name="is_muthallim" onchange="toggleMuthallimFields('stIsMuthallim', 'newMuthallimBox')">
+              <option value="no" selected>No (Fresh)</option>
+              <option value="yes">Yes (Studied Previously)</option>
+            </select>
+          </div>
+
+          <div class="field-box">
+            <label>Login Password:</label>
+            <input type="password" id="stPass" name="password" placeholder="Defaults to Admission No if empty">
+          </div>
+
+          <div id="newMuthallimBox" class="form-grid full-span" style="display: none; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #94a3b8;">
+            <div class="field-box">
+              <label>Previous Institution Name:</label>
+              <input type="text" id="stPrevInst" name="prev_institution" placeholder="Name of Previous Institution">
+            </div>
+            <div class="field-box">
+              <label>Institution Place:</label>
+              <input type="text" id="stPrevPlace" name="prev_place" placeholder="Location / Place of Institution">
+            </div>
+          </div>
+
+          <div class="field-box">
+            <label>Current Madrasa Class:</label>
+            <input type="text" id="stMadrasaClass" name="madrasa_class" placeholder="e.g., Class 5 / Hifz">
+          </div>
+
+          <div class="field-box">
+            <label>Current School Class:</label>
+            <input type="text" id="stSchoolClass" name="school_class" placeholder="e.g., 5th Standard / Plus One">
+          </div>
+
+          <div class="field-box">
+            <label>Student Photo Upload:</label>
+            <input type="file" id="stPhoto" name="photo" accept="image/*">
+          </div>
+
+          <div class="field-box">
+            <label>Aadhaar Document Upload (Image/PDF):</label>
+            <input type="file" id="stAadhaarFile" name="aadhaar_doc" accept="image/*,.pdf">
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeStaffNewAdmModal()">Cancel</button>
+          <button type="button" class="btn btn-draft" onclick="submitStaffAdmission('draft', false)">Save Draft</button>
+          <button type="button" class="btn btn-primary" onclick="submitStaffAdmission('pending', false)">Submit Admission</button>
+          <button type="button" class="btn btn-success" onclick="submitStaffAdmission('pending', true)">Submit & Print</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Share Online Admission Link & QR Code Modal -->
@@ -188,7 +443,7 @@
         <button type="button" class="modal-close" onclick="closeShareQrModal()">×</button>
       </div>
       <p style="font-size: 13px; color: #64748b; margin-bottom: 14px;">
-        Scan this QR code or share the link below so students/parents can fill out the admission form directly.
+        Scan this QR code or share the link below so students/parents can submit online applications.
       </p>
 
       <div id="admissionQrBox" style="display: inline-flex; padding: 14px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; margin-bottom: 14px;"></div>
@@ -426,13 +681,146 @@
     const SERVER_FOOTER_URL = BRANDING_CFG.footerUrl || '';
 
     let selectedEditBatches = [];
+    let currentActiveTab = 'confirmed';
 
     window.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('admissionSearch');
       if (searchInput) searchInput.blur();
     });
 
-    // Share Link & QR Code Modal
+    function switchAdmissionTab(tab) {
+      currentActiveTab = tab;
+      document.getElementById('tabBtnConfirmed').classList.toggle('active', tab === 'confirmed');
+      document.getElementById('tabBtnOnline').classList.toggle('active', tab === 'online');
+      document.getElementById('confirmedAdmissionsCard').style.display = tab === 'confirmed' ? 'block' : 'none';
+      document.getElementById('onlineApplicationsCard').style.display = tab === 'online' ? 'block' : 'none';
+      filterAdmissionTable();
+    }
+
+    async function approveOnlineApp(appId, btnEl) {
+      if (!confirm('Final submit this application and allot a new Admission Number?')) return;
+      btnEl.disabled = true;
+      btnEl.innerText = 'Approving...';
+
+      try {
+        const res = await fetch(`/api/online-admissions/${encodeURIComponent(appId)}/approve`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Approved! Allotted Admission No: ${data.admission_no}`);
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to approve application!'));
+          btnEl.disabled = false;
+          btnEl.innerText = 'Final Submit';
+        }
+      } catch (err) {
+        alert('Server error!');
+        btnEl.disabled = false;
+        btnEl.innerText = 'Final Submit';
+      }
+    }
+
+    async function deleteOnlineApp(appId) {
+      if (!confirm('Are you sure you want to reject and delete this online application?')) return;
+      try {
+        const res = await fetch(`/api/online-admissions/${encodeURIComponent(appId)}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else alert('Error: ' + (data.error || 'Failed to delete!'));
+      } catch (err) {
+        alert('Server error!');
+      }
+    }
+
+    function openStaffNewAdmModal() {
+      document.getElementById('stIsMuthallim').value = 'no';
+      toggleMuthallimFields('stIsMuthallim', 'newMuthallimBox');
+      document.getElementById('staffNewAdmModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('stName').focus(), 100);
+    }
+
+    function closeStaffNewAdmModal() {
+      document.getElementById('staffNewAdmModal').style.display = 'none';
+    }
+
+    async function submitStaffAdmission(saveMode, autoPrint = false) {
+      const full_name = document.getElementById('stName').value.trim();
+      const dob = document.getElementById('stDob').value.trim();
+      const roll_no = document.getElementById('stRoll').value.trim();
+      const father_name = document.getElementById('stFather').value.trim();
+      const phone = document.getElementById('stPhone').value.trim();
+      const guardian_phone = document.getElementById('stGuardianPhone').value.trim();
+      const aadhaar_no = document.getElementById('stAadhaar').value.trim();
+      const is_muthallim = document.getElementById('stIsMuthallim').value;
+      const prev_institution = document.getElementById('stPrevInst').value.trim();
+      const prev_place = document.getElementById('stPrevPlace').value.trim();
+      const school_class = document.getElementById('stSchoolClass').value.trim();
+      const madrasa_class = document.getElementById('stMadrasaClass').value.trim();
+      const place = document.getElementById('stPlace').value.trim();
+      const pin = document.getElementById('stPin').value.trim();
+      const district = document.getElementById('stDistrict').value.trim();
+      const state = document.getElementById('stState').value.trim();
+      const address = document.getElementById('stAddress').value.trim();
+
+      if (!full_name || !dob) return alert('Please enter both Full Name and Date of Birth!');
+
+      const formData = new FormData();
+      formData.append('full_name', full_name);
+      formData.append('dob', dob);
+      formData.append('roll_no', roll_no);
+      formData.append('father_name', father_name);
+      formData.append('phone', phone);
+      formData.append('guardian_phone', guardian_phone);
+      formData.append('aadhaar_no', aadhaar_no);
+      formData.append('is_muthallim', is_muthallim);
+      formData.append('prev_institution', prev_institution);
+      formData.append('prev_place', prev_place);
+      formData.append('school_class', school_class);
+      formData.append('madrasa_class', madrasa_class);
+      formData.append('place', place);
+      formData.append('pin', pin);
+      formData.append('district', district);
+      formData.append('state', state);
+      formData.append('address', address);
+      formData.append('password', document.getElementById('stPass').value.trim());
+      formData.append('batch_id', '');
+      formData.append('status', saveMode);
+
+      const photoInput = document.getElementById('stPhoto');
+      if (photoInput.files[0]) formData.append('photo', photoInput.files[0]);
+
+      const aadhaarInput = document.getElementById('stAadhaarFile');
+      if (aadhaarInput.files[0]) formData.append('aadhaar_doc', aadhaarInput.files[0]);
+
+      try {
+        const res = await fetch('/api/admissions', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+          if (autoPrint) {
+            printAdmissionRecord({
+              admission_no: data.admission_no,
+              roll_no, full_name, dob, father_name, phone, guardian_phone,
+              aadhaar_no, is_muthallim, prev_institution, prev_place,
+              school_class, madrasa_class, place, pin, district, state, address,
+              status: saveMode, photo_file: ''
+            }, false);
+            setTimeout(() => location.reload(), 600);
+          } else {
+            alert(saveMode === 'draft' ? `Saved as Draft! Admission No: ${data.admission_no}` : `Admission submitted! Admission No: ${data.admission_no}`);
+            location.reload();
+          }
+        } else {
+          alert('Error: ' + (data.error || 'Failed to save admission!'));
+        }
+      } catch (err) {
+        alert('Server connection failed!');
+      }
+    }
+
     function openShareQrModal() {
       const applyUrl = `${window.location.origin}/apply`;
       document.getElementById('publicApplyUrlInput').value = applyUrl;
@@ -486,7 +874,6 @@
       win.onload = () => setTimeout(() => win.print(), 250);
     }
 
-    // Direct ID Card Download / Print from Admission List (Using Studio Global Template)
     function downloadSingleIdCard(idx) {
       const st = ADMISSIONS_LIST[Number(idx)];
       if (!st) return;
@@ -498,9 +885,7 @@
         .map(cb => ADMISSIONS_LIST[Number(cb.value)])
         .filter(Boolean);
 
-      if (selected.length === 0) {
-        return alert('Please select at least one student checkbox to download ID Cards!');
-      }
+      if (selected.length === 0) return alert('Please select at least one student checkbox to download ID Cards!');
       renderAndPrintIdCards(selected);
     }
 
@@ -558,7 +943,7 @@
       };
 
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = studentsList.map((st, idx) => {
+      tempDiv.innerHTML = studentsList.map(st => {
         const headerBlock = (cfg.useBannerImg && headerImg)
           ? `<img src="${headerImg}" alt="Header">`
           : `<div style="font-size:${cfg.headerSize}px; font-weight:800; line-height:1.2;">${escapeHtml(cfg.headerTitle)}</div>
@@ -701,18 +1086,29 @@
 
     function filterAdmissionTable() {
       const query = document.getElementById('admissionSearch').value.toLowerCase().trim();
-      const rows = document.querySelectorAll('#admissionsTable tbody tr.adm-row');
-      let visibleCount = 0;
-
-      rows.forEach(row => {
-        const searchData = row.dataset.search || row.innerText.toLowerCase();
-        const isMatch = searchData.includes(query);
-        row.style.display = isMatch ? '' : 'none';
-        if (isMatch) visibleCount++;
-      });
-
-      const countEl = document.getElementById('visibleAdmCount');
-      if (countEl) countEl.innerText = visibleCount;
+      if (currentActiveTab === 'confirmed') {
+        const rows = document.querySelectorAll('#admissionsTable tbody tr.adm-row');
+        let visibleCount = 0;
+        rows.forEach(row => {
+          const searchData = row.dataset.search || row.innerText.toLowerCase();
+          const isMatch = searchData.includes(query);
+          row.style.display = isMatch ? '' : 'none';
+          if (isMatch) visibleCount++;
+        });
+        const countEl = document.getElementById('visibleAdmCount');
+        if (countEl) countEl.innerText = visibleCount;
+      } else {
+        const rows = document.querySelectorAll('#onlineApplicationsTable tbody tr.online-row');
+        let visibleCount = 0;
+        rows.forEach(row => {
+          const searchData = row.dataset.search || row.innerText.toLowerCase();
+          const isMatch = searchData.includes(query);
+          row.style.display = isMatch ? '' : 'none';
+          if (isMatch) visibleCount++;
+        });
+        const countEl = document.getElementById('visibleOnlineCount');
+        if (countEl) countEl.innerText = visibleCount;
+      }
     }
 
     function toggleHeaderMenu(e) {

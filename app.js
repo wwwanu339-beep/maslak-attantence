@@ -110,9 +110,13 @@ if (process.env.GOOGLE_CREDENTIALS_BASE64) {
 
 const doc = new GoogleSpreadsheet(process.env.SPREADSHEET_ID, serviceAccountAuth);
 
+// Case-insensitive & trim-safe sheet finder
 async function getSheet(sheetTitle) {
   await doc.loadInfo();
-  return doc.sheetsByTitle[sheetTitle];
+  if (doc.sheetsByTitle[sheetTitle]) return doc.sheetsByTitle[sheetTitle];
+  const target = String(sheetTitle || '').trim().toLowerCase();
+  const matchedKey = Object.keys(doc.sheetsByTitle).find(k => k.trim().toLowerCase() === target);
+  return matchedKey ? doc.sheetsByTitle[matchedKey] : null;
 }
 
 // Identify Protected Accounts: 'super_admin' (Developer) & 'admin' (Main Admin)
@@ -515,7 +519,157 @@ app.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
   }
 });
 
-// ================= 3. ADMISSIONS =================
+// ================= 3. PUBLIC ONLINE ADMISSION PORTAL =================
+app.get('/apply', async (req, res) => {
+  try {
+    const branding = getBrandingUrls();
+    res.render('apply_admission', { branding });
+  } catch (err) {
+    res.status(500).send('Error loading admission form: ' + err.message);
+  }
+});
+
+// Save Public Online Application to 'online_admissions' tab (All Fields Validated)
+app.post('/api/public-admissions', admUploads, async (req, res) => {
+  try {
+    const {
+      full_name, dob, father_name, phone, guardian_phone, aadhaar_no,
+      address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
+      school_class, madrasa_class, password
+    } = req.body;
+
+    // Server-side validation for all required fields
+    if (
+      !full_name || !dob || !father_name || !aadhaar_no ||
+      !phone || !guardian_phone || !pin || !place ||
+      !district || !state || !address || !madrasa_class || !school_class || !password
+    ) {
+      return res.status(400).json({ success: false, error: 'Please fill in all required fields!' });
+    }
+
+    if (is_muthallim === 'yes' && (!prev_institution || !prev_place)) {
+      return res.status(400).json({ success: false, error: 'Please enter Previous Institution Name and Place!' });
+    }
+
+    if (!req.files?.photo?.[0] || !req.files?.aadhaar_doc?.[0]) {
+      return res.status(400).json({ success: false, error: 'Please upload both Student Photo and Aadhaar Document!' });
+    }
+
+    const onlineSheet = await getSheet('online_admissions');
+    if (!onlineSheet) {
+      return res.status(500).json({ success: false, error: 'Please create the "online_admissions" tab in your Google Sheet!' });
+    }
+
+    const appId = `APP-${Date.now()}`;
+    const photoPath = `/uploads/${req.files.photo[0].filename}`;
+    const aadhaarPath = `/uploads/${req.files.aadhaar_doc[0].filename}`;
+    const hashedPassword = await hashPassword(password);
+
+    await onlineSheet.addRow({
+      app_id: appId,
+      full_name: full_name.trim(),
+      dob: String(dob).trim(),
+      father_name: father_name.trim(),
+      address: address.trim(),
+      place: place.trim(),
+      pin: String(pin).trim(),
+      district: district.trim(),
+      state: state.trim(),
+      is_muthallim: is_muthallim === 'yes' ? 'yes' : 'no',
+      prev_institution: is_muthallim === 'yes' ? prev_institution.trim() : '',
+      prev_place: is_muthallim === 'yes' ? prev_place.trim() : '',
+      school_class: String(school_class).trim(),
+      madrasa_class: String(madrasa_class).trim(),
+      aadhaar_no: String(aadhaar_no).trim(),
+      aadhaar_file: aadhaarPath,
+      photo_file: photoPath,
+      phone: String(phone).trim(),
+      guardian_phone: String(guardian_phone).trim(),
+      password: hashedPassword,
+      created_at: new Date().toISOString().split('T')[0]
+    });
+
+    res.json({ success: true, app_id: appId });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Staff Final Submit / Approve Online Application -> Generates Adm No & Moves to 'admissions'
+app.post('/api/online-admissions/:appId/approve', requireAuth, checkAdmission, async (req, res) => {
+  try {
+    const targetAppId = String(req.params.appId).trim();
+    const onlineSheet = await getSheet('online_admissions');
+    const admSheet = await getSheet('admissions');
+    const stuSheet = await getSheet('students');
+
+    if (!onlineSheet) return res.status(404).json({ success: false, error: 'online_admissions sheet not found!' });
+
+    const [oRows, aRows, sRows] = await Promise.all([
+      onlineSheet.getRows(),
+      admSheet.getRows(),
+      stuSheet.getRows()
+    ]);
+
+    const appRow = oRows.find(r => String(r.get('app_id') || '').trim() === targetAppId);
+    if (!appRow) {
+      return res.status(404).json({ success: false, error: 'Online application not found!' });
+    }
+
+    const permanentAdmNo = generateNextAdmissionNo(aRows, sRows);
+    const finalPassword = appRow.get('password') || await hashPassword(permanentAdmNo);
+
+    await admSheet.addRow({
+      admission_no: permanentAdmNo,
+      roll_no: '',
+      full_name: appRow.get('full_name') || '',
+      dob: appRow.get('dob') || '',
+      father_name: appRow.get('father_name') || '',
+      address: appRow.get('address') || '',
+      place: appRow.get('place') || '',
+      pin: appRow.get('pin') || '',
+      district: appRow.get('district') || '',
+      state: appRow.get('state') || '',
+      is_muthallim: appRow.get('is_muthallim') || 'no',
+      prev_institution: appRow.get('prev_institution') || '',
+      prev_place: appRow.get('prev_place') || '',
+      school_class: appRow.get('school_class') || '',
+      madrasa_class: appRow.get('madrasa_class') || '',
+      aadhaar_no: appRow.get('aadhaar_no') || '',
+      aadhaar_file: appRow.get('aadhaar_file') || '',
+      photo_file: appRow.get('photo_file') || '',
+      phone: appRow.get('phone') || '',
+      guardian_phone: appRow.get('guardian_phone') || '',
+      batch_id: '',
+      password: finalPassword,
+      status: 'pending',
+      created_at: new Date().toISOString().split('T')[0]
+    });
+
+    await appRow.delete();
+    res.json({ success: true, admission_no: permanentAdmNo });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete / Reject Online Application
+app.delete('/api/online-admissions/:appId', requireAuth, checkAdmission, async (req, res) => {
+  try {
+    const targetAppId = String(req.params.appId).trim();
+    const onlineSheet = await getSheet('online_admissions');
+    if (!onlineSheet) return res.status(404).json({ success: false, error: 'online_admissions sheet not found!' });
+
+    const oRows = await onlineSheet.getRows();
+    const appRow = oRows.find(r => String(r.get('app_id') || '').trim() === targetAppId);
+    if (appRow) await appRow.delete();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ================= 4. STAFF ADMISSIONS MANAGEMENT =================
 app.post('/api/admission-branding', requireAuth, checkAdmission, brandingUpload, (req, res) => {
   try {
     if (req.files?.print_header?.[0]) {
@@ -539,13 +693,15 @@ app.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
     const admSheet = await getSheet('admissions');
     const stuSheet = await getSheet('students');
     const batchSheet = await getSheet('batches');
+    const onlineSheet = await getSheet('online_admissions');
 
     if (!admSheet) return res.status(500).send('Please create the "admissions" tab in your Google Sheet.');
 
-    const [aRows, sRows, bRows] = await Promise.all([
+    const [aRows, sRows, bRows, oRows] = await Promise.all([
       admSheet.getRows(),
       stuSheet.getRows(),
-      batchSheet.getRows()
+      batchSheet.getRows(),
+      onlineSheet ? onlineSheet.getRows() : Promise.resolve([])
     ]);
 
     const batchMap = {};
@@ -555,6 +711,7 @@ app.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     const nextAdmissionNo = generateNextAdmissionNo(aRows, sRows);
+
     const allStudents = aRows
       .filter(r => (r.get('full_name') || '').trim() !== '')
       .map(r => {
@@ -589,14 +746,40 @@ app.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
       })
       .reverse();
 
+    const onlineApplications = oRows
+      .filter(r => (r.get('full_name') || '').trim() !== '')
+      .map((r, i) => ({
+        app_id: String(r.get('app_id') || `ROW-${i + 1}`).trim(),
+        full_name: r.get('full_name'),
+        dob: r.get('dob') || '',
+        father_name: r.get('father_name') || '',
+        phone: r.get('phone') || '',
+        guardian_phone: r.get('guardian_phone') || '',
+        aadhaar_no: r.get('aadhaar_no') || '',
+        aadhaar_file: r.get('aadhaar_file') || '',
+        photo_file: r.get('photo_file') || '',
+        address: r.get('address') || '',
+        place: r.get('place') || '',
+        pin: r.get('pin') || '',
+        district: r.get('district') || '',
+        state: r.get('state') || '',
+        is_muthallim: r.get('is_muthallim') || 'no',
+        prev_institution: r.get('prev_institution') || '',
+        prev_place: r.get('prev_place') || '',
+        school_class: r.get('school_class') || '',
+        madrasa_class: r.get('madrasa_class') || '',
+        created_at: r.get('created_at') || ''
+      }))
+      .reverse();
+
     const branding = getBrandingUrls();
-    res.render('admission', { batches, allStudents, nextAdmissionNo, branding });
+    res.render('admission', { batches, allStudents, onlineApplications, nextAdmissionNo, branding });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
   }
 });
 
-// Create Admission / Draft
+// Create Staff Direct Admission / Draft
 app.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const {
@@ -642,79 +825,6 @@ app.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req,
       phone: phone ? String(phone).trim() : '',
       guardian_phone: guardian_phone ? String(guardian_phone).trim() : '',
       batch_id: batch_id ? String(batch_id).trim() : '',
-      password: hashedPassword,
-      status: status === 'draft' ? 'draft' : 'pending',
-      created_at: new Date().toISOString().split('T')[0]
-    });
-
-    res.json({ success: true, admission_no: permanentAdmNo });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ================= PUBLIC ONLINE ADMISSION PORTAL (Link / QR Code) =================
-app.get('/apply', async (req, res) => {
-  try {
-    const admSheet = await getSheet('admissions');
-    const stuSheet = await getSheet('students');
-    const [aRows, sRows] = await Promise.all([admSheet.getRows(), stuSheet.getRows()]);
-
-    const nextAdmissionNo = generateNextAdmissionNo(aRows, sRows);
-    const branding = getBrandingUrls();
-
-    res.render('apply_admission', { nextAdmissionNo, branding });
-  } catch (err) {
-    res.status(500).send('Error loading admission form: ' + err.message);
-  }
-});
-
-// Public & Admin Admission Submission (No requireAuth so QR/Link users can submit)
-app.post('/api/public-admissions', admUploads, async (req, res) => {
-  try {
-    const {
-      full_name, dob, roll_no, father_name, phone, guardian_phone, aadhaar_no,
-      address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
-      school_class, madrasa_class, password, status
-    } = req.body;
-
-    if (!full_name || !dob) {
-      return res.status(400).json({ success: false, error: 'Full Name and Date of Birth are required!' });
-    }
-
-    const admSheet = await getSheet('admissions');
-    const stuSheet = await getSheet('students');
-    const [aRows, sRows] = await Promise.all([admSheet.getRows(), stuSheet.getRows()]);
-
-    const permanentAdmNo = generateNextAdmissionNo(aRows, sRows);
-    const rawPass = password ? String(password).trim() : permanentAdmNo;
-    const hashedPassword = await hashPassword(rawPass);
-
-    const photoPath = req.files?.photo?.[0] ? `/uploads/${req.files.photo[0].filename}` : '';
-    const aadhaarPath = req.files?.aadhaar_doc?.[0] ? `/uploads/${req.files.aadhaar_doc[0].filename}` : '';
-
-    await admSheet.addRow({
-      admission_no: permanentAdmNo,
-      roll_no: roll_no ? String(roll_no).trim() : '',
-      full_name: full_name.trim(),
-      dob: String(dob).trim(),
-      father_name: father_name ? father_name.trim() : '',
-      address: address ? address.trim() : '',
-      place: place ? place.trim() : '',
-      pin: pin ? String(pin).trim() : '',
-      district: district ? district.trim() : '',
-      state: state ? state.trim() : '',
-      is_muthallim: is_muthallim === 'yes' ? 'yes' : 'no',
-      prev_institution: (is_muthallim === 'yes' && prev_institution) ? prev_institution.trim() : '',
-      prev_place: (is_muthallim === 'yes' && prev_place) ? prev_place.trim() : '',
-      school_class: school_class ? String(school_class).trim() : '',
-      madrasa_class: madrasa_class ? String(madrasa_class).trim() : '',
-      aadhaar_no: aadhaar_no ? String(aadhaar_no).trim() : '',
-      aadhaar_file: aadhaarPath,
-      photo_file: photoPath,
-      phone: phone ? String(phone).trim() : '',
-      guardian_phone: guardian_phone ? String(guardian_phone).trim() : '',
-      batch_id: '',
       password: hashedPassword,
       status: status === 'draft' ? 'draft' : 'pending',
       created_at: new Date().toISOString().split('T')[0]
@@ -946,7 +1056,7 @@ app.delete('/api/admissions/:admNo', requireAuth, checkAdmission, async (req, re
   }
 });
 
-// ================= 4. ACTIVE STUDENTS LIST =================
+// ================= 5. ACTIVE STUDENTS LIST =================
 app.get('/students', requireAuth, checkStudent, async (req, res) => {
   try {
     const studentSheet = await getSheet('students');
@@ -991,6 +1101,7 @@ app.get('/students', requireAuth, checkStudent, async (req, res) => {
     res.status(500).send("Database Error: " + err.message);
   }
 });
+
 // Helper: Strictly parse and validate print-style roll expressions ("1, 2, 5, 10-20")
 function parseRollExpressionServer(expr) {
   const clean = String(expr || '').trim();
@@ -1051,7 +1162,6 @@ app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (re
       return res.status(400).json({ success: false, error: 'Please select a valid batch!' });
     }
 
-    // Security Check 1: Enforce user-level batch scope restriction if applicable
     if (sessionUser.allowed_batch && sessionUser.allowed_batch !== 'all') {
       if (targetBatch !== String(sessionUser.allowed_batch).trim()) {
         return res.status(403).json({
@@ -1061,7 +1171,6 @@ app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (re
       }
     }
 
-    // Support both new `roll_expression` ("1, 2, 10-20") and legacy `from_roll`/`to_roll`
     const rawExpr = roll_expression !== undefined
       ? roll_expression
       : (from_roll && to_roll ? `${from_roll}-${to_roll}` : '');
@@ -1072,7 +1181,6 @@ app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (re
     }
     const targetRollSet = parsed.rollSet;
 
-    // Security Check 2: Verify targetBatch exists in the 'batches' sheet
     const batchSheet = await getSheet('batches');
     const bRows = await batchSheet.getRows();
     const validBatch = bRows.find(r => String(r.get('id') || '').trim() === targetBatch);
@@ -1143,6 +1251,7 @@ app.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (re
     res.status(500).json({ success: false, error: 'Failed to assign batch: ' + err.message });
   }
 });
+
 app.put('/api/students/:admNo/password', requireAuth, checkStudent, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
@@ -1247,7 +1356,7 @@ app.delete('/api/students/:admNo', requireAuth, checkStudent, async (req, res) =
   }
 });
 
-// ================= 5. ATTENDANCE =================
+// ================= 6. ATTENDANCE =================
 app.get('/attendance', requireAuth, checkAttendance, async (req, res) => {
   try {
     const batchSheet = await getSheet('batches');
@@ -1443,7 +1552,7 @@ app.post('/api/save-attendance', requireAuth, checkAttendance, async (req, res) 
   }
 });
 
-// ================= 6. MONTHLY MATRIX =================
+// ================= 7. MONTHLY MATRIX =================
 app.get('/monthly-report', requireAuth, checkAttendanceView, async (req, res) => {
   try {
     const batchSheet = await getSheet('batches');
@@ -1593,7 +1702,7 @@ app.get('/api/student-day-details', requireAuth, checkAttendanceView, async (req
   }
 });
 
-// ================= 7. STUDENT PORTAL =================
+// ================= 8. STUDENT PORTAL =================
 app.get('/student-login', (req, res) => {
   if (req.session && req.session.student) return res.redirect('/my-attendance');
   res.render('student_login', { error: null });
@@ -1713,7 +1822,7 @@ app.get('/student-logout', (req, res) => {
   res.redirect('/student-login');
 });
 
-// ID Card Dedicated Page
+// ================= 9. ID CARD DEDICATED PAGE =================
 app.get('/id-cards', requireAuth, checkAdmission, async (req, res) => {
   try {
     const admSheet = await getSheet('admissions');
@@ -1764,7 +1873,6 @@ app.get('/id-cards', requireAuth, checkAdmission, async (req, res) => {
   }
 });
 
-// Upload Dedicated ID Card Header & Footer
 const idBrandingUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
