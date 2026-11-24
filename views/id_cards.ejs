@@ -7,6 +7,33 @@
   <link rel="stylesheet" href="/student.css">
   <link rel="stylesheet" href="/id_cards.css">
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <% const studentMode = (typeof isStudentView !== 'undefined' && isStudentView); %>
+
+  <% if (studentMode) { %>
+  <style>
+    /* അഡ്മിൻ എഡിറ്റിംഗ്, സ്റ്റുഡന്റ് ലിസ്റ്റ്, അഡ്മിൻ ബട്ടണുകൾ എന്നിവ പൂർണ്ണമായി ഹൈഡ് ചെയ്യുന്നു */
+    #toggleEditorBtn,
+    #designEditorDock,
+    #studentSelectorPanel,
+    .admin-only-btn {
+      display: none !important;
+    }
+    .studio-dynamic-grid {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+    }
+    .preview-stage {
+      width: 100% !important;
+      display: flex !important;
+      justify-content: center !important;
+      padding: 24px 12px !important;
+    }
+  </style>
+  <% } %>
+
   <style>
     /* Fixed-Place Collapsible Workspace Layout */
     .studio-dynamic-grid {
@@ -101,32 +128,42 @@
   %>
 
   <div class="studio-container">
-    <!-- Executive Top Header -->
+    <!-- Top Header -->
     <div class="top-bar">
-      <h1 class="top-bar-title">Student ID Card Studio</h1>
+      <h1 class="top-bar-title"><%= studentMode ? 'My Student ID Card' : 'Student ID Card Studio' %></h1>
 
       <div class="exec-toolbar-btns">
-        <button type="button" id="toggleEditorBtn" class="btn btn-sm btn-primary" onclick="toggleDesignPanel()">
-          Edit Design Settings
-        </button>
-        <button type="button" class="btn btn-sm btn-success" onclick="openPrintPopupModal()">
-          Print / Download (<span id="topSelectedCount">0</span>)
-        </button>
-        <a href="/admissions" class="btn btn-sm btn-secondary">← Admissions</a>
-        <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 12H5"></path>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-        </a>
+        <% if (studentMode) { %>
+          <a href="/my-attendance" class="btn btn-sm btn-secondary">← Back</a>
+          <button type="button" class="btn btn-sm btn-primary" onclick="downloadStudentIdAsImage()">
+            Download Image
+          </button>
+          <button type="button" class="btn btn-sm btn-success" onclick="printAllSelectedCards()">
+            Download PDF
+          </button>
+        <% } else { %>
+          <button type="button" id="toggleEditorBtn" class="btn btn-sm btn-primary admin-only-btn" onclick="toggleDesignPanel()">
+            Edit Design Settings
+          </button>
+          <button type="button" class="btn btn-sm btn-success" onclick="openPrintPopupModal()">
+            Print / Download (<span id="topSelectedCount">0</span>)
+          </button>
+          <a href="/admissions" class="btn btn-sm btn-secondary admin-only-btn">← Admissions</a>
+          <a href="/dashboard" class="btn-header-icon admin-only-btn" title="Back to Dashboard">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5"></path>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </a>
+        <% } %>
       </div>
     </div>
 
-    <!-- Workspace Grid (Student List + Fixed-Place Collapsible Editor + Live Preview) -->
+    <!-- Workspace Grid -->
     <div class="studio-dynamic-grid" id="studioWorkspaceGrid">
       
       <!-- Column 1: Student Selector -->
-      <div class="panel-box">
+      <div class="panel-box" id="studentSelectorPanel">
         <div class="panel-title">
           <span>Students (<span id="selectedCountBadge">0</span> Selected)</span>
           <label class="select-all-lbl">
@@ -158,14 +195,13 @@
         </div>
       </div>
 
-      <!-- Column 2: Fixed-Place Docked Editor (Opens in place without covering preview, can be hidden anytime) -->
+      <!-- Column 2: Fixed-Place Docked Editor -->
       <div class="editor-dock-panel" id="designEditorDock">
         <div class="editor-dock-header">
           <h3>Design & Layout</h3>
           <button type="button" class="btn-hide-dock" onclick="toggleDesignPanel(false)">Hide ×</button>
         </div>
 
-        <!-- 1. Header & Footer Image Upload -->
         <div class="ctrl-section">
           <span class="ctrl-section-title">1. ID Header & Footer Banners</span>
           <div style="margin-bottom: 6px;">
@@ -185,7 +221,6 @@
           </div>
         </div>
 
-        <!-- 2. Overall ID Card Dimensions -->
         <div class="ctrl-section">
           <span class="ctrl-section-title">2. Card Size & Orientation</span>
           <div style="margin-bottom: 6px;">
@@ -210,7 +245,6 @@
           </div>
         </div>
 
-        <!-- 3. Colors -->
         <div class="ctrl-section">
           <span class="ctrl-section-title">3. Color Palette</span>
           <div class="ctrl-row-3">
@@ -225,7 +259,6 @@
           </div>
         </div>
 
-        <!-- 4. Header/Footer Text & Alignment -->
         <div class="ctrl-section">
           <span class="ctrl-section-title">4. Text Header, Footer & Align</span>
           <div style="margin-bottom: 6px;">
@@ -264,7 +297,6 @@
           </div>
         </div>
 
-        <!-- 5. Typography, Offset & Line Gap -->
         <div class="ctrl-section">
           <span class="ctrl-section-title">5. Font Size, Offset & Line Gap</span>
           <div class="ctrl-row-3">
@@ -297,7 +329,6 @@
           </div>
         </div>
 
-        <!-- 6. Photo & Barcode -->
         <div class="ctrl-section">
           <span class="ctrl-section-title">6. Photo, Rotation & Barcode</span>
           <div class="ctrl-row-2">
@@ -356,7 +387,7 @@
         </div>
       </div>
 
-      <!-- Column 3: Live ID Card Preview Stage (Always visible alongside editor) -->
+      <!-- Column 3: Live ID Card Preview Stage -->
       <div class="preview-stage" id="idPreviewStage"></div>
     </div>
   </div>
@@ -393,6 +424,7 @@
   <script id="idBrandingJson" type="application/json"><%- JSON.stringify(safeIdBranding).replace(/</g, '\\u003c') %></script>
 
   <script>
+    const IS_STUDENT_MODE = <%= studentMode ? 'true' : 'false' %>;
     const STUDENTS = JSON.parse(document.getElementById('studentsDataJson').textContent || '[]');
     const ID_BRAND = JSON.parse(document.getElementById('idBrandingJson').textContent || '{}');
     let SERVER_ID_HEADER = ID_BRAND.headerUrl || '';
@@ -445,7 +477,9 @@
       const preAdms = (params.get('adms') || '').split(',').map(a => a.trim()).filter(Boolean);
 
       const checkboxes = document.querySelectorAll('.id-stu-chk');
-      if (preAdms.length > 0) {
+      if (IS_STUDENT_MODE && checkboxes.length > 0) {
+        checkboxes[0].checked = true;
+      } else if (preAdms.length > 0) {
         checkboxes.forEach(cb => {
           const st = STUDENTS[Number(cb.value)];
           if (st && preAdms.includes(st.admission_no)) cb.checked = true;
@@ -458,15 +492,15 @@
       refreshPreview();
     });
 
-    // Toggle Fixed-Place Editor Panel (Show / Hide without covering preview)
     function toggleDesignPanel(forceState) {
+      if (IS_STUDENT_MODE) return;
       const grid = document.getElementById('studioWorkspaceGrid');
       const btn = document.getElementById('toggleEditorBtn');
       const isCurrentlyOpen = grid.classList.contains('editor-open');
       const nextState = typeof forceState === 'boolean' ? forceState : !isCurrentlyOpen;
 
       grid.classList.toggle('editor-open', nextState);
-      btn.innerText = nextState ? 'Hide Design Settings' : 'Edit Design Settings';
+      if (btn) btn.innerText = nextState ? 'Hide Design Settings' : 'Edit Design Settings';
     }
 
     function openPrintPopupModal() {
@@ -682,16 +716,16 @@
       const sideLayout = isHoriz && cfg.photoAlign !== 'center';
 
       const headerBlock = (cfg.useBannerImg && headerImg)
-        ? `<img src="${headerImg}" alt="Header">`
+        ? `<img src="${headerImg}" alt="Header" crossorigin="anonymous">`
         : `<div style="font-size:${cfg.headerSize}px; font-weight:800; line-height:1.2;">${escapeHtml(cfg.headerTitle)}</div>
            ${cfg.headerSub ? `<div style="font-size:${Math.max(7.5, cfg.headerSize - 2.5)}px; opacity:0.9; margin-top:2px;">${escapeHtml(cfg.headerSub)}</div>` : ''}`;
 
       const footerBlock = (cfg.useBannerImg && footerImg)
-        ? `<img src="${footerImg}" alt="Footer">`
+        ? `<img src="${footerImg}" alt="Footer" crossorigin="anonymous">`
         : `<div style="font-size:${Math.max(8, cfg.textSize - 1)}px;">${escapeHtml(cfg.footerText)}</div>`;
 
       const photoBlock = st.photo_file
-        ? `<img src="${st.photo_file}" alt="Photo" style="transform: rotate(${cfg.photoRotate}deg);">`
+        ? `<img src="${st.photo_file}" alt="Photo" crossorigin="anonymous" style="transform: rotate(${cfg.photoRotate}deg);">`
         : `<span style="font-size:10px; color:#64748b; font-weight:700;">PHOTO</span>`;
 
       const labels = {
@@ -768,8 +802,11 @@
 
     function refreshPreview() {
       const selected = getSelectedStudents();
-      document.getElementById('selectedCountBadge').innerText = selected.length;
-      document.getElementById('topSelectedCount').innerText = selected.length;
+      const badgeEl = document.getElementById('selectedCountBadge');
+      const topEl = document.getElementById('topSelectedCount');
+      if (badgeEl) badgeEl.innerText = selected.length;
+      if (topEl) topEl.innerText = selected.length;
+
       const stage = document.getElementById('idPreviewStage');
 
       if (selected.length === 0) {
@@ -785,6 +822,19 @@
       renderAllBarcodes(stage, cfg);
     }
 
+    // വിദ്യാർത്ഥിക്ക് ID Card നേരിട്ട് PNG Image ആയി ഡൗൺലോഡ് ചെയ്യാൻ
+    function downloadStudentIdAsImage() {
+      const cardEl = document.querySelector('#idPreviewStage .id-card-box');
+      if (!cardEl) return;
+      const st = getSelectedStudents()[0] || { admission_no: 'Student' };
+      html2canvas(cardEl, { scale: 3, useCORS: true }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `${st.admission_no}_ID_Card.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+
     function printAllSelectedCards() {
       const selected = getSelectedStudents();
       if (selected.length === 0) return alert('Please select at least one student!');
@@ -792,7 +842,7 @@
       const cfg = getTemplateConfig();
       const headerImg = localStorage.getItem('id_card_only_header') || SERVER_ID_HEADER;
       const footerImg = localStorage.getItem('id_card_only_footer') || SERVER_ID_FOOTER;
-      const isSeparate = cfg.printMode === 'separate';
+      const isSeparate = IS_STUDENT_MODE ? true : (cfg.printMode === 'separate');
 
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = selected.map((st, idx) => {

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admission Application - <%= student.full_name %></title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: #f1f5f9; color: #0f172a; padding: 20px; }
+    .toolbar { max-width: 800px; margin: 0 auto 16px; display: flex; justify-content: space-between; align-items: center; }
+    .btn { padding: 9px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; }
+    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .sheet { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px 36px; border-radius: 8px; border: 1px solid #cbd5e1; }
+    .branding-img { width: 100%; max-height: 140px; object-fit: contain; display: block; margin-bottom: 16px; }
+    .doc-title { text-align: center; font-size: 18px; font-weight: 700; text-transform: uppercase; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; padding: 8px 0; margin-bottom: 20px; letter-spacing: 0.5px; }
+    .top-section { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
+    .photo-box { width: 115px; height: 140px; border: 1px solid #94a3b8; border-radius: 4px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #f8fafc; font-size: 12px; color: #64748b; }
+    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    td { padding: 9px 12px; border: 1px solid #cbd5e1; vertical-align: top; }
+    td.label { width: 34%; font-weight: 600; background: #f8fafc; color: #334155; }
+    .footer-img { width: 100%; max-height: 100px; object-fit: contain; display: block; margin-top: 24px; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .toolbar { display: none; }
+      .sheet { border: none; padding: 10px; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <a href="/my-attendance" class="btn">← Back</a>
+    <button onclick="window.print()" class="btn btn-primary">Print / Save PDF</button>
+  </div>
+
+  <div class="sheet">
+    <% if (branding && branding.headerUrl) { %>
+      <img src="<%= branding.headerUrl %>" alt="Header" class="branding-img">
+    <% } %>
+
+    <div class="doc-title">Student Admission Application</div>
+
+    <div class="top-section">
+      <table style="flex: 1;">
+        <tr>
+          <td class="label">Admission No</td>
+          <td><b><%= student.admission_no %></b></td>
+        </tr>
+        <tr>
+          <td class="label">Roll No</td>
+          <td><%= student.roll_no || '-' %></td>
+        </tr>
+        <tr>
+          <td class="label">Full Name</td>
+          <td><b><%= student.full_name %></b></td>
+        </tr>
+        <tr>
+          <td class="label">Date of Birth</td>
+          <td><%= student.dob %></td>
+        </tr>
+      </table>
+
+      <div class="photo-box">
+        <% if (student.photo_file) { %>
+          <img src="<%= student.photo_file %>" alt="Student Photo">
+        <% } else { %>
+          No Photo
+        <% } %>
+      </div>
+    </div>
+
+    <table>
+      <tr>
+        <td class="label">Batch</td>
+        <td><%= student.batch_name %></td>
+      </tr>
+      <tr>
+        <td class="label">Father's Name</td>
+        <td><%= student.father_name %></td>
+      </tr>
+      <tr>
+        <td class="label">Phone / Guardian Phone</td>
+        <td><%= student.phone %> / <%= student.guardian_phone %></td>
+      </tr>
+      <tr>
+        <td class="label">Aadhaar Number</td>
+        <td><%= student.aadhaar_no || '-' %></td>
+      </tr>
+      <tr>
+        <td class="label">Address</td>
+        <td><%= student.address %></td>
+      </tr>
+      <tr>
+        <td class="label">Place & PIN</td>
+        <td><%= student.place %> - <%= student.pin %></td>
+      </tr>
+      <tr>
+        <td class="label">District & State</td>
+        <td><%= student.district %>, <%= student.state %></td>
+      </tr>
+      <tr>
+        <td class="label">School / Madrasa Class</td>
+        <td>School: <%= student.school_class || '-' %> | Madrasa: <%= student.madrasa_class || '-' %></td>
+      </tr>
+      <% if (student.is_muthallim === 'yes') { %>
+        <tr>
+          <td class="label">Previous Institution</td>
+          <td><%= student.prev_institution %> (<%= student.prev_place %>)</td>
+        </tr>
+      <% } %>
+      <tr>
+        <td class="label">Admission Date</td>
+        <td><%= student.created_at || '-' %></td>
+      </tr>
+    </table>
+
+    <% if (branding && branding.footerUrl) { %>
+      <img src="<%= branding.footerUrl %>" alt="Footer" class="footer-img">
+    <% } %>
+  </div>
+</body>
+</html>

@@ -8,10 +8,23 @@
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { margin: 0; background: #f8fafc; color: #1e293b; padding: 16px; }
     .container { max-width: 750px; margin: 0 auto; }
-    .header-card { background: #fff; padding: 18px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
-    .header-card h3 { margin: 0; font-size: 18px; color: #0f172a; }
-    .header-card p { margin: 4px 0 0; font-size: 13px; color: #64748b; }
-    .btn-logout { background: #fee2e2; color: #dc2626; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+
+    /* Profile Card */
+    .profile-card { background: #fff; padding: 18px 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
+    .profile-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+    .profile-left { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    .student-photo { width: 80px; height: 80px; border-radius: 10px; object-fit: cover; border: 1px solid #cbd5e1; background: #f1f5f9; }
+    .student-details h3 { margin: 0 0 6px; font-size: 18px; color: #0f172a; }
+    .meta-grid { display: grid; grid-template-columns: repeat(2, auto); gap: 4px 18px; font-size: 13px; color: #475569; }
+    .meta-grid b { color: #0f172a; font-weight: 600; }
+
+    /* Bordered Clean Buttons */
+    .download-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+    .btn-outline { background: #fff; color: #1e293b; border: 1px solid #cbd5e1; text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-outline:hover { background: #f8fafc; border-color: #94a3b8; }
+    .btn-logout { background: #fff; color: #dc2626; border: 1px solid #fecaca; text-decoration: none; padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+    .btn-logout:hover { background: #fef2f2; }
+
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
     .stat-box { background: #fff; padding: 14px; border-radius: 10px; text-align: center; border: 1px solid #e2e8f0; }
     .stat-box h4 { margin: 0; font-size: 20px; }
@@ -31,17 +44,45 @@
     .badge.present { background: #dcfce7; color: #15803d; }
     .badge.absent { background: #fee2e2; color: #b91c1c; }
     .badge.leave { background: #fef08a; color: #854d0e; }
-    @media (max-width: 550px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    @media (max-width: 550px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .meta-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header-card">
-      <div>
-        <h3><%= student.full_name %></h3>
-        <p>Adm No: <b><%= student.admission_no %></b> | Batch: <b><%= student.batch_name %></b></p>
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="profile-left">
+          <% if (student.photo_url) { %>
+            <img src="<%= student.photo_url %>" alt="Photo" class="student-photo">
+          <% } else { %>
+            <div class="student-photo" style="display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px;">No Photo</div>
+          <% } %>
+
+          <div class="student-details">
+            <h3><%= student.full_name %></h3>
+            <div class="meta-grid">
+              <span>Adm No: <b><%= student.admission_no %></b></span>
+              <span>Main Batch: <b><%= student.main_batch_name %></b></span>
+              <span>Place: <b><%= student.place %></b></span>
+              <span>Phone: <b><%= student.phone %></b></span>
+              <span>Birth Date: <b><%= student.dob %></b></span>
+            </div>
+          </div>
+        </div>
+        <a href="/student-logout" class="btn-logout">Logout</a>
       </div>
-      <a href="/student-logout" class="btn-logout">Logout</a>
+
+      <div class="download-bar">
+        <a href="/my-id-card" target="_blank" class="btn-outline">ID Card</a>
+        <a href="/my-admission-form" target="_blank" class="btn-outline">Admission Application</a>
+        <% if (student.photo_url) { %>
+          <a href="<%= student.photo_url %>" download="<%= student.admission_no %>_photo.jpg" target="_blank" class="btn-outline">Download Photo</a>
+        <% } %>
+      </div>
     </div>
 
     <div class="stats-grid">

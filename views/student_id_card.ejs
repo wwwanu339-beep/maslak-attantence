@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ID Card - <%= student.full_name %></title>
+  <!-- Barcode & Image Download Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: #f1f5f9; color: #0f172a; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    
+    .toolbar { width: 100%; max-width: 420px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; display: inline-flex; align-items: center; gap: 5px; }
+    .btn:hover { background: #f8fafc; }
+    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-primary:hover { background: #1d4ed8; }
+
+    /* Portrait ID Card Design */
+    .id-card {
+      width: 310px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .card-header { width: 100%; background: #fff; border-bottom: 1px solid #f1f5f9; }
+    .card-header img { width: 100%; max-height: 85px; object-fit: contain; display: block; }
+    .default-header { padding: 12px; background: #0f172a; color: #fff; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; }
+
+    .photo-wrapper {
+      margin-top: 14px;
+      width: 96px;
+      height: 112px;
+      border-radius: 8px;
+      border: 2px solid #e2e8f0;
+      overflow: hidden;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .photo-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+
+    .student-name { margin: 10px 12px 2px; font-size: 17px; font-weight: 700; color: #0f172a; text-transform: uppercase; }
+    .batch-pill { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+
+    .details-table { width: 100%; padding: 0 18px; text-align: left; font-size: 12.5px; border-collapse: collapse; }
+    .details-table td { padding: 4px 0; color: #334155; vertical-align: top; }
+    .details-table td.lbl { width: 38%; font-weight: 600; color: #64748b; }
+    .details-table td.val { font-weight: 600; color: #0f172a; }
+
+    .barcode-box { margin: 10px 0 8px; }
+    .barcode-box svg { max-width: 190px; height: 36px; }
+
+    .card-footer { width: 100%; margin-top: auto; border-top: 1px solid #f1f5f9; }
+    .card-footer img { width: 100%; max-height: 55px; object-fit: contain; display: block; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .toolbar { display: none; }
+      .id-card { box-shadow: none; border: 1px solid #94a3b8; margin: 20px auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <a href="/my-attendance" class="btn">← Back</a>
+    <div style="display: flex; gap: 8px;">
+      <button onclick="downloadImage()" class="btn">🖼️ Download Image</button>
+      <button onclick="window.print()" class="btn btn-primary">📄 Download PDF</button>
+    </div>
+  </div>
+
+  <div class="id-card" id="idCardCapture">
+    <div class="card-header">
+      <% if (idBranding && idBranding.headerUrl) { %>
+        <img src="<%= idBranding.headerUrl %>" alt="Header" crossorigin="anonymous">
+      <% } else { %>
+        <div class="default-header">STUDENT IDENTITY CARD</div>
+      <% } %>
+    </div>
+
+    <div class="photo-wrapper">
+      <% if (student.photo_file) { %>
+        <img src="<%= student.photo_file %>" alt="Photo" crossorigin="anonymous">
+      <% } else { %>
+        No Photo
+      <% } %>
+    </div>
+
+    <div class="student-name"><%= student.full_name %></div>
+    <div class="batch-pill"><%= student.main_batch_name %></div>
+
+    <table class="details-table">
+      <tr>
+        <td class="lbl">Adm No</td>
+        <td class="val">: <%= student.admission_no %></td>
+      </tr>
+      <% if (student.roll_no) { %>
+      <tr>
+        <td class="lbl">Roll No</td>
+        <td class="val">: <%= student.roll_no %></td>
+      </tr>
+      <% } %>
+      <tr>
+        <td class="lbl">DOB</td>
+        <td class="val">: <%= student.dob || '-' %></td>
+      </tr>
+      <tr>
+        <td class="lbl">Phone</td>
+        <td class="val">: <%= student.phone || '-' %></td>
+      </tr>
+      <tr>
+        <td class="lbl">Place</td>
+        <td class="val">: <%= student.place || '-' %></td>
+      </tr>
+    </table>
+
+    <div class="barcode-box">
+      <svg id="barcode"></svg>
+    </div>
+
+    <% if (idBranding && idBranding.footerUrl) { %>
+      <div class="card-footer">
+        <img src="<%= idBranding.footerUrl %>" alt="Footer" crossorigin="anonymous">
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    // Barcode ജനറേറ്റ് ചെയ്യുന്നു
+    JsBarcode("#barcode", "<%= student.admission_no %>", {
+      format: "CODE128",
+      width: 1.6,
+      height: 34,
+      displayValue: false,
+      margin: 0
+    });
+
+    // PNG Image ആയി ഡൗൺലോഡ് ചെയ്യുന്നു
+    function downloadImage() {
+      const card = document.getElementById('idCardCapture');
+      html2canvas(card, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = '<%= student.admission_no %>_ID_Card.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+  </script>
+</body>
+</html>

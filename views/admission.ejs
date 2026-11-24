@@ -10,43 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <style>
-    .list-switch-bar {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 14px;
-      flex-wrap: wrap;
-    }
-    .tab-switch-btn {
-      padding: 9px 16px;
-      border-radius: 8px;
-      border: 1.5px solid #cbd5e1;
-      background: #ffffff;
-      color: #334155;
-      font-size: 13.5px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .tab-switch-btn.active {
-      background: #eff6ff;
-      border-color: #2563eb;
-      color: #1d4ed8;
-    }
-    .count-pill {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 99px;
-      font-size: 11px;
-      background: #e2e8f0;
-      color: #0f172a;
-      margin-left: 4px;
-    }
-    .tab-switch-btn.active .count-pill {
-      background: #2563eb;
-      color: #ffffff;
-    }
-  </style>
+  
 </head>
 <body>
 
@@ -140,10 +104,22 @@
 
     <!-- SECTION A: Staff Confirmed Admissions List (With Adm No) -->
     <div class="card" id="confirmedAdmissionsCard">
-      <h3>Confirmed Admissions (<span id="visibleAdmCount"><%= allStudents.length %></span>)</h3>
-      <p class="card-subtitle">Only active students appear in the Active Student List & Attendance.</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 6px;">
+        <div>
+          <h3 style="margin-bottom: 4px;">Confirmed Admissions (<span id="visibleAdmCount"><%= allStudents.length %></span>)</h3>
+          <p class="card-subtitle" style="margin: 0;">Only active students appear in the Active Student List & Attendance.</p>
+        </div>
 
-      <div class="table-responsive">
+        <!-- Segmented Status Filter Bar -->
+        <div class="status-segment-bar" role="group" aria-label="Filter by Status">
+          <button type="button" class="status-seg-btn active" onclick="setStatusFilter('all', this)">All</button>
+          <button type="button" class="status-seg-btn" onclick="setStatusFilter('active', this)">Active</button>
+          <button type="button" class="status-seg-btn" onclick="setStatusFilter('pending', this)">Not Active</button>
+          <button type="button" class="status-seg-btn" onclick="setStatusFilter('completed', this)">Complete</button>
+        </div>
+      </div>
+
+      <div class="table-responsive" style="margin-top: 12px;">
         <table id="admissionsTable">
           <thead>
             <tr>
@@ -169,6 +145,7 @@
             <% allStudents.forEach((s, index) => { %>
               <tr class="adm-row"
                   data-index="<%= index %>"
+                  data-status="<%= s.status %>"
                   data-search="<%= `${s.admission_no || ''} ${s.roll_no || ''} ${s.full_name || ''} ${s.father_name || ''} ${s.place || ''} ${s.phone || ''} ${s.guardian_phone || ''} ${s.status || ''}`.toLowerCase() %>">
                 <td class="chk-col" data-label="Select">
                   <input type="checkbox" class="adm-select-chk" value="<%= index %>">
@@ -208,6 +185,7 @@
                     <% } %>
                     <option value="pending" <%= s.status === 'pending' ? 'selected' : '' %>>Not Active</option>
                     <option value="active" <%= s.status === 'active' ? 'selected' : '' %>>Active</option>
+                    <option value="completed" <%= s.status === 'completed' ? 'selected' : '' %>>Complete</option>
                   </select>
                 </td>
                 <td data-label="Action">
@@ -230,7 +208,7 @@
       </div>
     </div>
 
-    <!-- SECTION B: Online Applications List (No Adm No until Staff Final Submits) -->
+    <!-- SECTION B: Online Applications List -->
     <div class="card" id="onlineApplicationsCard" style="display: none;">
       <h3>Online Applications (<span id="visibleOnlineCount"><%= safeOnlineApps.length %></span>)</h3>
       <p class="card-subtitle">Applications submitted via online link/QR. Click <strong>Final Submit</strong> to allot an Admission No and move to the Admission List.</p>
@@ -305,7 +283,7 @@
     </div>
   </div>
 
-  <!-- Staff Direct Admission Modal (Includes Auto Admission No) -->
+  <!-- Staff Direct Admission Modal -->
   <div id="staffNewAdmModal" class="modal" onclick="if(event.target === this) closeStaffNewAdmModal()">
     <div class="modal-content modal-lg">
       <div class="modal-header">
@@ -682,11 +660,19 @@
 
     let selectedEditBatches = [];
     let currentActiveTab = 'confirmed';
+    let currentStatusFilter = 'all';
 
     window.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('admissionSearch');
       if (searchInput) searchInput.blur();
     });
+
+    function setStatusFilter(statusVal, btnEl) {
+      currentStatusFilter = statusVal;
+      document.querySelectorAll('.status-seg-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      filterAdmissionTable();
+    }
 
     function switchAdmissionTab(tab) {
       currentActiveTab = tab;
@@ -1091,7 +1077,10 @@
         let visibleCount = 0;
         rows.forEach(row => {
           const searchData = row.dataset.search || row.innerText.toLowerCase();
-          const isMatch = searchData.includes(query);
+          const rowStatus = (row.dataset.status || '').toLowerCase();
+          const matchesSearch = searchData.includes(query);
+          const matchesStatus = (currentStatusFilter === 'all') || (rowStatus === currentStatusFilter);
+          const isMatch = matchesSearch && matchesStatus;
           row.style.display = isMatch ? '' : 'none';
           if (isMatch) visibleCount++;
         });
