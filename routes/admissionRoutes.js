@@ -258,8 +258,19 @@ router.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
       }))
       .reverse();
 
+    let savedFormTpl = {};
+    try {
+      const cfgSheet = await getSheet('form_config');
+      if (cfgSheet) {
+        const cfgRows = await cfgSheet.getRows();
+        if (cfgRows.length > 0 && cfgRows[0].get('config_json')) {
+          savedFormTpl = JSON.parse(cfgRows[0].get('config_json'));
+        }
+      }
+    } catch (e) {}
+
     const branding = getBrandingUrls();
-    res.render('admission', { batches, allStudents, onlineApplications, nextAdmissionNo, branding });
+    res.render('admission', { batches, allStudents, onlineApplications, nextAdmissionNo, branding, savedFormTpl });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
   }
@@ -482,11 +493,11 @@ router.delete('/api/admissions/:admNo', requireAuth, checkAdmission, async (req,
 
 // ID Card Studio Routes
 // ID Card Studio Routes
-router.get('/id-cards', requireStaffOrOwnStudent, async (req, res) => {
+// Unified Design Studio Loader (Supports both ID Card & Admission Form tabs)
+async function renderUnifiedStudio(req, res, initialTab = 'form') {
   try {
     const admSheet = await getSheet('admissions');
     const batchSheet = await getSheet('batches');
-
     const [aRows, bRows] = await Promise.all([admSheet.getRows(), batchSheet.getRows()]);
 
     const batchMap = {};
@@ -508,48 +519,64 @@ router.get('/id-cards', requireStaffOrOwnStudent, async (req, res) => {
           father_name: r.get('father_name') || '',
           phone: r.get('phone') || '',
           guardian_phone: r.get('guardian_phone') || '',
+          aadhaar_no: r.get('aadhaar_no') || '',
           photo_file: r.get('photo_file') || '',
           address: r.get('address') || '',
           place: r.get('place') || '',
+          pin: r.get('pin') || '',
+          district: r.get('district') || '',
+          state: r.get('state') || '',
+          school_class: r.get('school_class') || '',
+          madrasa_class: r.get('madrasa_class') || '',
           batch_id: r.get('batch_id') || '',
           main_batch_name: batchNamesList[0] || 'No Batch',
+          batch_name: batchNamesList.join(', ') || 'No Batch',
+          created_at: r.get('created_at') || new Date().toISOString().split('T')[0],
           status: (r.get('status') || 'pending').trim().toLowerCase()
         };
       })
       .reverse();
 
-    // വിദ്യാർത്ഥിയാണ് തുറക്കുന്നതെങ്കിൽ സ്വന്തം ID Card മാത്രം കാണിക്കുക
-    if (!req.session?.user && req.session?.student) {
-      const myAdmNo = String(req.session.student.admission_no || '').trim().toLowerCase();
-      allStudents = allStudents.filter(s => s.admission_no.toLowerCase() === myAdmNo);
-    }
     const isStudentView = Boolean(!req.session?.user && req.session?.student);
-
-    // വിദ്യാർത്ഥിയാണ് തുറക്കുന്നതെങ്കിൽ സ്വന്തം ID Card മാത്രം കാണിക്കുക
     if (isStudentView) {
       const myAdmNo = String(req.session.student.admission_no || '').trim().toLowerCase();
       allStudents = allStudents.filter(s => s.admission_no.toLowerCase() === myAdmNo);
     }
-    // /id-cards റൂട്ടിനുള്ളിൽ idBranding എടുക്കുന്നതിന് തൊട്ടുമുകളിൽ ചേർക്കുക:
-    let savedTemplate = {};
+
+    let savedFormTpl = {};
+    let savedIdTpl = {};
     try {
-      const cfgSheet = await getSheet('id_config');
-      if (cfgSheet) {
-        const cfgRows = await cfgSheet.getRows();
-        if (cfgRows.length > 0 && cfgRows[0].get('config_json')) {
-          savedTemplate = JSON.parse(cfgRows[0].get('config_json'));
-        }
+      const [fSheet, iSheet] = await Promise.all([getSheet('form_config'), getSheet('id_config')]);
+      if (fSheet) {
+        const fRows = await fSheet.getRows();
+        if (fRows.length > 0 && fRows[0].get('config_json')) savedFormTpl = JSON.parse(fRows[0].get('config_json'));
+      }
+      if (iSheet) {
+        const iRows = await iSheet.getRows();
+        if (iRows.length > 0 && iRows[0].get('config_json')) savedIdTpl = JSON.parse(iRows[0].get('config_json'));
       }
     } catch (e) {}
 
+    const branding = getBrandingUrls();
     const idBranding = getIdBrandingUrls();
-    res.render('id_cards', { batches, allStudents, idBranding, isStudentView, savedTemplate });
 
-   
+    res.render('unified_studio', {
+      initialTab,
+      batches,
+      allStudents,
+      branding,
+      idBranding,
+      savedFormTpl,
+      savedIdTpl,
+      isStudentView
+    });
   } catch (err) {
-    res.status(500).send('Database Error: ' + err.message);
+    res.status(500).send('Error loading Design Studio: ' + err.message);
   }
-});
+}
+
+router.get('/id-cards', requireStaffOrOwnStudent, (req, res) => renderUnifiedStudio(req, res, 'id'));
+router.get('/admission-form-studio', requireAuth, checkAdmission, (req, res) => renderUnifiedStudio(req, res, 'form'));
 
 router.post('/api/id-card-branding', requireAuth, checkAdmission, idBrandingUpload, (req, res) => {
   try {
@@ -587,4 +614,25 @@ router.post('/api/id-card-template', requireAuth, checkAdmission, async (req, re
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+
+router.post('/api/admission-form-template', requireAuth, checkAdmission, async (req, res) => {
+  try {
+    const sheet = await getSheet('form_config');
+    if (!sheet) return res.status(400).json({ success: false, error: 'Please create "form_config" tab in Google Sheet with header: config_json' });
+
+    const rows = await sheet.getRows();
+    const jsonStr = JSON.stringify(req.body);
+    if (rows.length > 0) {
+      rows[0].set('config_json', jsonStr);
+      await rows[0].save();
+    } else {
+      await sheet.addRow({ config_json: jsonStr });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

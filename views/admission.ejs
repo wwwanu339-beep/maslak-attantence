@@ -10,7 +10,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  
 </head>
 <body>
 
@@ -53,12 +52,15 @@
             <a href="/students" class="menu-drop-item">
               <span>Active Student List →</span>
             </a>
-            <a href="/id-cards" class="menu-drop-item">
-              <span>ID Card Studio →</span>
-            </a>
+            <a href="/admission-form-studio" class="menu-drop-item">
+  <span>Form & ID Design Studio →</span>
+</a>
             <div class="menu-divider"></div>
             <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); downloadSelectedIdCards();">
               <span>Download ID Cards</span>
+            </button>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); downloadSelectedAdmissionForms();">
+              <span>Download Admission Forms</span>
             </button>
             <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openBrandingModal();">
               <span>Print Header / Footer</span>
@@ -623,7 +625,7 @@
         <button type="button" class="modal-close" onclick="closeBrandingModal()">×</button>
       </div>
       <p class="branding-desc">
-        Upload header and footer banner images to automatically include them in every filled & blank Admission Form printout.
+        Upload header and footer banner images to automatically include them in every filled & blank Admission Form printout across all devices.
       </p>
 
       <div class="modal-form-body">
@@ -641,7 +643,6 @@
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="btn btn-danger" onclick="clearBranding()">Remove Both</button>
         <button type="button" class="btn btn-secondary" onclick="closeBrandingModal()">Close</button>
         <button type="button" id="saveBrandBtn" class="btn btn-primary" onclick="saveBranding()">Save Header & Footer</button>
       </div>
@@ -651,10 +652,12 @@
   <!-- Safe JSON Data Store -->
   <script id="admissionsDataJson" type="application/json"><%- JSON.stringify(allStudents).replace(/</g, '\\u003c') %></script>
   <script id="brandingDataJson" type="application/json"><%- JSON.stringify(safeBranding).replace(/</g, '\\u003c') %></script>
+  <script id="formTplDataJson" type="application/json"><%- JSON.stringify(typeof savedFormTpl !== 'undefined' ? savedFormTpl : {}).replace(/</g, '\\u003c') %></script>
 
   <script>
     const ADMISSIONS_LIST = JSON.parse(document.getElementById('admissionsDataJson').textContent || '[]');
     const BRANDING_CFG = JSON.parse(document.getElementById('brandingDataJson').textContent || '{}');
+    const SAVED_FORM_TPL = JSON.parse(document.getElementById('formTplDataJson').textContent || '{}');
     const SERVER_HEADER_URL = BRANDING_CFG.headerUrl || '';
     const SERVER_FOOTER_URL = BRANDING_CFG.footerUrl || '';
 
@@ -787,13 +790,13 @@
         const data = await res.json();
         if (data.success) {
           if (autoPrint) {
-            printAdmissionRecord({
+            printAdmissionRecords([{
               admission_no: data.admission_no,
               roll_no, full_name, dob, father_name, phone, guardian_phone,
               aadhaar_no, is_muthallim, prev_institution, prev_place,
               school_class, madrasa_class, place, pin, district, state, address,
               status: saveMode, photo_file: ''
-            }, false);
+            }], false);
             setTimeout(() => location.reload(), 600);
           } else {
             alert(saveMode === 'draft' ? `Saved as Draft! Admission No: ${data.admission_no}` : `Admission submitted! Admission No: ${data.admission_no}`);
@@ -839,7 +842,7 @@
     function printAdmissionQrPoster() {
       const applyUrl = document.getElementById('publicApplyUrlInput').value;
       const qrImg = document.querySelector('#admissionQrBox img')?.src || document.querySelector('#admissionQrBox canvas')?.toDataURL();
-      const headerImg = localStorage.getItem('adm_print_header') || SERVER_HEADER_URL;
+      const headerImg = SERVER_HEADER_URL;
 
       const win = window.open('', '_blank', 'width=650,height=800');
       if (!win) return alert('Please allow pop-ups!');
@@ -863,7 +866,7 @@
     function downloadSingleIdCard(idx) {
       const st = ADMISSIONS_LIST[Number(idx)];
       if (!st) return;
-      renderAndPrintIdCards([st]);
+      window.open(`/id-cards?adms=${encodeURIComponent(st.admission_no)}`, '_blank');
     }
 
     function downloadSelectedIdCards() {
@@ -872,169 +875,17 @@
         .filter(Boolean);
 
       if (selected.length === 0) return alert('Please select at least one student checkbox to download ID Cards!');
-      renderAndPrintIdCards(selected);
+      const adms = selected.map(s => s.admission_no).join(',');
+      window.open(`/id-cards?adms=${encodeURIComponent(adms)}`, '_blank');
     }
 
-    function renderAndPrintIdCards(studentsList) {
-      let savedTpl = {};
-      try { savedTpl = JSON.parse(localStorage.getItem('id_studio_global_tpl') || '{}'); } catch (e) {}
+    function downloadSelectedAdmissionForms() {
+      const selected = Array.from(document.querySelectorAll('.adm-select-chk:checked'))
+        .map(cb => ADMISSIONS_LIST[Number(cb.value)])
+        .filter(Boolean);
 
-      const cfg = {
-        useBannerImg: true,
-        cardWidth: 54,
-        cardHeight: 86,
-        printMode: 'separate',
-        cardBg: '#ffffff',
-        headerBg: '#1e3a8a',
-        headerColor: '#ffffff',
-        bodyColor: '#0f172a',
-        footerBg: '#1e3a8a',
-        footerColor: '#ffffff',
-        headerTitle: 'STUDENT IDENTITY CARD',
-        headerSub: 'Academic Year 2026-27',
-        headerAlign: 'center',
-        footerText: 'Authorized Student ID',
-        footerAlign: 'center',
-        headerSize: 11,
-        nameSize: 12.5,
-        textSize: 9.5,
-        bodyAlign: 'center',
-        padLeft: 0,
-        padRight: 0,
-        lineGap: 2,
-        photoShape: '8px',
-        photoSize: 68,
-        photoAlign: 'center',
-        photoRotate: 0,
-        showBarcode: true,
-        barcodeHeight: 22,
-        fields: ['admission_no', 'roll_no', 'father_name', 'dob', 'phone'],
-        ...savedTpl
-      };
-
-      const headerImg = localStorage.getItem('id_card_only_header') || SERVER_HEADER_URL;
-      const footerImg = localStorage.getItem('id_card_only_footer') || SERVER_FOOTER_URL;
-      const isSeparate = cfg.printMode === 'separate';
-      const isHoriz = cfg.cardWidth > cfg.cardHeight;
-      const sideLayout = isHoriz && cfg.photoAlign !== 'center';
-
-      const labels = {
-        admission_no: 'Adm No',
-        roll_no: 'Roll No',
-        main_batch_name: 'Batch',
-        father_name: 'Father',
-        dob: 'DOB',
-        phone: 'Phone',
-        address: 'Address'
-      };
-
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = studentsList.map(st => {
-        const headerBlock = (cfg.useBannerImg && headerImg)
-          ? `<img src="${headerImg}" alt="Header">`
-          : `<div style="font-size:${cfg.headerSize}px; font-weight:800; line-height:1.2;">${escapeHtml(cfg.headerTitle)}</div>
-             ${cfg.headerSub ? `<div style="font-size:${Math.max(7.5, cfg.headerSize - 2.5)}px; opacity:0.9; margin-top:2px;">${escapeHtml(cfg.headerSub)}</div>` : ''}`;
-
-        const footerBlock = (cfg.useBannerImg && footerImg)
-          ? `<img src="${footerImg}" alt="Footer">`
-          : `<div style="font-size:${Math.max(8, cfg.textSize - 1)}px;">${escapeHtml(cfg.footerText)}</div>`;
-
-        const photoBlock = st.photo_file
-          ? `<img src="${st.photo_file}" alt="Photo" style="transform: rotate(${cfg.photoRotate}deg);">`
-          : `<span style="font-size:10px; color:#64748b; font-weight:700;">PHOTO</span>`;
-
-        const linesHtml = cfg.fields.map(key => {
-          const val = st[key] || '-';
-          return `<div style="font-size:${cfg.textSize}px; margin-top:${cfg.lineGap}px; line-height:1.25;">
-                    <span style="opacity:0.75; font-weight:600;">${labels[key]}:</span> <strong>${escapeHtml(val)}</strong>
-                  </div>`;
-        }).join('');
-
-        const barcodeHtml = (cfg.showBarcode && st.admission_no)
-          ? `<div class="id-barcode-wrap" style="align-items:${cfg.bodyAlign === 'left' ? 'flex-start' : (cfg.bodyAlign === 'right' ? 'flex-end' : 'center')};">
-               <svg class="stu-barcode-svg" data-adm="${escapeHtml(st.admission_no)}"></svg>
-             </div>`
-          : '';
-
-        const cardHtml = `
-          <div class="id-card-box" style="width:${cfg.cardWidth}mm; height:${cfg.cardHeight}mm; background:${cfg.cardBg}; color:${cfg.bodyColor};">
-            <div class="id-card-header" style="background:${(cfg.useBannerImg && headerImg) ? 'transparent' : cfg.headerBg}; color:${cfg.headerColor}; text-align:${cfg.headerAlign}; padding:${(cfg.useBannerImg && headerImg) ? '0' : '6px 8px'};">
-              ${headerBlock}
-            </div>
-            <div class="id-card-body ${sideLayout ? 'side-layout' : ''}" style="${sideLayout && cfg.photoAlign === 'flex-end' ? 'flex-direction: row-reverse;' : ''}">
-              <div style="display:flex; justify-content:${cfg.photoAlign}; width:${sideLayout ? 'auto' : '100%'};">
-                <div class="id-photo-frame" style="width:${cfg.photoSize}px; height:${cfg.photoSize}px; border-radius:${cfg.photoShape};">
-                  ${photoBlock}
-                </div>
-              </div>
-              <div class="id-details-list" style="text-align:${cfg.bodyAlign}; padding-left:${cfg.padLeft}px; padding-right:${cfg.padRight}px;">
-                <div style="font-size:${cfg.nameSize}px; font-weight:800; margin-bottom:${cfg.lineGap}px; line-height:1.2;">${escapeHtml(st.full_name)}</div>
-                ${linesHtml}
-                ${barcodeHtml}
-              </div>
-            </div>
-            <div class="id-card-footer" style="background:${(cfg.useBannerImg && footerImg) ? 'transparent' : cfg.footerBg}; color:${cfg.footerColor}; text-align:${cfg.footerAlign}; padding:${(cfg.useBannerImg && footerImg) ? '0' : '4px 8px'};">
-              ${footerBlock}
-            </div>
-          </div>`;
-
-        return isSeparate ? `<div class="separate-page">${cardHtml}</div>` : cardHtml;
-      }).join('');
-
-      if (cfg.showBarcode && typeof JsBarcode !== 'undefined') {
-        tempDiv.querySelectorAll('.stu-barcode-svg').forEach(svg => {
-          const adm = svg.getAttribute('data-adm');
-          if (adm) {
-            try {
-              JsBarcode(svg, adm, {
-                format: 'CODE128',
-                width: 1.25,
-                height: cfg.barcodeHeight,
-                displayValue: true,
-                fontSize: 8.5,
-                margin: 2,
-                background: 'transparent',
-                lineColor: cfg.bodyColor
-              });
-            } catch (e) {}
-          }
-        });
-      }
-
-      const pageRule = isSeparate
-        ? `@page { size: ${cfg.cardWidth}mm ${cfg.cardHeight}mm; margin: 0; }`
-        : '@page { size: A4; margin: 10mm; }';
-
-      const printWin = window.open('', '_blank', 'width=920,height=950');
-      if (!printWin) return alert('Please allow pop-ups in your browser to download/print ID Cards!');
-
-      printWin.document.open();
-      printWin.document.write(`
-        <!DOCTYPE html><html><head><title>Student ID Cards</title>
-        <style>
-          ${pageRule}
-          * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: #fff; }
-          .grid-sheet { display: flex; flex-wrap: wrap; gap: 8mm; justify-content: flex-start; }
-          .separate-page { page-break-after: always; break-after: page; display: flex; justify-content: center; align-items: center; }
-          .separate-page:last-child { page-break-after: auto; break-after: auto; }
-          .id-card-box { border-radius: ${isSeparate ? '0' : '8px'}; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; border: ${isSeparate ? 'none' : '1.5px solid #334155'}; page-break-inside: avoid; }
-          .id-card-header img { width: 100%; max-height: 16mm; object-fit: contain; display: block; }
-          .id-card-body { padding: 6px 10px; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
-          .id-card-body.side-layout { flex-direction: row; align-items: center; gap: 8px; }
-          .id-photo-frame { overflow: hidden; border: 1.5px solid #94a3b8; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-          .id-photo-frame img { width: 100%; height: 100%; object-fit: cover; }
-          .id-details-list { width: 100%; }
-          .id-barcode-wrap { margin-top: 4px; display: flex; flex-direction: column; }
-          .id-barcode-wrap svg { max-width: 100%; height: auto; }
-          .id-card-footer { font-weight: 600; }
-          .id-card-footer img { width: 100%; max-height: 11mm; object-fit: contain; display: block; }
-        </style></head><body>
-          ${isSeparate ? tempDiv.innerHTML : `<div class="grid-sheet">${tempDiv.innerHTML}</div>`}
-        </body></html>
-      `);
-      printWin.document.close();
-      printWin.onload = () => setTimeout(() => printWin.print(), 250);
+      if (selected.length === 0) return alert('Please select at least one student checkbox to download Admission Forms!');
+      printAdmissionRecords(selected, false);
     }
 
     function toggleMuthallimFields(selectId, boxId) {
@@ -1351,13 +1202,11 @@
     }
 
     function openBrandingModal() {
-      const savedHeader = localStorage.getItem('adm_print_header') || SERVER_HEADER_URL;
-      const savedFooter = localStorage.getItem('adm_print_footer') || SERVER_FOOTER_URL;
       const hPrev = document.getElementById('headerPreview');
       const fPrev = document.getElementById('footerPreview');
 
-      if (savedHeader) { hPrev.src = savedHeader; hPrev.hidden = false; }
-      if (savedFooter) { fPrev.src = savedFooter; fPrev.hidden = false; }
+      if (SERVER_HEADER_URL) { hPrev.src = SERVER_HEADER_URL; hPrev.hidden = false; }
+      if (SERVER_FOOTER_URL) { fPrev.src = SERVER_FOOTER_URL; fPrev.hidden = false; }
 
       document.getElementById('brandingModal').style.display = 'flex';
     }
@@ -1373,8 +1222,6 @@
           const img = document.getElementById(imgId);
           img.src = e.target.result;
           img.hidden = false;
-          if (imgId === 'headerPreview') localStorage.setItem('adm_print_header', e.target.result);
-          if (imgId === 'footerPreview') localStorage.setItem('adm_print_footer', e.target.result);
         };
         reader.readAsDataURL(input.files[0]);
       }
@@ -1386,7 +1233,6 @@
       const btn = document.getElementById('saveBrandBtn');
 
       if (!hFile && !fFile) {
-        alert('Header & Footer preferences saved!');
         closeBrandingModal();
         return;
       }
@@ -1402,36 +1248,25 @@
         const res = await fetch('/api/admission-branding', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.success) {
-          alert('Header & Footer uploaded successfully!');
-          closeBrandingModal();
+          alert('Header & Footer uploaded for all devices!');
+          location.reload();
         } else alert('Error: ' + data.error);
       } catch (err) {
-        alert('Saved locally in browser!');
-        closeBrandingModal();
+        alert('Upload failed!');
       } finally {
         btn.disabled = false;
         btn.innerText = 'Save Header & Footer';
       }
     }
 
-    function clearBranding() {
-      localStorage.removeItem('adm_print_header');
-      localStorage.removeItem('adm_print_footer');
-      document.getElementById('headerPreview').src = '';
-      document.getElementById('headerPreview').hidden = true;
-      document.getElementById('footerPreview').src = '';
-      document.getElementById('footerPreview').hidden = true;
-      alert('Header & Footer removed!');
-    }
-
     function printAdmByIndex(idx) {
       const s = ADMISSIONS_LIST[Number(idx)];
       if (!s) return;
-      printAdmissionRecord(s, false);
+      printAdmissionRecords([s], false);
     }
 
     function downloadBlankAdmissionForm() {
-      printAdmissionRecord({}, true);
+      printAdmissionRecords([{}], true);
     }
 
     function escapeHtml(str, fallback = '-') {
@@ -1443,66 +1278,122 @@
         .replace(/"/g, '"');
     }
 
-    function printAdmissionRecord(info, isBlank = false) {
-      const headerImg = localStorage.getItem('adm_print_header') || SERVER_HEADER_URL;
-      const footerImg = localStorage.getItem('adm_print_footer') || SERVER_FOOTER_URL;
-      const today = isBlank ? '____ / ____ / 202__' : new Date().toLocaleDateString('en-GB');
-      const fb = isBlank ? ' ' : '-';
+    function printAdmissionRecords(studentsArray, isBlank = false) {
+      const headerImg = SERVER_HEADER_URL;
+      const footerImg = SERVER_FOOTER_URL;
 
-      const muthallimText = isBlank
-        ? '[   ] Yes     [   ] No'
-        : (String(info.is_muthallim || 'no').toLowerCase() === 'yes' ? 'Yes' : 'No');
-
-      const printWin = window.open('', '_blank', 'width=820,height=950');
-      if (!printWin) return alert('Please allow pop-ups in your browser to print!');
-
-      const htmlParts = [
-        '<!DOCTYPE html><html><head><title>' + (isBlank ? 'Blank Admission Form' : 'Admission Form - ' + escapeHtml(info.admission_no)) + '</title>',
-        '<style>',
-        '@page { size: A4; margin: 12mm; }',
-        'body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; padding: 0; }',
-        '.page-wrap { display: flex; flex-direction: column; min-height: 270mm; justify-content: space-between; }',
-        '.header-banner img, .footer-banner img { width: 100%; max-height: 115px; object-fit: contain; display: block; }',
-        '.default-header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 16px; }',
-        '.form-title { text-align: center; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #f1f5f9; padding: 8px; border: 1px solid #cbd5e1; margin: 12px 0 16px; }',
-        '.top-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }',
-        '.photo-box { width: 105px; height: 125px; border: 1px solid #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #64748b; overflow: hidden; }',
-        '.photo-box img { width: 100%; height: 100%; object-fit: cover; }',
-        'table.details { width: 100%; border-collapse: collapse; font-size: 13px; }',
-        'table.details td { padding: ' + (isBlank ? '11px 10px' : '8px 10px') + '; border: 1px solid #cbd5e1; }',
-        'table.details td.lbl { width: 23%; font-weight: 700; background: #f8fafc; color: #334155; }',
-        '.sig-row { display: flex; justify-content: space-between; margin-top: 42px; padding: 0 20px; font-size: 13px; font-weight: 600; }',
-        '.sig-line { border-top: 1px solid #334155; padding-top: 6px; width: 180px; text-align: center; }',
-        '</style></head><body><div class="page-wrap"><div>',
-        headerImg ? '<div class="header-banner"><img src="' + headerImg + '" alt="Header"></div>' : '<div class="default-header"><h2 style="margin:0;">STUDENT ADMISSION FORM</h2></div>',
-        '<div class="form-title">' + (isBlank ? 'Student Admission Application Form' : 'Student Admission Record') + '</div>',
-        '<div class="top-meta"><div>',
-        '<p style="margin:5px 0;font-size:14px;"><strong>Admission No:</strong> ' + (isBlank ? '_______________________' : escapeHtml(info.admission_no)) + '</p>',
-        '<p style="margin:5px 0;font-size:14px;"><strong>Roll Number:</strong> ' + (isBlank ? '_______________________' : escapeHtml(info.roll_no)) + '</p>',
-        '<p style="margin:5px 0;font-size:13px;color:#475569;"><strong>Date:</strong> ' + today + '</p>',
-        '</div><div class="photo-box">',
-        (!isBlank && info.photo_file) ? '<img src="' + info.photo_file + '" alt="Student Photo">' : 'Affix Photo',
-        '</div></div>',
-        '<table class="details">',
-        '<tr><td class="lbl">Full Name</td><td colspan="3"><strong>' + escapeHtml(info.full_name, fb) + '</strong></td></tr>',
-        '<tr><td class="lbl">Date of Birth</td><td>' + escapeHtml(info.dob, fb) + '</td><td class="lbl">Aadhaar Number</td><td>' + escapeHtml(info.aadhaar_no, fb) + '</td></tr>',
-        '<tr><td class="lbl">Father\'s Name</td><td colspan="3">' + escapeHtml(info.father_name, fb) + '</td></tr>',
-        '<tr><td class="lbl">Student Phone</td><td>' + escapeHtml(info.phone, fb) + '</td><td class="lbl">Guardian Phone</td><td>' + escapeHtml(info.guardian_phone, fb) + '</td></tr>',
-        '<tr><td class="lbl">Studied as Muthallim?</td><td colspan="3">' + muthallimText + '</td></tr>',
-        '<tr><td class="lbl">Previous Institution</td><td>' + escapeHtml(info.prev_institution, fb) + '</td><td class="lbl">Institution Place</td><td>' + escapeHtml(info.prev_place, fb) + '</td></tr>',
-        '<tr><td class="lbl">Madrasa Class</td><td>' + escapeHtml(info.madrasa_class, fb) + '</td><td class="lbl">School Class</td><td>' + escapeHtml(info.school_class, fb) + '</td></tr>',
-        '<tr><td class="lbl">House / Address</td><td colspan="3">' + escapeHtml(info.address, fb) + '</td></tr>',
-        '<tr><td class="lbl">Place</td><td>' + escapeHtml(info.place, fb) + '</td><td class="lbl">PIN Code</td><td>' + escapeHtml(info.pin, fb) + '</td></tr>',
-        '<tr><td class="lbl">District</td><td>' + escapeHtml(info.district, fb) + '</td><td class="lbl">State</td><td>' + escapeHtml(info.state, fb) + '</td></tr>',
-        '</table>',
-        '<div class="sig-row"><div class="sig-line">Parent / Guardian Signature</div><div class="sig-line">Authorized Signature</div></div>',
-        '</div>',
-        footerImg ? '<div class="footer-banner"><img src="' + footerImg + '" alt="Footer"></div>' : '',
-        '</div></body></html>'
+      const DEFAULT_ITEMS = [
+        { id: 'header_banner', page: 1, label: 'Header Banner / Title', type: 'header', customText: 'STUDENT ADMISSION APPLICATION FORM', x: 25, y: 20, width: 744, height: 105, fontSize: 18, align: 'center', border: false, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'form_subtitle', page: 1, label: 'Sub Heading', type: 'text', customText: 'Academic Year 2026 - 2027', x: 25, y: 132, width: 744, height: 30, fontSize: 13, align: 'center', border: true, borderWidth: 1, bgColor: '#f1f5f9', borderColor: '#cbd5e1', visible: true },
+        { id: 'photo', page: 1, label: 'Student Photo', type: 'photo', x: 655, y: 175, width: 105, height: 125, fontSize: 12, align: 'center', border: true, borderWidth: 1.5, bgColor: '#f8fafc', borderColor: '#64748b', visible: true },
+        { id: 'admission_no', page: 1, label: 'Admission No', fieldKey: 'admission_no', x: 25, y: 175, width: 300, height: 32, fontSize: 13.5, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'roll_no', page: 1, label: 'Roll No', fieldKey: 'roll_no', x: 340, y: 175, width: 300, height: 32, fontSize: 13.5, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'created_at', page: 1, label: 'Admission Date', fieldKey: 'created_at', x: 25, y: 215, width: 300, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'batch_name', page: 1, label: 'Batch', fieldKey: 'batch_name', x: 340, y: 215, width: 300, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'full_name', page: 1, label: 'Full Name', fieldKey: 'full_name', x: 25, y: 255, width: 615, height: 34, fontSize: 14, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'dob', page: 1, label: 'Date of Birth', fieldKey: 'dob', x: 25, y: 300, width: 365, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'aadhaar_no', page: 1, label: 'Aadhaar No', fieldKey: 'aadhaar_no', x: 400, y: 300, width: 369, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'father_name', page: 1, label: "Father's Name", fieldKey: 'father_name', x: 25, y: 340, width: 744, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'phone', page: 1, label: 'Student Phone', fieldKey: 'phone', x: 25, y: 380, width: 365, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'guardian_phone', page: 1, label: 'Guardian Phone', fieldKey: 'guardian_phone', x: 400, y: 380, width: 369, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'madrasa_class', page: 1, label: 'Madrasa Class', fieldKey: 'madrasa_class', x: 25, y: 420, width: 365, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'school_class', page: 1, label: 'School Class', fieldKey: 'school_class', x: 400, y: 420, width: 369, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'address', page: 1, label: 'Full Address', fieldKey: 'address', x: 25, y: 460, width: 744, height: 45, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'place', page: 1, label: 'Place', fieldKey: 'place', x: 25, y: 515, width: 365, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'pin', page: 1, label: 'PIN Code', fieldKey: 'pin', x: 400, y: 515, width: 369, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'district', page: 1, label: 'District', fieldKey: 'district', x: 25, y: 555, width: 365, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'state', page: 1, label: 'State', fieldKey: 'state', x: 400, y: 555, width: 369, height: 32, fontSize: 13, align: 'left', border: true, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true },
+        { id: 'sig_parent', page: 1, label: 'Parent Signature', type: 'sig', customText: 'Parent / Guardian Signature', x: 45, y: 880, width: 210, height: 35, fontSize: 13, align: 'center', border: false, borderWidth: 1, bgColor: 'transparent', borderColor: '#334155', visible: true },
+        { id: 'sig_auth', page: 1, label: 'Authorized Signature', type: 'sig', customText: 'Authorized Signature', x: 530, y: 880, width: 210, height: 35, fontSize: 13, align: 'center', border: false, borderWidth: 1, bgColor: 'transparent', borderColor: '#334155', visible: true },
+        { id: 'footer_banner', page: 1, label: 'Footer Banner', type: 'footer', customText: '', x: 25, y: 970, width: 744, height: 95, fontSize: 12, align: 'center', border: false, borderWidth: 1, bgColor: 'transparent', borderColor: '#cbd5e1', visible: true }
       ];
 
+      const items = (SAVED_FORM_TPL && Array.isArray(SAVED_FORM_TPL.items) && SAVED_FORM_TPL.items.length > 0)
+        ? SAVED_FORM_TPL.items
+        : DEFAULT_ITEMS;
+      const totalPages = (SAVED_FORM_TPL && SAVED_FORM_TPL.totalPages)
+        ? SAVED_FORM_TPL.totalPages
+        : Math.max(1, ...items.map(i => i.page || 1));
+
+      let allSheetsHtml = '';
+
+      studentsArray.forEach(info => {
+        const today = isBlank ? '____ / ____ / 202__' : (info.created_at || new Date().toLocaleDateString('en-GB'));
+
+        for (let p = 1; p <= totalPages; p++) {
+          const pageItems = items.filter(it => it.visible && (it.page || 1) === p);
+          const innerHtml = pageItems.map((it, idx) => {
+            const bCol = it.borderColor || '#cbd5e1';
+            const bWidth = it.borderWidth || 1;
+            const bgCol = it.bgColor || 'transparent';
+            const borderCss = it.border ? `${bWidth}px solid ${bCol}` : 'none';
+            const radiusCss = it.type === 'circle' ? '50%' : '3px';
+            const padCss = ['line', 'rect', 'circle', 'photo'].includes(it.type) ? 'padding:0;' : 'padding:4px 6px;';
+            const minH = it.height ? `min-height:${it.height}px;` : '';
+            let contentHtml = '';
+
+            if (it.type === 'header') {
+              contentHtml = headerImg
+                ? `<img src="${headerImg}" style="width:100%; max-height:${it.height}px; object-fit:contain; display:block;">`
+                : `<div style="font-weight:800; font-size:${it.fontSize}px; text-align:${it.align}; padding:6px; border-bottom:2px solid #0f172a;">${escapeHtml(it.customText)}</div>`;
+            } else if (it.type === 'footer') {
+              contentHtml = footerImg
+                ? `<img src="${footerImg}" style="width:100%; max-height:${it.height}px; object-fit:contain; display:block;">`
+                : '';
+            } else if (it.type === 'photo') {
+              contentHtml = `<div style="width:${it.width}px; height:${it.height}px; background:#f8fafc; display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:11px; color:#64748b;">
+                ${(!isBlank && info.photo_file) ? `<img src="${info.photo_file}" style="width:100%; height:100%; object-fit:cover;">` : 'Affix Photo'}
+              </div>`;
+            } else if (it.type === 'sig') {
+              contentHtml = `<div style="border-top:${bWidth}px solid ${bCol}; padding-top:5px; font-weight:600; font-size:${it.fontSize}px; text-align:${it.align};">${escapeHtml(it.customText)}</div>`;
+            } else if (it.type === 'text') {
+              contentHtml = `<div style="font-weight:700; font-size:${it.fontSize}px; text-align:${it.align};">${escapeHtml(it.customText)}</div>`;
+            } else if (it.type === 'rect' || it.type === 'circle') {
+              contentHtml = `<div style="width:100%; height:${it.height}px;"></div>`;
+            } else if (it.type === 'line') {
+              contentHtml = `<div style="width:100%; height:${Math.max(1, it.height)}px; background:${bCol};"></div>`;
+            } else {
+              let rawVal = it.fieldKey === 'created_at' ? today : info[it.fieldKey];
+              const valDisplay = isBlank ? ' ' : escapeHtml(rawVal, '-');
+              contentHtml = `<div style="font-size:${it.fontSize}px; text-align:${it.align}; line-height:1.3;">
+                <span style="color:#475569; font-weight:600;">${escapeHtml(it.label)}:</span> <strong>${valDisplay}</strong>
+              </div>`;
+            }
+
+            return `<div style="position:absolute; left:${it.x}px; top:${it.y}px; width:${it.width}px; ${minH} z-index:${idx + 1}; background:${bgCol}; border:${borderCss}; border-radius:${radiusCss}; ${padCss}">${contentHtml}</div>`;
+          }).join('');
+
+          allSheetsHtml += `<div class="a4-sheet">${innerHtml}</div>`;
+        }
+      });
+
+      const printWin = window.open('', '_blank', 'width=840,height=960');
+      if (!printWin) return alert('Please allow pop-ups in your browser to print!');
+
       printWin.document.open();
-      printWin.document.write(htmlParts.join(''));
+      printWin.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>${isBlank ? 'Blank Admission Form' : 'Student Admission Forms'}</title>
+          <style>
+            @page { size: A4; margin: 0; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; margin: 0; padding: 0; background: #fff; }
+            .a4-sheet {
+              width: 794px;
+              height: 1123px;
+              position: relative;
+              overflow: hidden;
+              page-break-after: always;
+              break-after: page;
+            }
+            .a4-sheet:last-child { page-break-after: auto; break-after: auto; }
+          </style>
+        </head>
+        <body>${allSheetsHtml}</body>
+        </html>
+      `);
       printWin.document.close();
       printWin.onload = () => setTimeout(() => printWin.print(), 250);
     }

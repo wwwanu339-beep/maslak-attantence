@@ -3,120 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admission Application - <%= student.full_name %></title>
+  <title>Admission Form - <%= student.admission_no %></title>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { margin: 0; background: #f1f5f9; color: #0f172a; padding: 20px; }
-    .toolbar { max-width: 800px; margin: 0 auto 16px; display: flex; justify-content: space-between; align-items: center; }
-    .btn { padding: 9px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; }
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; padding: 16px; background: #f1f5f9; }
+    .toolbar { max-width: 210mm; margin: 0 auto 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; }
     .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-    .sheet { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px 36px; border-radius: 8px; border: 1px solid #cbd5e1; }
-    .branding-img { width: 100%; max-height: 140px; object-fit: contain; display: block; margin-bottom: 16px; }
-    .doc-title { text-align: center; font-size: 18px; font-weight: 700; text-transform: uppercase; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; padding: 8px 0; margin-bottom: 20px; letter-spacing: 0.5px; }
-    .top-section { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
-    .photo-box { width: 115px; height: 140px; border: 1px solid #94a3b8; border-radius: 4px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #f8fafc; font-size: 12px; color: #64748b; }
-    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    td { padding: 9px 12px; border: 1px solid #cbd5e1; vertical-align: top; }
-    td.label { width: 34%; font-weight: 600; background: #f8fafc; color: #334155; }
-    .footer-img { width: 100%; max-height: 100px; object-fit: contain; display: block; margin-top: 24px; }
+    .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
+    .page-wrap { max-width: 210mm; min-height: 275mm; margin: 0 auto; background: #fff; padding: 24px 28px; border: 1px solid #cbd5e1; display: flex; flex-direction: column; justify-content: space-between; }
+    .form-table { width: 100%; border-collapse: collapse; }
     @media print {
       body { background: #fff; padding: 0; }
       .toolbar { display: none; }
-      .sheet { border: none; padding: 10px; max-width: 100%; }
+      .page-wrap { border: none; padding: 0; max-width: 100%; }
     }
   </style>
 </head>
 <body>
   <div class="toolbar">
     <a href="/my-attendance" class="btn">← Back</a>
-    <button onclick="window.print()" class="btn btn-primary">Print / Save PDF</button>
-  </div>
-
-  <div class="sheet">
-    <% if (branding && branding.headerUrl) { %>
-      <img src="<%= branding.headerUrl %>" alt="Header" class="branding-img">
-    <% } %>
-
-    <div class="doc-title">Student Admission Application</div>
-
-    <div class="top-section">
-      <table style="flex: 1;">
-        <tr>
-          <td class="label">Admission No</td>
-          <td><b><%= student.admission_no %></b></td>
-        </tr>
-        <tr>
-          <td class="label">Roll No</td>
-          <td><%= student.roll_no || '-' %></td>
-        </tr>
-        <tr>
-          <td class="label">Full Name</td>
-          <td><b><%= student.full_name %></b></td>
-        </tr>
-        <tr>
-          <td class="label">Date of Birth</td>
-          <td><%= student.dob %></td>
-        </tr>
-      </table>
-
-      <div class="photo-box">
-        <% if (student.photo_file) { %>
-          <img src="<%= student.photo_file %>" alt="Student Photo">
-        <% } else { %>
-          No Photo
-        <% } %>
-      </div>
+    <div style="display: flex; gap: 8px;">
+      <button type="button" onclick="downloadFormImage()" class="btn btn-primary">Download Image</button>
+      <button type="button" onclick="window.print()" class="btn btn-success">Download PDF</button>
     </div>
-
-    <table>
-      <tr>
-        <td class="label">Batch</td>
-        <td><%= student.batch_name %></td>
-      </tr>
-      <tr>
-        <td class="label">Father's Name</td>
-        <td><%= student.father_name %></td>
-      </tr>
-      <tr>
-        <td class="label">Phone / Guardian Phone</td>
-        <td><%= student.phone %> / <%= student.guardian_phone %></td>
-      </tr>
-      <tr>
-        <td class="label">Aadhaar Number</td>
-        <td><%= student.aadhaar_no || '-' %></td>
-      </tr>
-      <tr>
-        <td class="label">Address</td>
-        <td><%= student.address %></td>
-      </tr>
-      <tr>
-        <td class="label">Place & PIN</td>
-        <td><%= student.place %> - <%= student.pin %></td>
-      </tr>
-      <tr>
-        <td class="label">District & State</td>
-        <td><%= student.district %>, <%= student.state %></td>
-      </tr>
-      <tr>
-        <td class="label">School / Madrasa Class</td>
-        <td>School: <%= student.school_class || '-' %> | Madrasa: <%= student.madrasa_class || '-' %></td>
-      </tr>
-      <% if (student.is_muthallim === 'yes') { %>
-        <tr>
-          <td class="label">Previous Institution</td>
-          <td><%= student.prev_institution %> (<%= student.prev_place %>)</td>
-        </tr>
-      <% } %>
-      <tr>
-        <td class="label">Admission Date</td>
-        <td><%= student.created_at || '-' %></td>
-      </tr>
-    </table>
-
-    <% if (branding && branding.footerUrl) { %>
-      <img src="<%= branding.footerUrl %>" alt="Footer" class="footer-img">
-    <% } %>
   </div>
+
+  <div class="page-wrap" id="formCaptureArea"></div>
+
+  <script id="stDataJson" type="application/json"><%- JSON.stringify(student).replace(/</g, '\\u003c') %></script>
+  <script id="brandingDataJson" type="application/json"><%- JSON.stringify(branding || {}).replace(/</g, '\\u003c') %></script>
+  <script id="savedFormTplJson" type="application/json"><%- JSON.stringify(typeof formTpl !== 'undefined' ? formTpl : {}).replace(/</g, '\\u003c') %></script>
+
+  <script>
+    const ST = JSON.parse(document.getElementById('stDataJson').textContent || '{}');
+    const BRAND = JSON.parse(document.getElementById('brandingDataJson').textContent || '{}');
+    const HEADER_URL = BRAND.headerUrl || '';
+    const FOOTER_URL = BRAND.footerUrl || '';
+    const SAVED = JSON.parse(document.getElementById('savedFormTplJson').textContent || '{}');
+
+    const c = {
+      useBanners: true,
+      title: 'STUDENT ADMISSION RECORD',
+      titleBg: '#f1f5f9',
+      titleColor: '#0f172a',
+      labelBg: '#f8fafc',
+      borderColor: '#cbd5e1',
+      fontSize: 13,
+      showPhoto: true,
+      showSig: true,
+      leftSig: 'Parent / Guardian Signature',
+      rightSig: 'Authorized Signature',
+      fields: ['roll_no', 'batch_name', 'dob', 'aadhaar_no', 'father_name', 'phone', 'guardian_phone', 'muthallim', 'classes', 'address', 'place_pin', 'dist_state'],
+      ...SAVED
+    };
+
+    const f = c.fields;
+    const tdStyle = `padding:8px 10px; border:1px solid ${c.borderColor}; font-size:${c.fontSize}px;`;
+    const lblStyle = `${tdStyle} width:24%; font-weight:700; background:${c.labelBg}; color:#334155;`;
+
+    let rows = `<tr><td style="${lblStyle}">Full Name</td><td colspan="3" style="${tdStyle}"><strong>${ST.full_name || '-'}</strong></td></tr>`;
+    if (f.includes('batch_name')) rows += `<tr><td style="${lblStyle}">Batch</td><td colspan="3" style="${tdStyle}">${ST.batch_name || '-'}</td></tr>`;
+    if (f.includes('dob') || f.includes('aadhaar_no')) {
+      rows += `<tr>
+        <td style="${lblStyle}">Date of Birth</td><td style="${tdStyle}">${f.includes('dob') ? (ST.dob || '-') : '-'}</td>
+        <td style="${lblStyle}">Aadhaar No</td><td style="${tdStyle}">${f.includes('aadhaar_no') ? (ST.aadhaar_no || '-') : '-'}</td>
+      </tr>`;
+    }
+    if (f.includes('father_name')) rows += `<tr><td style="${lblStyle}">Father's Name</td><td colspan="3" style="${tdStyle}">${ST.father_name || '-'}</td></tr>`;
+    if (f.includes('phone') || f.includes('guardian_phone')) {
+      rows += `<tr>
+        <td style="${lblStyle}">Student Phone</td><td style="${tdStyle}">${f.includes('phone') ? (ST.phone || '-') : '-'}</td>
+        <td style="${lblStyle}">Guardian Phone</td><td style="${tdStyle}">${f.includes('guardian_phone') ? (ST.guardian_phone || '-') : '-'}</td>
+      </tr>`;
+    }
+    if (f.includes('muthallim')) {
+      rows += `<tr><td style="${lblStyle}">Studied as Muthallim?</td><td colspan="3" style="${tdStyle}">${String(ST.is_muthallim).toLowerCase() === 'yes' ? 'Yes (' + (ST.prev_institution || '-') + ')' : 'No'}</td></tr>`;
+    }
+    if (f.includes('classes')) {
+      rows += `<tr>
+        <td style="${lblStyle}">Madrasa Class</td><td style="${tdStyle}">${ST.madrasa_class || '-'}</td>
+        <td style="${lblStyle}">School Class</td><td style="${tdStyle}">${ST.school_class || '-'}</td>
+      </tr>`;
+    }
+    if (f.includes('address')) rows += `<tr><td style="${lblStyle}">Full Address</td><td colspan="3" style="${tdStyle}">${ST.address || '-'}</td></tr>`;
+    if (f.includes('place_pin')) {
+      rows += `<tr>
+        <td style="${lblStyle}">Place</td><td style="${tdStyle}">${ST.place || '-'}</td>
+        <td style="${lblStyle}">PIN Code</td><td style="${tdStyle}">${ST.pin || '-'}</td>
+      </tr>`;
+    }
+    if (f.includes('dist_state')) {
+      rows += `<tr>
+        <td style="${lblStyle}">District</td><td style="${tdStyle}">${ST.district || '-'}</td>
+        <td style="${lblStyle}">State</td><td style="${tdStyle}">${ST.state || '-'}</td>
+      </tr>`;
+    }
+
+    document.getElementById('formCaptureArea').innerHTML = `
+      <div>
+        ${(c.useBanners && HEADER_URL) ? `<img src="${HEADER_URL}" crossorigin="anonymous" style="width:100%; max-height:115px; object-fit:contain; display:block;">` : `<h2 style="text-align:center; margin:0 0 10px;">STUDENT ADMISSION FORM</h2>`}
+        <div style="text-align:center; font-size:15px; font-weight:700; text-transform:uppercase; background:${c.titleBg}; color:${c.titleColor}; padding:8px; border:1px solid ${c.borderColor}; margin:12px 0 16px;">${c.title}</div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+          <div style="font-size:${c.fontSize}px;">
+            <p style="margin:4px 0;"><strong>Admission No:</strong> ${ST.admission_no || '-'}</p>
+            ${f.includes('roll_no') ? `<p style="margin:4px 0;"><strong>Roll No:</strong> ${ST.roll_no || '-'}</p>` : ''}
+            <p style="margin:4px 0; color:#475569;"><strong>Date:</strong> ${ST.created_at || '-'}</p>
+          </div>
+          ${c.showPhoto ? `<div style="width:105px; height:125px; border:1px solid ${c.borderColor}; display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:11px; color:#64748b;">
+            ${ST.photo_file ? `<img src="${ST.photo_file}" crossorigin="anonymous" style="width:100%; height:100%; object-fit:cover;">` : 'Affix Photo'}
+          </div>` : ''}
+        </div>
+        <table class="form-table">${rows}</table>
+        ${c.showSig ? `<div style="display:flex; justify-content:space-between; margin-top:45px; padding:0 16px; font-size:${c.fontSize}px; font-weight:600;">
+          <div style="border-top:1px solid #334155; padding-top:6px; width:190px; text-align:center;">${c.leftSig}</div>
+          <div style="border-top:1px solid #334155; padding-top:6px; width:190px; text-align:center;">${c.rightSig}</div>
+        </div>` : ''}
+      </div>
+      ${(c.useBanners && FOOTER_URL) ? `<img src="${FOOTER_URL}" crossorigin="anonymous" style="width:100%; max-height:100px; object-fit:contain; display:block; margin-top:16px;">` : ''}
+    `;
+
+    function downloadFormImage() {
+      html2canvas(document.getElementById('formCaptureArea'), { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `${ST.admission_no}_Admission_Form.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+  </script>
 </body>
 </html>

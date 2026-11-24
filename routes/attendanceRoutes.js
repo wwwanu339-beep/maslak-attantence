@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getSheet } = require('../config/sheets');
-const { requireAuth, checkAttendance, checkAttendanceView } = require('../middleware/auth');
-
+const { requireAuth, checkAttendance, checkAttendanceView, checkAdmission } = require('../middleware/auth');
 router.get('/attendance', requireAuth, checkAttendance, async (req, res) => {
   try {
     const batchSheet = await getSheet('batches');
@@ -346,5 +345,7 @@ router.get('/api/student-day-details', requireAuth, checkAttendanceView, async (
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Admission Form Design Studio Page & Save API
 
 module.exports = router;

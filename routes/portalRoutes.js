@@ -170,6 +170,7 @@ router.get('/my-id-card', (req, res) => {
 });
 
 // 2. വിദ്യാർത്ഥിക്ക് സ്വന്തം Admission Application കാണാനും പ്രിന്റ്/PDF ഡൗൺലോഡ് ചെയ്യാനും
+// 2. വിദ്യാർത്ഥിക്ക് സ്വന്തം Admission Application കാണാനും പ്രിന്റ്/PDF ഡൗൺലോഡ് ചെയ്യാനും
 router.get('/my-admission-form', async (req, res) => {
   if (!req.session || !req.session.student) return res.redirect('/student-login');
   const targetAdmNo = String(req.session.student.admission_no || '').trim().toLowerCase();
@@ -218,8 +219,19 @@ router.get('/my-admission-form', async (req, res) => {
       created_at: admRow.get('created_at') || ''
     };
 
+    let formTpl = {};
+    try {
+      const cfgSheet = await getSheet('form_config');
+      if (cfgSheet) {
+        const cfgRows = await cfgSheet.getRows();
+        if (cfgRows.length > 0 && cfgRows[0].get('config_json')) {
+          formTpl = JSON.parse(cfgRows[0].get('config_json'));
+        }
+      }
+    } catch (e) {}
+
     const branding = getBrandingUrls();
-    res.render('student_application_print', { student, branding });
+    res.render('student_application_print', { student, branding, formTpl });
   } catch (err) {
     res.status(500).send('Database Error: ' + err.message);
   }
