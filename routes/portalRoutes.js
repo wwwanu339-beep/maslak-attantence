@@ -155,33 +155,45 @@ router.get('/my-attendance', async (req, res) => {
 
     const records = attRows
       .filter(r => {
-        if (String(r.get('admission_no') || '').trim().toLowerCase() !== targetAdmNo.toLowerCase()) return false;
-        const dStr = String(r.get('date') || '').trim();
+        // Check student_id (where Admission No is saved) as well as admission_no
+        const savedAdm = String(
+          r.get('student_id') ||
+          r.get('Student ID') ||
+          r.get('admission_no') ||
+          r.get('adm_no') ||
+          ''
+        ).trim().toLowerCase();
+
+        if (savedAdm !== targetAdmNo.toLowerCase()) return false;
+
+        const dStr = String(r.get('date') || r.get('att_date') || '').trim();
         if (!dStr) return false;
-        // Support YYYY-MM-DD or DD/MM/YYYY
+
+        // Supports YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY, YYYY/MM/DD
+        const parts = dStr.split(/[-/\s]/);
+        if (parts.length < 3) return false;
+
         let m = 0, y = 0;
-        if (dStr.includes('-')) {
-          const parts = dStr.split('-');
+        if (parts[0].length === 4) {
           y = parseInt(parts[0], 10);
           m = parseInt(parts[1], 10);
-        } else if (dStr.includes('/')) {
-          const parts = dStr.split('/');
+        } else {
           m = parseInt(parts[1], 10);
           y = parseInt(parts[2], 10);
         }
         return m === selectedMonth && y === selectedYear;
       })
       .map(r => {
-        const rawSt = String(r.get('status') || '').trim().toLowerCase();
+        const rawSt = String(r.get('status') || r.get('attendance') || '').trim().toLowerCase();
         let normStatus = rawSt;
-        if (rawSt === 'p') normStatus = 'present';
-        else if (rawSt === 'a') normStatus = 'absent';
-        else if (rawSt === 'l' || rawSt === 'lv') normStatus = 'leave';
+        if (rawSt === 'p' || rawSt === 'present') normStatus = 'present';
+        else if (rawSt === 'a' || rawSt === 'absent') normStatus = 'absent';
+        else if (rawSt === 'l' || rawSt === 'lv' || rawSt === 'leave' || rawSt === 'late') normStatus = 'leave';
 
         return {
-          date: r.get('date') || '',
-          subject: r.get('subject') || '-',
-          teacher: r.get('teacher') || r.get('marked_by') || '-',
+          date: r.get('date') || r.get('att_date') || '',
+          subject: r.get('subject') || r.get('subject_name') || '-',
+          teacher: r.get('teacher') || r.get('marked_by') || r.get('teacher_name') || '-',
           status: normStatus
         };
       })
@@ -203,7 +215,6 @@ router.get('/my-attendance', async (req, res) => {
     res.status(500).send('Portal Error: ' + err.message);
   }
 });
-
 // ==========================================
 // 3. ADMIN STUDENT PORTAL CONTROL PANEL
 // ==========================================
