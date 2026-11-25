@@ -14,7 +14,28 @@
     .mode-switcher, .context-toolbar, .left-dock, .admin-only, .page-chip-bar, .zoom-pill, .resize-handle {
       display: none !important;
     }
-    .canvas-viewport { padding: 24px 12px !important; }
+    body {
+      height: auto !important;
+      min-height: 100vh !important;
+      overflow-y: auto !important;
+    }
+    .studio-body {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: flex-start !important;
+      overflow: visible !important;
+    }
+    .canvas-viewport {
+      width: 100% !important;
+      padding: 28px 12px !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      overflow: visible !important;
+    }
+    .zoom-wrapper {
+      transform: scale(1) !important;
+    }
   </style>
   <% } %>
 
@@ -375,7 +396,6 @@
       { id: 'form_subtitle', page: 1, label: 'Sub Heading', type: 'text', customText: 'Academic Year 2026 - 2027', x: 25, y: 132, width: 744, height: 30, fontSize: 13, bold: true, align: 'center', border: true, borderWidth: 1, borderRadius: 4, bgColor: '#f1f5f9', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
       { id: 'photo', page: 1, label: 'Student Photo', type: 'photo', x: 655, y: 175, width: 105, height: 125, fontSize: 12, align: 'center', border: true, borderWidth: 1.5, borderRadius: 6, bgColor: '#f8fafc', borderColor: '#64748b', visible: true },
 
-      // Separate Label & Data Boxes
       { id: 'lbl_adm', page: 1, label: 'Heading: Adm No', type: 'text', customText: 'Admission No :', x: 25, y: 175, width: 120, height: 30, fontSize: 13, bold: true, align: 'left', border: true, borderWidth: 1, borderRadius: 3, bgColor: '#f8fafc', textColor: '#334155', borderColor: '#cbd5e1', visible: true },
       { id: 'val_adm', page: 1, label: 'Data: Adm No', fieldKey: 'admission_no', x: 145, y: 175, width: 180, height: 30, fontSize: 13, bold: true, align: 'left', border: true, borderWidth: 1, borderRadius: 3, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
 
@@ -432,7 +452,6 @@
       { id: 'footer_banner', page: 1, label: 'Footer Banner', type: 'footer', customText: '', x: 25, y: 970, width: 744, height: 95, fontSize: 12, align: 'center', border: false, borderWidth: 1, borderRadius: 0, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true }
     ];
 
-    // ALL Admission Columns available in ID Card Studio with Separate Heading & Data Boxes
     const DEFAULT_ID_ITEMS = [
       { id: 'id_header', page: 1, label: 'ID Header', type: 'header', customText: 'STUDENT IDENTITY CARD', x: 0, y: 0, width: 240, height: 52, fontSize: 11.5, bold: true, align: 'center', border: false, borderWidth: 1, borderRadius: 0, bgColor: '#1e3a8a', textColor: '#ffffff', borderColor: '#1e3a8a', visible: true },
       { id: 'id_photo', page: 1, label: 'Student Photo', type: 'photo', x: 75, y: 60, width: 90, height: 95, fontSize: 11, align: 'center', border: true, borderWidth: 2, borderRadius: 10, bgColor: '#f8fafc', borderColor: '#94a3b8', visible: true },
@@ -453,7 +472,6 @@
       { id: 'id_lbl_phone', page: 1, label: 'Heading: Phone', type: 'text', customText: 'Phone :', x: 18, y: 260, width: 75, height: 18, fontSize: 10.5, bold: true, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#475569', borderColor: '#cbd5e1', visible: true },
       { id: 'id_val_phone', page: 1, label: 'Data: Phone', fieldKey: 'phone', x: 95, y: 260, width: 130, height: 18, fontSize: 10.5, bold: false, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
 
-      // Extra Admission Columns (Toggleable in Layers)
       { id: 'id_val_batch', page: 1, label: 'Data: Batch', fieldKey: 'main_batch_name', x: 18, y: 278, width: 204, height: 18, fontSize: 10.5, bold: false, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: false },
       { id: 'id_val_gphone', page: 1, label: 'Data: Guardian Phone', fieldKey: 'guardian_phone', x: 18, y: 278, width: 204, height: 18, fontSize: 10.5, bold: false, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: false },
       { id: 'id_val_aadhaar', page: 1, label: 'Data: Aadhaar No', fieldKey: 'aadhaar_no', x: 18, y: 278, width: 204, height: 18, fontSize: 10.5, bold: false, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: false },
@@ -489,8 +507,7 @@
     let undoStack = [];
     let redoStack = [];
 
-    // Drag & 8-Direction Resize State
-    let interactionMode = null; // 'move' or 'resize'
+    let interactionMode = null;
     let resizeDir = '';
     let activeResizeId = null;
     let startMouseX = 0;
@@ -515,6 +532,7 @@
     }
 
     function changeZoom(delta) {
+      if (IS_STUDENT_MODE) return;
       zoomLevel = Math.max(0.5, Math.min(1.6, +(zoomLevel + delta).toFixed(1)));
       document.getElementById('zoomWrapper').style.transform = `scale(${zoomLevel})`;
       document.getElementById('zoomLabel').innerText = Math.round(zoomLevel * 100) + '%';
@@ -522,22 +540,33 @@
 
     function switchStudioMode(mode) {
       CURRENT_MODE = mode;
-      document.getElementById('tabFormStudio').classList.toggle('active', mode === 'form');
-      document.getElementById('tabIdStudio').classList.toggle('active', mode === 'id');
-      document.getElementById('btnAddPage').style.display = mode === 'form' ? 'inline-flex' : 'none';
+      const tabForm = document.getElementById('tabFormStudio');
+      const tabId = document.getElementById('tabIdStudio');
+      if (tabForm) tabForm.classList.toggle('active', mode === 'form');
+      if (tabId) tabId.classList.toggle('active', mode === 'id');
+
+      const btnAddPg = document.getElementById('btnAddPage');
+      if (btnAddPg) btnAddPg.style.display = mode === 'form' ? 'inline-flex' : 'none';
+
       document.getElementById('idCardSizeBox').style.display = mode === 'id' ? 'block' : 'none';
       document.getElementById('tabBtnStudents').style.display = mode === 'id' ? 'block' : 'none';
 
       if (mode === 'form') {
         zoomLevel = 0.8;
-        switchLeftTab('elements', document.querySelector('.dock-tab'));
+        const firstTab = document.querySelector('.dock-tab');
+        if (firstTab) switchLeftTab('elements', firstTab);
       } else {
         zoomLevel = 1.1;
         document.getElementById('idCanvasW').value = idState.canvasW;
         document.getElementById('idCanvasH').value = idState.canvasH;
       }
-      document.getElementById('zoomWrapper').style.transform = `scale(${zoomLevel})`;
-      document.getElementById('zoomLabel').innerText = Math.round(zoomLevel * 100) + '%';
+
+      if (!IS_STUDENT_MODE) {
+        document.getElementById('zoomWrapper').style.transform = `scale(${zoomLevel})`;
+        document.getElementById('zoomLabel').innerText = Math.round(zoomLevel * 100) + '%';
+      } else {
+        document.getElementById('zoomWrapper').style.transform = 'scale(1)';
+      }
 
       activePage = 1;
       selectedIds = [];
@@ -574,6 +603,9 @@
     }
 
     function getCheckedStudents() {
+      if (IS_STUDENT_MODE) {
+        return ALL_STUDENTS.length > 0 ? [ALL_STUDENTS[0]] : [SAMPLE_ST];
+      }
       const checked = Array.from(document.querySelectorAll('.studio-stu-chk:checked')).map(c => ALL_STUDENTS[Number(c.value)]).filter(Boolean);
       return checked.length > 0 ? checked : [SAMPLE_ST];
     }
@@ -602,8 +634,10 @@
         if (undoStack.length > 50) undoStack.shift();
         redoStack = [];
       }
-      document.getElementById('btnUndo').disabled = undoStack.length <= 1;
-      document.getElementById('btnRedo').disabled = redoStack.length === 0;
+      const btnU = document.getElementById('btnUndo');
+      const btnR = document.getElementById('btnRedo');
+      if (btnU) btnU.disabled = undoStack.length <= 1;
+      if (btnR) btnR.disabled = redoStack.length === 0;
     }
 
     function undoAction() {
@@ -627,11 +661,9 @@
       document.getElementById('btnRedo').disabled = redoStack.length === 0;
     }
 
-    // Drag & Drop Layers Reordering
     function renderPalette() {
       const st = getState();
       const list = document.getElementById('fieldToggleList');
-      // Reverse index so top layer is at the top of list
       const revList = st.items.map((item, origIdx) => ({ item, origIdx })).reverse();
 
       list.innerHTML = revList.map(({ item, origIdx }) => {
@@ -769,7 +801,7 @@
               <span>${CURRENT_MODE === 'id' ? 'ID Card Canvas' : `Page ${p} of ${st.totalPages}`}</span>
               ${(CURRENT_MODE === 'form' && st.totalPages > 1) ? `<button type="button" class="ctx-mini-btn" style="color:#dc2626;" onclick="deletePage(${p})">Remove Page</button>` : ''}
             </div>
-            <div class="design-sheet ${activePage === p ? 'active-sheet' : ''}"
+            <div class="design-sheet ${(!IS_STUDENT_MODE && activePage === p) ? 'active-sheet' : ''}"
                  style="width:${st.canvasW}px; height:${st.canvasH}px;"
                  onmousedown="if(event.target === this) { activePage = ${p}; clearSelection(); }">
               ${innerHtml}
@@ -820,14 +852,12 @@
       } else if (it.type === 'line') {
         content = `<div style="width:100%; height:100%; background:${bCol};"></div>`;
       } else {
-        // Pure Data Field Box (Separate from Heading)
         const val = studentData[it.fieldKey] || '-';
         content = `<div style="font-size:${it.fontSize}px; text-align:${it.align}; font-weight:${weight}; color:${txtCol}; line-height:1.25;">${val}</div>`;
       }
 
       const padCss = ['line', 'rect', 'circle', 'photo', 'header', 'footer'].includes(it.type) ? 'padding:0;' : 'padding:3px 5px;';
 
-      // 8-Direction Resize Handles when single box selected
       const handlesHtml = (isSel && selectedIds.length === 1) ? `
         <div class="resize-handle rh-nw" onmousedown="startResize(event, '${it.id}', 'nw')"></div>
         <div class="resize-handle rh-n"  onmousedown="startResize(event, '${it.id}', 'n')"></div>
@@ -908,7 +938,6 @@
       renderAllPages();
     }
 
-    // Move & Resize Mouse Handlers
     function startDrag(e, id) {
       if (IS_STUDENT_MODE) return;
       e.stopPropagation();

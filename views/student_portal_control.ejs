@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Portal Control Panel</title>
+  <link rel="stylesheet" href="/student.css">
+  <link rel="stylesheet" href="/admission.css">
+  <style>
+    .ctrl-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 860px) { .ctrl-grid { grid-template-columns: 1fr; } }
+    .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; font-size: 13.5px; font-weight: 600; }
+    .field-chip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 7px; }
+    .field-chip { display: flex; align-items: center; gap: 6px; padding: 6px 9px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .field-chip:has(input:checked) { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+    .bulk-range-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: #f1f5f9; padding: 10px 12px; border-radius: 9px; margin-bottom: 12px; border: 1px solid #cbd5e1; }
+    .perm-badge { padding: 3px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+    .perm-yes { background: #dcfce7; color: #166534; }
+    .perm-no { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <h1 class="top-bar-title">Student Portal Control Panel</h1>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-sm btn-success" onclick="savePortalControl()">Save All Settings</button>
+        <a href="/admissions" class="btn btn-sm btn-secondary">← Admissions</a>
+      </div>
+    </div>
+
+    <!-- Global Controls & Editable Fields -->
+    <div class="ctrl-grid">
+      <div class="card" style="margin:0;">
+        <h3>1. Default Portal Permissions (All Students)</h3>
+        <p class="card-subtitle">Set default visibility and editing access for student logins.</p>
+
+        <label class="switch-row">
+          <span>Show Admission Form to Students</span>
+          <input type="checkbox" id="globalShowForm" style="width:18px; height:18px;">
+        </label>
+        <label class="switch-row">
+          <span>Show ID Card to Students</span>
+          <input type="checkbox" id="globalShowIdCard" style="width:18px; height:18px;">
+        </label>
+        <label class="switch-row">
+          <span>Allow Students to Edit / Update Form</span>
+          <input type="checkbox" id="globalAllowEdit" style="width:18px; height:18px;">
+        </label>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <h3>2. Fields Students Are Allowed to Edit</h3>
+        <p class="card-subtitle">Tick which fields students can update when Edit Permission is enabled.</p>
+        <div class="field-chip-grid" id="editableFieldsGrid">
+          <label class="field-chip"><input type="checkbox" name="editField" value="full_name"> Full Name</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="dob"> Date of Birth</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="father_name"> Father's Name</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="aadhaar_no"> Aadhaar Number</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="phone"> Student Phone</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="guardian_phone"> Guardian Phone</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="photo_file"> Student Photo</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="madrasa_class"> Madrasa Class</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="school_class"> School Class</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="address"> Full Address</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="place"> Place</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="pin"> PIN Code</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="district"> District</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="state"> State</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="is_muthallim"> Muthallim Status</label>
+          <label class="field-chip"><input type="checkbox" name="editField" value="prev_institution"> Prev. Institution</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Individual & Range Bulk Permission Table -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+        <div>
+          <h3 style="margin:0;">3. Individual & Bulk Range Permissions (<span id="selectedStuCount">0</span> Selected)</h3>
+          <p class="card-subtitle" style="margin:2px 0 0;">Select students by row number (e.g., <strong>1, 2, 5</strong> or <strong>1-10</strong>) to apply permissions in bulk.</p>
+        </div>
+        <input type="text" id="stuSearchInp" class="search-input" style="max-width:260px;" placeholder="Search Name / Adm No..." onkeyup="filterPortalTable()">
+      </div>
+
+      <!-- Bulk Range Selector Bar -->
+      <div class="bulk-range-bar">
+        <input type="text" id="rangeInput" placeholder="e.g., 1, 2, 5 or 1-10" style="width:180px; padding:6px 10px; border:1px solid #94a3b8; border-radius:6px; font-size:13px;">
+        <button type="button" class="btn btn-sm btn-primary" onclick="selectByRange()">Select Range</button>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="clearRangeSelection()">Clear</button>
+        <span style="color:#cbd5e1;">|</span>
+        <button type="button" class="btn btn-sm btn-success" onclick="applyBulkPerm('showForm', true)">+ Show Form</button>
+        <button type="button" class="btn btn-sm btn-danger" onclick="applyBulkPerm('showForm', false)">- Hide Form</button>
+        <button type="button" class="btn btn-sm btn-success" onclick="applyBulkPerm('showIdCard', true)">+ Show ID Card</button>
+        <button type="button" class="btn btn-sm btn-danger" onclick="applyBulkPerm('showIdCard', false)">- Hide ID Card</button>
+        <button type="button" class="btn btn-sm btn-success" onclick="applyBulkPerm('allowEdit', true)">+ Allow Edit</button>
+        <button type="button" class="btn btn-sm btn-danger" onclick="applyBulkPerm('allowEdit', false)">- Lock Edit</button>
+      </div>
+
+      <div class="table-responsive">
+        <table id="portalPermTable">
+          <thead>
+            <tr>
+              <th style="width:40px;"><input type="checkbox" id="chkAllRows" onclick="toggleAllRows(this)"></th>
+              <th style="width:50px;">#</th>
+              <th>Adm No</th>
+              <th>Student Name</th>
+              <th>Batch</th>
+              <th style="text-align:center;">Admission Form</th>
+              <th style="text-align:center;">ID Card</th>
+              <th style="text-align:center;">Self Edit / Update</th>
+            </tr>
+          </thead>
+          <tbody id="portalTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script id="studentsDataJson" type="application/json"><%- JSON.stringify(students).replace(/</g, '\\u003c') %></script>
+  <script id="portalCfgJson" type="application/json"><%- JSON.stringify(portalCfg).replace(/</g, '\\u003c') %></script>
+
+  <script>
+    const STUDENTS = JSON.parse(document.getElementById('studentsDataJson').textContent || '[]');
+    let CFG = JSON.parse(document.getElementById('portalCfgJson').textContent || '{}');
+    if (!CFG.studentOverrides) CFG.studentOverrides = {};
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('globalShowForm').checked = Boolean(CFG.globalShowForm);
+      document.getElementById('globalShowIdCard').checked = Boolean(CFG.globalShowIdCard);
+      document.getElementById('globalAllowEdit').checked = Boolean(CFG.globalAllowEdit);
+
+      const allowed = CFG.allowedFields || [];
+      document.querySelectorAll('input[name="editField"]').forEach(cb => {
+        cb.checked = allowed.includes(cb.value);
+      });
+
+      renderStudentRows();
+    });
+
+    function getPerms(admNo) {
+      const ov = CFG.studentOverrides[admNo] || {};
+      return {
+        showForm: ov.showForm !== undefined ? ov.showForm : document.getElementById('globalShowForm').checked,
+        showIdCard: ov.showIdCard !== undefined ? ov.showIdCard : document.getElementById('globalShowIdCard').checked,
+        allowEdit: ov.allowEdit !== undefined ? ov.allowEdit : document.getElementById('globalAllowEdit').checked
+      };
+    }
+
+    function renderStudentRows() {
+      const tbody = document.getElementById('portalTableBody');
+      tbody.innerHTML = STUDENTS.map((s, idx) => {
+        const p = getPerms(s.admission_no);
+        const rowNum = idx + 1;
+        return `
+          <tr class="stu-perm-row" data-num="${rowNum}" data-adm="${s.admission_no}" data-search="${(s.admission_no + ' ' + s.full_name + ' ' + s.batch_name).toLowerCase()}">
+            <td><input type="checkbox" class="row-chk" value="${s.admission_no}" onchange="updateSelCount()"></td>
+            <td><strong>${rowNum}</strong></td>
+            <td><strong>${s.admission_no}</strong></td>
+            <td>${s.full_name}</td>
+            <td>${s.batch_name}</td>
+            <td style="text-align:center;">
+              <button type="button" class="perm-badge ${p.showForm ? 'perm-yes' : 'perm-no'}" style="border:none; cursor:pointer;" onclick="toggleSinglePerm('${s.admission_no}', 'showForm')">
+                ${p.showForm ? 'Visible ✓' : 'Hidden ✕'}
+              </button>
+            </td>
+            <td style="text-align:center;">
+              <button type="button" class="perm-badge ${p.showIdCard ? 'perm-yes' : 'perm-no'}" style="border:none; cursor:pointer;" onclick="toggleSinglePerm('${s.admission_no}', 'showIdCard')">
+                ${p.showIdCard ? 'Visible ✓' : 'Hidden ✕'}
+              </button>
+            </td>
+            <td style="text-align:center;">
+              <button type="button" class="perm-badge ${p.allowEdit ? 'perm-yes' : 'perm-no'}" style="border:none; cursor:pointer;" onclick="toggleSinglePerm('${s.admission_no}', 'allowEdit')">
+                ${p.allowEdit ? 'Allowed ✎' : 'Locked 🔒'}
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+      updateSelCount();
+    }
+
+    function toggleSinglePerm(admNo, key) {
+      const current = getPerms(admNo)[key];
+      if (!CFG.studentOverrides[admNo]) CFG.studentOverrides[admNo] = {};
+      CFG.studentOverrides[admNo][key] = !current;
+      renderStudentRows();
+    }
+
+    // Range Selector: supports "1, 2, 5" and "1-10"
+    function selectByRange() {
+      const raw = document.getElementById('rangeInput').value.trim();
+      if (!raw) return alert('Enter numbers like 1, 2, 5 or 1-10');
+
+      const targetNums = new Set();
+      raw.split(',').forEach(part => {
+        const clean = part.trim();
+        if (clean.includes('-')) {
+          const [startStr, endStr] = clean.split('-');
+          const s = parseInt(startStr, 10);
+          const e = parseInt(endStr, 10);
+          if (!isNaN(s) && !isNaN(e)) {
+            for (let i = Math.min(s, e); i <= Math.max(s, e); i++) targetNums.add(i);
+          }
+        } else {
+          const n = parseInt(clean, 10);
+          if (!isNaN(n)) targetNums.add(n);
+        }
+      });
+
+      document.querySelectorAll('.stu-perm-row').forEach(row => {
+        const num = parseInt(row.dataset.num, 10);
+        const chk = row.querySelector('.row-chk');
+        if (chk) chk.checked = targetNums.has(num);
+      });
+      updateSelCount();
+    }
+
+    function clearRangeSelection() {
+      document.getElementById('rangeInput').value = '';
+      document.querySelectorAll('.row-chk').forEach(c => c.checked = false);
+      document.getElementById('chkAllRows').checked = false;
+      updateSelCount();
+    }
+
+    function toggleAllRows(master) {
+      document.querySelectorAll('.stu-perm-row').forEach(row => {
+        if (row.style.display !== 'none') {
+          const chk = row.querySelector('.row-chk');
+          if (chk) chk.checked = master.checked;
+        }
+      });
+      updateSelCount();
+    }
+
+    function updateSelCount() {
+      const count = document.querySelectorAll('.row-chk:checked').length;
+      document.getElementById('selectedStuCount').innerText = count;
+    }
+
+    function applyBulkPerm(key, val) {
+      const selectedAdms = Array.from(document.querySelectorAll('.row-chk:checked')).map(c => c.value);
+      if (selectedAdms.length === 0) return alert('Please select students first (via checkboxes or Range input)!');
+
+      selectedAdms.forEach(admNo => {
+        if (!CFG.studentOverrides[admNo]) CFG.studentOverrides[admNo] = {};
+        CFG.studentOverrides[admNo][key] = val;
+      });
+      renderStudentRows();
+    }
+
+    function filterPortalTable() {
+      const q = document.getElementById('stuSearchInp').value.toLowerCase().trim();
+      document.querySelectorAll('.stu-perm-row').forEach(row => {
+        row.style.display = row.dataset.search.includes(q) ? '' : 'none';
+      });
+    }
+
+    async function savePortalControl() {
+      const payload = {
+        globalShowForm: document.getElementById('globalShowForm').checked,
+        globalShowIdCard: document.getElementById('globalShowIdCard').checked,
+        globalAllowEdit: document.getElementById('globalAllowEdit').checked,
+        allowedFields: Array.from(document.querySelectorAll('input[name="editField"]:checked')).map(c => c.value),
+        studentOverrides: CFG.studentOverrides
+      };
+
+      const res = await fetch('/api/student-portal-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) alert('Student Portal Permissions saved for ALL devices!');
+      else alert('Error: ' + data.error);
+    }
+  </script>
+</body>
+</html>

@@ -21,6 +21,26 @@ async function verifyPassword(inputPassword, storedPassword) {
   return cleanInput === cleanStored;
 }
 
+function requireStaffOrOwnStudent(req, res, next) {
+  // 1. Staff / Admin logged in
+  if (req.session && req.session.user) {
+    return next();
+  }
+
+  // 2. Student logged in
+  if (req.session && req.session.student) {
+    const myAdm = String(req.session.student.admission_no || '').trim().toLowerCase();
+    const reqAdms = String(req.query.adms || req.query.admNo || req.params.admission_no || '').trim().toLowerCase();
+
+    if (!reqAdms || reqAdms === myAdm) {
+      return next();
+    }
+    return res.status(403).send('Access Denied: You can only view your own documents.');
+  }
+
+  return res.redirect('/student-login');
+}
+
 function requireAuth(req, res, next) {
   if (req.session && req.session.user) next();
   else res.redirect('/login');
@@ -49,24 +69,6 @@ function checkAttendance(req, res, next) {
 function checkAttendanceView(req, res, next) {
   if (req.session.user && req.session.user.can_attendanceveiw == 1) next();
   else res.status(403).send("Access Denied: You do not have permission to view attendance reports.");
-}
-
-function requireStaffOrOwnStudent(req, res, next) {
-  if (req.session && req.session.user) {
-    return next();
-  }
-
-  if (req.session && req.session.student) {
-    const loggedAdm = String(req.session.student.admission_no || '').trim().toLowerCase();
-    const paramAdm = String(req.params.admNo || req.query.admNo || req.query.adm_no || '').trim().toLowerCase();
-    
-    if (loggedAdm && loggedAdm === paramAdm) {
-      return next();
-    }
-    return res.status(403).send("Access Denied: You can only view your own documents.");
-  }
-
-  return res.redirect('/student-login');
 }
 
 module.exports = {

@@ -6,124 +6,197 @@
   <title>Admission Form - <%= student.admission_no %></title>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
-    @page { size: A4; margin: 12mm; }
+    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; padding: 16px; background: #f1f5f9; }
-    .toolbar { max-width: 210mm; margin: 0 auto 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .btn { padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; margin: 0; padding: 16px; background: #f1f5f9; }
+    .toolbar { max-width: 794px; margin: 0 auto 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; }
     .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
     .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
-    .page-wrap { max-width: 210mm; min-height: 275mm; margin: 0 auto; background: #fff; padding: 24px 28px; border: 1px solid #cbd5e1; display: flex; flex-direction: column; justify-content: space-between; }
-    .form-table { width: 100%; border-collapse: collapse; }
+    .btn-warning { background: #d97706; color: #fff; border-color: #d97706; }
+
+    .sheet-scroll { overflow-x: auto; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .a4-sheet {
+      width: 794px; height: 1123px; background: #ffffff; position: relative;
+      border: 1px solid #cbd5e1; overflow: hidden; page-break-after: always; break-after: page;
+    }
+    .a4-sheet:last-child { page-break-after: auto; break-after: auto; }
+    .placed-box { position: absolute; }
+    .photo-box-inner { width: 100%; height: 100%; background: #f8fafc; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 11px; color: #64748b; }
+    .photo-box-inner img { width: 100%; height: 100%; object-fit: cover; }
+    .banner-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+    /* Student Self-Edit Modal */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 999; align-items: center; justify-content: center; padding: 16px; }
+    .modal-box { background: #fff; border-radius: 12px; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; padding: 20px; }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    @media (max-width: 540px) { .edit-grid { grid-template-columns: 1fr; } }
+    .f-grp label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 3px; }
+    .f-grp input, .f-grp select, .f-grp textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+
     @media print {
       body { background: #fff; padding: 0; }
-      .toolbar { display: none; }
-      .page-wrap { border: none; padding: 0; max-width: 100%; }
+      .toolbar, .modal-bg { display: none !important; }
+      .sheet-scroll { gap: 0; }
+      .a4-sheet { border: none; }
     }
   </style>
 </head>
 <body>
   <div class="toolbar">
     <a href="/my-attendance" class="btn">← Back</a>
-    <div style="display: flex; gap: 8px;">
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <% if (typeof perms !== 'undefined' && perms.allowEdit) { %>
+        <button type="button" onclick="openSelfEditModal()" class="btn btn-warning">✎ Edit / Update Details</button>
+      <% } %>
       <button type="button" onclick="downloadFormImage()" class="btn btn-primary">Download Image</button>
       <button type="button" onclick="window.print()" class="btn btn-success">Download PDF</button>
     </div>
   </div>
 
-  <div class="page-wrap" id="formCaptureArea"></div>
+  <div class="sheet-scroll" id="formCaptureArea"></div>
+
+  <!-- Student Self-Edit Modal -->
+  <div class="modal-bg" id="selfEditModal" onclick="if(event.target === this) closeSelfEditModal()">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+        <h3 style="margin:0; font-size:16px;">Update Your Admission Details</h3>
+        <button type="button" onclick="closeSelfEditModal()" style="border:none; background:none; font-size:20px; cursor:pointer;">×</button>
+      </div>
+      <form id="selfEditForm" onsubmit="submitSelfUpdate(event)">
+        <div class="edit-grid" id="dynamicEditFields"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px; border-top:1px solid #e2e8f0; padding-top:12px;">
+          <button type="button" class="btn" onclick="closeSelfEditModal()">Cancel</button>
+          <button type="submit" id="btnSaveSelf" class="btn btn-success">Save Updates</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script id="stDataJson" type="application/json"><%- JSON.stringify(student).replace(/</g, '\\u003c') %></script>
   <script id="brandingDataJson" type="application/json"><%- JSON.stringify(branding || {}).replace(/</g, '\\u003c') %></script>
   <script id="savedFormTplJson" type="application/json"><%- JSON.stringify(typeof formTpl !== 'undefined' ? formTpl : {}).replace(/</g, '\\u003c') %></script>
+  <script id="permsDataJson" type="application/json"><%- JSON.stringify(typeof perms !== 'undefined' ? perms : {}).replace(/</g, '\\u003c') %></script>
 
   <script>
     const ST = JSON.parse(document.getElementById('stDataJson').textContent || '{}');
     const BRAND = JSON.parse(document.getElementById('brandingDataJson').textContent || '{}');
+    const SAVED = JSON.parse(document.getElementById('savedFormTplJson').textContent || '{}');
+    const PERMS = JSON.parse(document.getElementById('permsDataJson').textContent || '{}');
     const HEADER_URL = BRAND.headerUrl || '';
     const FOOTER_URL = BRAND.footerUrl || '';
-    const SAVED = JSON.parse(document.getElementById('savedFormTplJson').textContent || '{}');
 
-    const c = {
-      useBanners: true,
-      title: 'STUDENT ADMISSION RECORD',
-      titleBg: '#f1f5f9',
-      titleColor: '#0f172a',
-      labelBg: '#f8fafc',
-      borderColor: '#cbd5e1',
-      fontSize: 13,
-      showPhoto: true,
-      showSig: true,
-      leftSig: 'Parent / Guardian Signature',
-      rightSig: 'Authorized Signature',
-      fields: ['roll_no', 'batch_name', 'dob', 'aadhaar_no', 'father_name', 'phone', 'guardian_phone', 'muthallim', 'classes', 'address', 'place_pin', 'dist_state'],
-      ...SAVED
+    const FIELD_META = {
+      full_name: { label: 'Full Name', type: 'text' },
+      dob: { label: 'Date of Birth', type: 'date' },
+      father_name: { label: "Father's Name", type: 'text' },
+      aadhaar_no: { label: 'Aadhaar Number', type: 'text' },
+      phone: { label: 'Student Phone', type: 'text' },
+      guardian_phone: { label: 'Guardian Phone', type: 'text' },
+      photo_file: { label: 'Update Photo', type: 'file' },
+      madrasa_class: { label: 'Madrasa Class', type: 'text' },
+      school_class: { label: 'School Class', type: 'text' },
+      address: { label: 'Full Address', type: 'textarea' },
+      place: { label: 'Place', type: 'text' },
+      pin: { label: 'PIN Code', type: 'text' },
+      district: { label: 'District', type: 'text' },
+      state: { label: 'State', type: 'text' },
+      is_muthallim: { label: 'Studied as Muthallim? (yes/no)', type: 'text' },
+      prev_institution: { label: 'Previous Institution', type: 'text' }
     };
 
-    const f = c.fields;
-    const tdStyle = `padding:8px 10px; border:1px solid ${c.borderColor}; font-size:${c.fontSize}px;`;
-    const lblStyle = `${tdStyle} width:24%; font-weight:700; background:${c.labelBg}; color:#334155;`;
-
-    let rows = `<tr><td style="${lblStyle}">Full Name</td><td colspan="3" style="${tdStyle}"><strong>${ST.full_name || '-'}</strong></td></tr>`;
-    if (f.includes('batch_name')) rows += `<tr><td style="${lblStyle}">Batch</td><td colspan="3" style="${tdStyle}">${ST.batch_name || '-'}</td></tr>`;
-    if (f.includes('dob') || f.includes('aadhaar_no')) {
-      rows += `<tr>
-        <td style="${lblStyle}">Date of Birth</td><td style="${tdStyle}">${f.includes('dob') ? (ST.dob || '-') : '-'}</td>
-        <td style="${lblStyle}">Aadhaar No</td><td style="${tdStyle}">${f.includes('aadhaar_no') ? (ST.aadhaar_no || '-') : '-'}</td>
-      </tr>`;
-    }
-    if (f.includes('father_name')) rows += `<tr><td style="${lblStyle}">Father's Name</td><td colspan="3" style="${tdStyle}">${ST.father_name || '-'}</td></tr>`;
-    if (f.includes('phone') || f.includes('guardian_phone')) {
-      rows += `<tr>
-        <td style="${lblStyle}">Student Phone</td><td style="${tdStyle}">${f.includes('phone') ? (ST.phone || '-') : '-'}</td>
-        <td style="${lblStyle}">Guardian Phone</td><td style="${tdStyle}">${f.includes('guardian_phone') ? (ST.guardian_phone || '-') : '-'}</td>
-      </tr>`;
-    }
-    if (f.includes('muthallim')) {
-      rows += `<tr><td style="${lblStyle}">Studied as Muthallim?</td><td colspan="3" style="${tdStyle}">${String(ST.is_muthallim).toLowerCase() === 'yes' ? 'Yes (' + (ST.prev_institution || '-') + ')' : 'No'}</td></tr>`;
-    }
-    if (f.includes('classes')) {
-      rows += `<tr>
-        <td style="${lblStyle}">Madrasa Class</td><td style="${tdStyle}">${ST.madrasa_class || '-'}</td>
-        <td style="${lblStyle}">School Class</td><td style="${tdStyle}">${ST.school_class || '-'}</td>
-      </tr>`;
-    }
-    if (f.includes('address')) rows += `<tr><td style="${lblStyle}">Full Address</td><td colspan="3" style="${tdStyle}">${ST.address || '-'}</td></tr>`;
-    if (f.includes('place_pin')) {
-      rows += `<tr>
-        <td style="${lblStyle}">Place</td><td style="${tdStyle}">${ST.place || '-'}</td>
-        <td style="${lblStyle}">PIN Code</td><td style="${tdStyle}">${ST.pin || '-'}</td>
-      </tr>`;
-    }
-    if (f.includes('dist_state')) {
-      rows += `<tr>
-        <td style="${lblStyle}">District</td><td style="${tdStyle}">${ST.district || '-'}</td>
-        <td style="${lblStyle}">State</td><td style="${tdStyle}">${ST.state || '-'}</td>
-      </tr>`;
+    function openSelfEditModal() {
+      const allowed = PERMS.allowedFields || [];
+      const container = document.getElementById('dynamicEditFields');
+      if (allowed.length === 0) {
+        container.innerHTML = '<p style="grid-column:span 2; color:#64748b;">No fields enabled for editing by teacher.</p>';
+      } else {
+        container.innerHTML = allowed.map(key => {
+          const meta = FIELD_META[key];
+          if (!meta) return '';
+          if (meta.type === 'file') {
+            return `<div class="f-grp"><label>${meta.label}</label><input type="file" name="photo" accept="image/*"></div>`;
+          }
+          if (meta.type === 'textarea') {
+            return `<div class="f-grp" style="grid-column:span 2;"><label>${meta.label}</label><textarea name="${key}" rows="2">${ST[key] || ''}</textarea></div>`;
+          }
+          return `<div class="f-grp"><label>${meta.label}</label><input type="${meta.type}" name="${key}" value="${ST[key] || ''}"></div>`;
+        }).join('');
+      }
+      document.getElementById('selfEditModal').style.display = 'flex';
     }
 
-    document.getElementById('formCaptureArea').innerHTML = `
-      <div>
-        ${(c.useBanners && HEADER_URL) ? `<img src="${HEADER_URL}" crossorigin="anonymous" style="width:100%; max-height:115px; object-fit:contain; display:block;">` : `<h2 style="text-align:center; margin:0 0 10px;">STUDENT ADMISSION FORM</h2>`}
-        <div style="text-align:center; font-size:15px; font-weight:700; text-transform:uppercase; background:${c.titleBg}; color:${c.titleColor}; padding:8px; border:1px solid ${c.borderColor}; margin:12px 0 16px;">${c.title}</div>
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
-          <div style="font-size:${c.fontSize}px;">
-            <p style="margin:4px 0;"><strong>Admission No:</strong> ${ST.admission_no || '-'}</p>
-            ${f.includes('roll_no') ? `<p style="margin:4px 0;"><strong>Roll No:</strong> ${ST.roll_no || '-'}</p>` : ''}
-            <p style="margin:4px 0; color:#475569;"><strong>Date:</strong> ${ST.created_at || '-'}</p>
-          </div>
-          ${c.showPhoto ? `<div style="width:105px; height:125px; border:1px solid ${c.borderColor}; display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:11px; color:#64748b;">
-            ${ST.photo_file ? `<img src="${ST.photo_file}" crossorigin="anonymous" style="width:100%; height:100%; object-fit:cover;">` : 'Affix Photo'}
-          </div>` : ''}
-        </div>
-        <table class="form-table">${rows}</table>
-        ${c.showSig ? `<div style="display:flex; justify-content:space-between; margin-top:45px; padding:0 16px; font-size:${c.fontSize}px; font-weight:600;">
-          <div style="border-top:1px solid #334155; padding-top:6px; width:190px; text-align:center;">${c.leftSig}</div>
-          <div style="border-top:1px solid #334155; padding-top:6px; width:190px; text-align:center;">${c.rightSig}</div>
-        </div>` : ''}
-      </div>
-      ${(c.useBanners && FOOTER_URL) ? `<img src="${FOOTER_URL}" crossorigin="anonymous" style="width:100%; max-height:100px; object-fit:contain; display:block; margin-top:16px;">` : ''}
-    `;
+    function closeSelfEditModal() {
+      document.getElementById('selfEditModal').style.display = 'none';
+    }
+
+    async function submitSelfUpdate(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveSelf');
+      btn.disabled = true;
+      btn.innerText = 'Saving...';
+
+      const fd = new FormData(document.getElementById('selfEditForm'));
+      try {
+        const res = await fetch('/api/my-admission-update', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+          alert('Your details have been updated!');
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+          btn.disabled = false;
+          btn.innerText = 'Save Updates';
+        }
+      } catch (err) {
+        alert('Server error!');
+        btn.disabled = false;
+        btn.innerText = 'Save Updates';
+      }
+    }
+
+    // Render Studio Layout
+    const items = (SAVED && Array.isArray(SAVED.items) && SAVED.items.length > 0) ? SAVED.items : [];
+    const totalPages = (SAVED && SAVED.totalPages) ? SAVED.totalPages : Math.max(1, ...items.map(i => i.page || 1));
+
+    let pagesHtml = '';
+    for (let p = 1; p <= totalPages; p++) {
+      const pageItems = items.filter(it => it.visible && (it.page || 1) === p);
+      const innerHtml = pageItems.map((it, idx) => {
+        const bCol = it.borderColor || '#cbd5e1';
+        const bWidth = it.borderWidth || 1;
+        const bgCol = it.bgColor || 'transparent';
+        const txtCol = it.textColor || '#0f172a';
+        const borderCss = it.border ? `${bWidth}px solid ${bCol}` : 'none';
+        const rad = it.type === 'circle' ? '50%' : `${it.borderRadius || 0}px`;
+        const padCss = ['line', 'rect', 'circle', 'photo', 'header', 'footer'].includes(it.type) ? 'padding:0;' : 'padding:3px 5px;';
+        const weight = it.bold ? '700' : '500';
+        let contentHtml = '';
+
+        if (it.type === 'header') {
+          contentHtml = HEADER_URL ? `<img src="${HEADER_URL}" crossorigin="anonymous" class="banner-img">` : `<div style="font-weight:800; font-size:${it.fontSize}px; text-align:${it.align}; color:${txtCol}; padding:6px;">${it.customText}</div>`;
+        } else if (it.type === 'footer') {
+          contentHtml = FOOTER_URL ? `<img src="${FOOTER_URL}" crossorigin="anonymous" class="banner-img">` : '';
+        } else if (it.type === 'photo') {
+          contentHtml = `<div class="photo-box-inner" style="border-radius:${rad};">${ST.photo_file ? `<img src="${ST.photo_file}" crossorigin="anonymous">` : 'Photo'}</div>`;
+        } else if (it.type === 'sig') {
+          contentHtml = `<div style="border-top:${bWidth}px solid ${bCol}; padding-top:4px; font-weight:${weight}; font-size:${it.fontSize}px; text-align:${it.align}; color:${txtCol};">${it.customText}</div>`;
+        } else if (it.type === 'text') {
+          contentHtml = `<div style="font-weight:${weight}; font-size:${it.fontSize}px; text-align:${it.align}; color:${txtCol};">${it.customText}</div>`;
+        } else if (it.type === 'line') {
+          contentHtml = `<div style="width:100%; height:100%; background:${bCol};"></div>`;
+        } else if (it.fieldKey) {
+          const val = ST[it.fieldKey] || '-';
+          contentHtml = `<div style="font-size:${it.fontSize}px; text-align:${it.align}; font-weight:${weight}; color:${txtCol}; line-height:1.25;">${val}</div>`;
+        }
+
+        return `<div class="placed-box" style="left:${it.x}px; top:${it.y}px; width:${it.width}px; height:${it.height}px; z-index:${idx + 1}; background:${bgCol}; border:${borderCss}; border-radius:${rad}; ${padCss}">${contentHtml}</div>`;
+      }).join('');
+
+      pagesHtml += `<div class="a4-sheet">${innerHtml}</div>`;
+    }
+
+    document.getElementById('formCaptureArea').innerHTML = pagesHtml;
 
     function downloadFormImage() {
       html2canvas(document.getElementById('formCaptureArea'), { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {

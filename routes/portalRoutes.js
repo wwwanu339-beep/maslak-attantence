@@ -1,195 +1,291 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const multer = require('multer');
+const bcrypt = require('bcryptjs');
 const { getSheet } = require('../config/sheets');
-const { getBrandingUrls, getIdBrandingUrls } = require('../config/upload');
-const { verifyPassword } = require('../middleware/auth');
+const { getBrandingUrls } = require('../config/upload');
+const { requireAuth, checkAdmission } = require('../middleware/auth');
 
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, '../public/uploads')),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
+});
+const studentPhotoUpload = multer({ storage: photoStorage });
+
+const DEFAULT_PORTAL_CFG = {
+  globalShowForm: true,
+  globalShowIdCard: true,
+  globalAllowEdit: false,
+  allowedFields: ['phone', 'guardian_phone', 'address', 'place', 'pin', 'district', 'state'],
+  studentOverrides: {}
+};
+
+async function getPortalConfig() {
+  try {
+    const sheet = await getSheet('portal_config');
+    if (sheet) {
+      const rows = await sheet.getRows();
+      if (rows.length > 0 && rows[0].get('config_json')) {
+        return { ...DEFAULT_PORTAL_CFG, ...JSON.parse(rows[0].get('config_json')) };
+      }
+    }
+  } catch (e) {}
+  return { ...DEFAULT_PORTAL_CFG };
+}
+
+function getEffectiveStudentPerms(cfg, admNo) {
+  const ov = (cfg.studentOverrides && cfg.studentOverrides[admNo]) || {};
+  return {
+    showForm: ov.showForm !== undefined ? ov.showForm : cfg.globalShowForm,
+    showIdCard: ov.showIdCard !== undefined ? ov.showIdCard : cfg.globalShowIdCard,
+    allowEdit: ov.allowEdit !== undefined ? ov.allowEdit : cfg.globalAllowEdit,
+    allowedFields: cfg.allowedFields || []
+  };
+}
+
+// ==========================================
+// 1. STUDENT LOGIN ROUTES (/student-login)
+// ==========================================
 router.get('/student-login', (req, res) => {
   if (req.session && req.session.student) return res.redirect('/my-attendance');
   res.render('student_login', { error: null });
 });
 
 router.post('/student-login', async (req, res) => {
-  const { admission_no, password } = req.body;
-  if (!admission_no || !password) {
-    return res.render('student_login', { error: 'Admission Number and Password are required!' });
+  const admNo = String(req.body.admission_no || '').trim();
+  const password = String(req.body.password || '').trim();
+
+  if (!admNo || !password) {
+    return res.render('student_login', { error: 'Please enter Admission No and Password.' });
   }
 
   try {
-    const studentSheet = await getSheet('students');
-    const batchSheet = await getSheet('batches');
+    const admSheet = await getSheet('admissions');
+    const rows = await admSheet.getRows();
+    const stuRow = rows.find(r => String(r.get('admission_no') || '').trim().toLowerCase() === admNo.toLowerCase());
 
-    const [sRows, bRows] = await Promise.all([studentSheet.getRows(), batchSheet.getRows()]);
-
-    const batchMap = {};
-    bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
-
-    const matchedStudent = sRows.find(r => {
-      const status = (r.get('status') || '').trim().toLowerCase();
-      const adm = String(r.get('admission_no') || '').trim().toLowerCase();
-      return status === 'active' && adm === String(admission_no).trim().toLowerCase();
-    });
-
-    if (!matchedStudent) {
-      return res.render('student_login', { error: 'Invalid Admission Number or account is not active!' });
+    if (!stuRow) {
+      return res.render('student_login', { error: 'Invalid Admission Number!' });
     }
 
-    const storedPass = matchedStudent.get('password') || matchedStudent.get('admission_no');
-    const isValidPass = await verifyPassword(password, storedPass);
+    const actualAdmNo = String(stuRow.get('admission_no') || '').trim();
+    // Read all possible password column names from sheet
+    const colPass = String(stuRow.get('password') || '').trim();
+    const colHash = String(stuRow.get('password_hash') || '').trim();
+    const savedSecret = colHash || colPass;
 
-    if (!isValidPass) {
-      return res.render('student_login', { error: 'Invalid Admission Number or Password!' });
+    let isMatch = false;
+    if (savedSecret.startsWith('$2a$') || savedSecret.startsWith('$2b$') || savedSecret.startsWith('$2y$')) {
+      isMatch = await bcrypt.compare(password, savedSecret);
+    } else if (savedSecret !== '') {
+      isMatch = (password === savedSecret);
+    } else {
+      // If no password is set in sheet, allow Admission No (case-insensitive)
+      isMatch = (password.toLowerCase() === actualAdmNo.toLowerCase());
     }
 
-    const rawBatchIds = String(matchedStudent.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
-    const batchNames = rawBatchIds.map(id => batchMap[id]).filter(Boolean).join(', ');
-    const admNo = String(matchedStudent.get('admission_no')).trim();
+    if (!isMatch) {
+      return res.render('student_login', { error: 'Incorrect Password! (If not set, try your Admission Number)' });
+    }
 
     req.session.student = {
-      admission_no: admNo,
-      full_name: matchedStudent.get('full_name'),
-      batch_name: batchNames || 'N/A'
+      admission_no: actualAdmNo,
+      full_name: stuRow.get('full_name') || '',
+      batch_id: stuRow.get('batch_id') || ''
     };
 
     res.redirect('/my-attendance');
   } catch (err) {
-    res.render('student_login', { error: 'Server Error: ' + err.message });
+    res.render('student_login', { error: 'Login Error: ' + err.message });
   }
 });
 
+// ==========================================
+// 2. STUDENT ATTENDANCE & PORTAL (/my-attendance)
+// ==========================================
 router.get('/my-attendance', async (req, res) => {
   if (!req.session || !req.session.student) return res.redirect('/student-login');
+  const targetAdmNo = String(req.session.student.admission_no || '').trim();
 
-  const sessionStudent = req.session.student;
   const now = new Date();
-  const selectedMonth = parseInt(req.query.month) || (now.getMonth() + 1);
-  const selectedYear = parseInt(req.query.year) || now.getFullYear();
+  const selectedMonth = parseInt(req.query.month, 10) || (now.getMonth() + 1);
+  const selectedYear = parseInt(req.query.year, 10) || now.getFullYear();
 
   try {
-    const [attSheet, subjectSheet, stuSheet, admSheet, batchSheet] = await Promise.all([
+    const [admSheet, attSheet, batchSheet, portalCfg] = await Promise.all([
+      getSheet('admissions'),
       getSheet('attendance'),
-      getSheet('subjects'),
-      getSheet('students'),
-      getSheet('admissions'),
-      getSheet('batches')
+      getSheet('batches'),
+      getPortalConfig()
     ]);
 
-    const [attRows, subRows, stuRows, admRows, batchRows] = await Promise.all([
-      attSheet.getRows(),
-      subjectSheet.getRows(),
-      stuSheet.getRows(),
-      admSheet ? admSheet.getRows() : [],
-      batchSheet.getRows()
-    ]);
-
-    const subjectMap = {};
-    subRows.forEach(r => { subjectMap[r.get('id')] = r.get('name'); });
-
-    const batchMap = {};
-    batchRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
-
-    const targetAdmNo = String(sessionStudent.admission_no || '').trim().toLowerCase();
-    const stuRow = stuRows.find(r => String(r.get('admission_no') || '').trim().toLowerCase() === targetAdmNo);
-    const admRow = admRows.find(r => String(r.get('admission_no') || '').trim().toLowerCase() === targetAdmNo);
-    const infoRow = stuRow || admRow;
-
-    const rawBatchIds = String((infoRow && infoRow.get('batch_id')) || '').split(',').map(id => id.trim()).filter(Boolean);
-    const batchNamesList = rawBatchIds.map(id => batchMap[id]).filter(Boolean);
-    const mainBatchName = batchNamesList[0] || sessionStudent.batch_name || 'N/A';
-
-    let rawPhoto = (admRow && admRow.get('photo_file')) || (stuRow && stuRow.get('photo_file')) || (infoRow && (infoRow.get('photo') || infoRow.get('photo_url'))) || '';
-    let photoUrl = rawPhoto;
-    if (rawPhoto.includes('drive.google.com')) {
-      const match = rawPhoto.match(/[-\w]{25,}/);
-      if (match) photoUrl = `https://drive.google.com/thumbnail?id=${match[0]}&sz=w500`;
-    }
-
-    const student = {
-      ...sessionStudent,
-      full_name: (infoRow && infoRow.get('full_name')) || sessionStudent.full_name,
-      admission_no: (infoRow && infoRow.get('admission_no')) || sessionStudent.admission_no,
-      roll_no: (infoRow && infoRow.get('roll_no')) || '',
-      main_batch_name: mainBatchName,
-      batch_name: batchNamesList.join(', ') || sessionStudent.batch_name || 'N/A',
-      place: (admRow && (admRow.get('place') || admRow.get('address'))) || (stuRow && (stuRow.get('place') || stuRow.get('address'))) || 'N/A',
-      phone: (infoRow && infoRow.get('phone')) || 'N/A',
-      dob: (infoRow && (infoRow.get('dob') || infoRow.get('age'))) || 'N/A',
-      photo_url: photoUrl
-    };
-
-    let presentCount = 0;
-    let absentCount = 0;
-    let leaveCount = 0;
-    const records = [];
-
-    attRows.forEach(r => {
-      const admKey = String(r.get('admission_no') || r.get('student_id') || '').trim().toLowerCase();
-      if (admKey !== targetAdmNo) return;
-
-      const rDateStr = String(r.get('date') || '').trim();
-      if (!rDateStr) return;
-
-      const [rYear, rMonth] = rDateStr.split('-').map(Number);
-      if (rYear !== selectedYear || rMonth !== selectedMonth) return;
-
-      const status = String(r.get('status') || '').trim().toLowerCase();
-      if (status === 'present') presentCount++;
-      else if (status === 'absent') absentCount++;
-      else if (status === 'leave') leaveCount++;
-
-      records.push({
-        date: rDateStr,
-        subject: subjectMap[r.get('subject_id')] || 'General',
-        teacher: r.get('user') || '-',
-        status: status
-      });
-    });
-
-    records.sort((a, b) => b.date.localeCompare(a.date));
-    const totalWorking = presentCount + absentCount;
-    const percentage = totalWorking > 0 ? Math.round((presentCount / totalWorking) * 100) : 0;
-
-    res.render('student_attendance', {
-      student,
-      records,
-      stats: { present: presentCount, absent: absentCount, leave: leaveCount, percentage },
-      selectedMonth,
-      selectedYear
-    });
-  } catch (err) {
-    res.status(500).send('Database Error: ' + err.message);
-  }
-});
-
-// 1. വിദ്യാർത്ഥിക്ക് സ്വന്തം ID Card (എഡിറ്റിംഗ് ഇല്ലാതെ PDF / Image ഡൗൺലോഡ് മാത്രം)
-// 1. വിദ്യാർത്ഥിക്ക് സ്വന്തം ID Card (ടീച്ചറുടെ അതേ ഡിസൈനിൽ) തുറക്കാൻ
-router.get('/my-id-card', (req, res) => {
-  if (!req.session || !req.session.student) return res.redirect('/student-login');
-  const admNo = String(req.session.student.admission_no || '').trim();
-  res.redirect(`/id-cards?adm_no=${encodeURIComponent(admNo)}`);
-});
-
-// 2. വിദ്യാർത്ഥിക്ക് സ്വന്തം Admission Application കാണാനും പ്രിന്റ്/PDF ഡൗൺലോഡ് ചെയ്യാനും
-// 2. വിദ്യാർത്ഥിക്ക് സ്വന്തം Admission Application കാണാനും പ്രിന്റ്/PDF ഡൗൺലോഡ് ചെയ്യാനും
-router.get('/my-admission-form', async (req, res) => {
-  if (!req.session || !req.session.student) return res.redirect('/student-login');
-  const targetAdmNo = String(req.session.student.admission_no || '').trim().toLowerCase();
-
-  try {
-    const [admSheet, batchSheet] = await Promise.all([
-      getSheet('admissions'),
-      getSheet('batches')
-    ]);
-
-    const [aRows, bRows] = await Promise.all([
+    const [aRows, attRows, bRows] = await Promise.all([
       admSheet.getRows(),
+      attSheet ? attSheet.getRows() : [],
       batchSheet.getRows()
     ]);
 
     const batchMap = {};
     bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
 
-    const admRow = aRows.find(r => String(r.get('admission_no') || '').trim().toLowerCase() === targetAdmNo);
+    const admRow = aRows.find(r => String(r.get('admission_no') || '').trim().toLowerCase() === targetAdmNo.toLowerCase());
+    if (!admRow) {
+      delete req.session.student;
+      return res.redirect('/student-login');
+    }
+
+    const rawB = String(admRow.get('batch_id') || '').split(',').map(x => x.trim()).filter(Boolean);
+    const batchNames = rawB.map(id => batchMap[id]).filter(Boolean);
+
+    const student = {
+      admission_no: admRow.get('admission_no') || '',
+      roll_no: admRow.get('roll_no') || '',
+      full_name: admRow.get('full_name') || '',
+      father_name: admRow.get('father_name') || '',
+      dob: admRow.get('dob') || '',
+      phone: admRow.get('phone') || '',
+      place: admRow.get('place') || '-',
+      photo_url: admRow.get('photo_file') || '',
+      photo_file: admRow.get('photo_file') || '',
+      main_batch_name: batchNames[0] || 'No Batch',
+      batch_name: batchNames.join(', ') || 'No Batch',
+      status: admRow.get('status') || ''
+    };
+
+    const records = attRows
+      .filter(r => {
+        if (String(r.get('admission_no') || '').trim().toLowerCase() !== targetAdmNo.toLowerCase()) return false;
+        const dStr = String(r.get('date') || '').trim();
+        if (!dStr) return false;
+        // Support YYYY-MM-DD or DD/MM/YYYY
+        let m = 0, y = 0;
+        if (dStr.includes('-')) {
+          const parts = dStr.split('-');
+          y = parseInt(parts[0], 10);
+          m = parseInt(parts[1], 10);
+        } else if (dStr.includes('/')) {
+          const parts = dStr.split('/');
+          m = parseInt(parts[1], 10);
+          y = parseInt(parts[2], 10);
+        }
+        return m === selectedMonth && y === selectedYear;
+      })
+      .map(r => {
+        const rawSt = String(r.get('status') || '').trim().toLowerCase();
+        let normStatus = rawSt;
+        if (rawSt === 'p') normStatus = 'present';
+        else if (rawSt === 'a') normStatus = 'absent';
+        else if (rawSt === 'l' || rawSt === 'lv') normStatus = 'leave';
+
+        return {
+          date: r.get('date') || '',
+          subject: r.get('subject') || '-',
+          teacher: r.get('teacher') || r.get('marked_by') || '-',
+          status: normStatus
+        };
+      })
+      .reverse();
+
+    const stats = { present: 0, absent: 0, leave: 0, total: records.length, percentage: 0 };
+    records.forEach(rec => {
+      if (rec.status === 'present') stats.present++;
+      else if (rec.status === 'absent') stats.absent++;
+      else if (rec.status === 'leave') stats.leave++;
+    });
+    if (stats.total > 0) {
+      stats.percentage = Math.round((stats.present / stats.total) * 100);
+    }
+
+    const perms = getEffectiveStudentPerms(portalCfg, targetAdmNo);
+    res.render('student_attendance', { student, records, stats, perms, selectedMonth, selectedYear });
+  } catch (err) {
+    res.status(500).send('Portal Error: ' + err.message);
+  }
+});
+
+// ==========================================
+// 3. ADMIN STUDENT PORTAL CONTROL PANEL
+// ==========================================
+router.get('/student-portal-control', requireAuth, checkAdmission, async (req, res) => {
+  try {
+    const [admSheet, batchSheet, portalCfg] = await Promise.all([
+      getSheet('admissions'),
+      getSheet('batches'),
+      getPortalConfig()
+    ]);
+    const [aRows, bRows] = await Promise.all([admSheet.getRows(), batchSheet.getRows()]);
+
+    const batchMap = {};
+    bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
+
+    const students = aRows
+      .filter(r => (r.get('full_name') || '').trim() !== '')
+      .map(r => {
+        const admNo = String(r.get('admission_no') || '').trim();
+        const rawB = String(r.get('batch_id') || '').split(',').map(x => x.trim()).filter(Boolean);
+        return {
+          admission_no: admNo,
+          roll_no: r.get('roll_no') || '',
+          full_name: r.get('full_name') || '',
+          batch_name: rawB.map(id => batchMap[id]).filter(Boolean).join(', ') || 'No Batch',
+          status: (r.get('status') || 'pending').trim().toLowerCase(),
+          perms: getEffectiveStudentPerms(portalCfg, admNo)
+        };
+      })
+      .reverse();
+
+    res.render('student_portal_control', { students, portalCfg });
+  } catch (err) {
+    res.status(500).send('Error loading Portal Control: ' + err.message);
+  }
+});
+
+router.post('/api/student-portal-control', requireAuth, checkAdmission, async (req, res) => {
+  try {
+    const sheet = await getSheet('portal_config');
+    if (!sheet) {
+      return res.status(400).json({ success: false, error: 'Google Sheet-ൽ "portal_config" എന്ന ടാബ് ഉണ്ടാക്കി A1-ൽ "config_json" എന്ന് ഹെഡർ നൽകുക.' });
+    }
+
+    const rows = await sheet.getRows();
+    const jsonStr = JSON.stringify(req.body);
+    if (rows.length > 0) {
+      rows[0].set('config_json', jsonStr);
+      await rows[0].save();
+    } else {
+      await sheet.addRow({ config_json: jsonStr });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 4. STUDENT ADMISSION FORM & SELF-UPDATE
+// ==========================================
+router.get('/my-admission-form', async (req, res) => {
+  if (!req.session || !req.session.student) return res.redirect('/student-login');
+  const targetAdmNo = String(req.session.student.admission_no || '').trim();
+
+  try {
+    const [admSheet, batchSheet, portalCfg] = await Promise.all([
+      getSheet('admissions'),
+      getSheet('batches'),
+      getPortalConfig()
+    ]);
+
+    const perms = getEffectiveStudentPerms(portalCfg, targetAdmNo);
+    if (!perms.showForm) {
+      return res.status(403).send('<h3 style="font-family:sans-serif;text-align:center;margin-top:40px;">Admission Form view is currently disabled by Administrator.</h3>');
+    }
+
+    const [aRows, bRows] = await Promise.all([admSheet.getRows(), batchSheet.getRows()]);
+    const batchMap = {};
+    bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
+
+    const admRow = aRows.find(r => String(r.get('admission_no') || '').trim().toLowerCase() === targetAdmNo.toLowerCase());
     if (!admRow) return res.status(404).send('Admission record not found!');
 
     const rawBatchIds = String(admRow.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
@@ -231,9 +327,123 @@ router.get('/my-admission-form', async (req, res) => {
     } catch (e) {}
 
     const branding = getBrandingUrls();
-    res.render('student_application_print', { student, branding, formTpl });
+    res.render('student_application_print', { student, branding, formTpl, perms });
   } catch (err) {
     res.status(500).send('Database Error: ' + err.message);
+  }
+});
+
+router.post('/api/my-admission-update', studentPhotoUpload.single('photo'), async (req, res) => {
+  if (!req.session || !req.session.student) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  const targetAdmNo = String(req.session.student.admission_no || '').trim();
+
+  try {
+    const portalCfg = await getPortalConfig();
+    const perms = getEffectiveStudentPerms(portalCfg, targetAdmNo);
+
+    if (!perms.allowEdit) {
+      return res.status(403).json({ success: false, error: 'Editing is disabled by teacher.' });
+    }
+
+    const admSheet = await getSheet('admissions');
+    const rows = await admSheet.getRows();
+    const row = rows.find(r => String(r.get('admission_no') || '').trim().toLowerCase() === targetAdmNo.toLowerCase());
+    if (!row) return res.status(404).json({ success: false, error: 'Student not found' });
+
+    const editableKeys = [
+      'full_name', 'dob', 'father_name', 'phone', 'guardian_phone',
+      'aadhaar_no', 'address', 'place', 'pin', 'district', 'state',
+      'school_class', 'madrasa_class', 'is_muthallim', 'prev_institution', 'prev_place'
+    ];
+
+    editableKeys.forEach(key => {
+      if (perms.allowedFields.includes(key) && req.body[key] !== undefined) {
+        row.set(key, String(req.body[key]).trim());
+      }
+    });
+
+    if (perms.allowedFields.includes('photo_file') && req.file) {
+      row.set('photo_file', `/uploads/${req.file.filename}`);
+    }
+
+    await row.save();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 5. STUDENT ID CARD & LOGOUT
+// ==========================================
+// ==========================================
+// 5. STUDENT ID CARD & LOGOUT
+// ==========================================
+router.get('/my-id-card', async (req, res) => {
+  if (!req.session || !req.session.student) return res.redirect('/student-login');
+  const targetAdmNo = String(req.session.student.admission_no || '').trim();
+
+  try {
+    const [admSheet, batchSheet, portalCfg] = await Promise.all([
+      getSheet('admissions'),
+      getSheet('batches'),
+      getPortalConfig()
+    ]);
+
+    const perms = getEffectiveStudentPerms(portalCfg, targetAdmNo);
+    if (!perms.showIdCard) {
+      return res.status(403).send('<h3 style="font-family:sans-serif;text-align:center;margin-top:40px;">ID Card view is currently disabled by Administrator.</h3>');
+    }
+
+    const [aRows, bRows] = await Promise.all([admSheet.getRows(), batchSheet.getRows()]);
+    const batchMap = {};
+    bRows.forEach(r => { batchMap[r.get('id')] = r.get('name'); });
+
+    const admRow = aRows.find(r => String(r.get('admission_no') || '').trim().toLowerCase() === targetAdmNo.toLowerCase());
+    if (!admRow) return res.status(404).send('Student record not found!');
+
+    const rawB = String(admRow.get('batch_id') || '').split(',').map(x => x.trim()).filter(Boolean);
+    const batchNames = rawB.map(id => batchMap[id]).filter(Boolean);
+
+    const student = {
+      admission_no: admRow.get('admission_no') || '',
+      roll_no: admRow.get('roll_no') || '',
+      full_name: admRow.get('full_name') || '',
+      dob: admRow.get('dob') || '',
+      father_name: admRow.get('father_name') || '',
+      phone: admRow.get('phone') || '',
+      guardian_phone: admRow.get('guardian_phone') || '',
+      aadhaar_no: admRow.get('aadhaar_no') || '',
+      photo_file: admRow.get('photo_file') || '',
+      address: admRow.get('address') || '',
+      place: admRow.get('place') || '',
+      pin: admRow.get('pin') || '',
+      district: admRow.get('district') || '',
+      state: admRow.get('state') || '',
+      school_class: admRow.get('school_class') || '',
+      madrasa_class: admRow.get('madrasa_class') || '',
+      main_batch_name: batchNames[0] || 'No Batch',
+      batch_name: batchNames.join(', ') || 'No Batch',
+      created_at: admRow.get('created_at') || ''
+    };
+
+    let idTpl = {};
+    try {
+      const cfgSheet = await getSheet('id_config');
+      if (cfgSheet) {
+        const cfgRows = await cfgSheet.getRows();
+        if (cfgRows.length > 0 && cfgRows[0].get('config_json')) {
+          idTpl = JSON.parse(cfgRows[0].get('config_json'));
+        }
+      }
+    } catch (e) {}
+
+    const { getIdBrandingUrls } = require('../config/upload');
+    const idBranding = typeof getIdBrandingUrls === 'function' ? getIdBrandingUrls() : getBrandingUrls();
+
+    res.render('student_id_card', { student, idBranding, idTpl });
+  } catch (err) {
+    res.status(500).send('Error loading ID Card: ' + err.message);
   }
 });
 
@@ -243,3 +453,4 @@ router.get('/student-logout', (req, res) => {
 });
 
 module.exports = router;
+
