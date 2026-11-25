@@ -2,42 +2,157 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Admission Form - <%= student.admission_no %></title>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #0f172a; margin: 0; padding: 16px; background: #f1f5f9; }
-    .toolbar { max-width: 794px; margin: 0 auto 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .btn { padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; }
-    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-    .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
-    .btn-warning { background: #d97706; color: #fff; border-color: #d97706; }
-
-    .sheet-scroll { overflow-x: auto; display: flex; flex-direction: column; align-items: center; gap: 20px; }
-    .a4-sheet {
-      width: 794px; height: 1123px; background: #ffffff; position: relative;
-      border: 1px solid #cbd5e1; overflow: hidden; page-break-after: always; break-after: page;
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      overflow-x: hidden;
+      background: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #0f172a;
     }
-    .a4-sheet:last-child { page-break-after: auto; break-after: auto; }
+
+    /* Compact Pure White Top Toolbar */
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      width: 100%;
+      max-width: 794px;
+      margin: 0 auto;
+      padding: 5px 8px;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+    }
+    .toolbar-right {
+      display: flex;
+      gap: 4px;
+      flex-wrap: nowrap;
+    }
+
+    /* Small Clean White Buttons */
+    .btn {
+      padding: 4px 8px;
+      min-height: 24px;
+      border-radius: 5px;
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      color: #1e293b;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      line-height: 1;
+      transition: background 0.15s;
+    }
+    .btn:hover, .btn:active {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    /* Full Screen Width A4 Container */
+    .viewport-fit {
+      width: 100%;
+      max-width: 794px;
+      margin: 0 auto;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .sheet-scroll {
+      width: 794px;
+      transform-origin: top left;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: #ffffff;
+    }
+
+    .a4-sheet {
+      width: 794px;
+      height: 1123px;
+      background: #ffffff;
+      position: relative;
+      border-bottom: 1px solid #e2e8f0;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+    }
+    .a4-sheet:last-child { border-bottom: none; page-break-after: auto; break-after: auto; }
     .placed-box { position: absolute; }
-    .photo-box-inner { width: 100%; height: 100%; background: #f8fafc; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 11px; color: #64748b; }
+    .photo-box-inner {
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-size: 11px;
+      color: #64748b;
+    }
     .photo-box-inner img { width: 100%; height: 100%; object-fit: cover; }
     .banner-img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
     /* Student Self-Edit Modal */
-    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 999; align-items: center; justify-content: center; padding: 16px; }
-    .modal-box { background: #fff; border-radius: 12px; width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto; padding: 20px; }
+    .modal-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+    .modal-box {
+      background: #ffffff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 18px;
+    }
     .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-    @media (max-width: 540px) { .edit-grid { grid-template-columns: 1fr; } }
-    .f-grp label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 3px; }
-    .f-grp input, .f-grp select, .f-grp textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+    .f-grp label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; }
+    .f-grp input, .f-grp select, .f-grp textarea {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 16px;
+      background: #ffffff;
+    }
+
+    @media (max-width: 600px) {
+      .toolbar { padding: 4px 6px; gap: 3px; }
+      .toolbar-right { gap: 3px; }
+      .btn { padding: 3px 6px; font-size: 9.5px; min-height: 22px; border-radius: 4px; }
+      .edit-grid { grid-template-columns: 1fr; }
+      .modal-bg { align-items: flex-end; padding: 0; }
+      .modal-box { border-radius: 18px 18px 0 0; max-width: 100%; padding: 18px 16px 24px; }
+    }
 
     @media print {
-      body { background: #fff; padding: 0; }
+      body { background: #ffffff; padding: 0; }
       .toolbar, .modal-bg { display: none !important; }
-      .sheet-scroll { gap: 0; }
+      .viewport-fit { height: auto !important; max-width: none !important; overflow: visible !important; }
+      .sheet-scroll { transform: none !important; width: 794px !important; }
       .a4-sheet { border: none; }
     }
   </style>
@@ -45,29 +160,31 @@
 <body>
   <div class="toolbar">
     <a href="/my-attendance" class="btn">← Back</a>
-    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+    <div class="toolbar-right">
       <% if (typeof perms !== 'undefined' && perms.allowEdit) { %>
-        <button type="button" onclick="openSelfEditModal()" class="btn btn-warning">✎ Edit / Update Details</button>
+        <button type="button" onclick="openSelfEditModal()" class="btn">✎ Edit</button>
       <% } %>
-      <button type="button" onclick="downloadFormImage()" class="btn btn-primary">Download Image</button>
-      <button type="button" onclick="window.print()" class="btn btn-success">Download PDF</button>
+      <button type="button" onclick="downloadFormImage()" class="btn">Download Image</button>
+      <button type="button" onclick="window.print()" class="btn">Download PDF</button>
     </div>
   </div>
 
-  <div class="sheet-scroll" id="formCaptureArea"></div>
+  <div class="viewport-fit" id="viewportFit">
+    <div class="sheet-scroll" id="formCaptureArea"></div>
+  </div>
 
   <!-- Student Self-Edit Modal -->
   <div class="modal-bg" id="selfEditModal" onclick="if(event.target === this) closeSelfEditModal()">
     <div class="modal-box">
       <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
         <h3 style="margin:0; font-size:16px;">Update Your Admission Details</h3>
-        <button type="button" onclick="closeSelfEditModal()" style="border:none; background:none; font-size:20px; cursor:pointer;">×</button>
+        <button type="button" onclick="closeSelfEditModal()" style="border:none; background:none; font-size:22px; cursor:pointer;">×</button>
       </div>
       <form id="selfEditForm" onsubmit="submitSelfUpdate(event)">
         <div class="edit-grid" id="dynamicEditFields"></div>
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px; border-top:1px solid #e2e8f0; padding-top:12px;">
-          <button type="button" class="btn" onclick="closeSelfEditModal()">Cancel</button>
-          <button type="submit" id="btnSaveSelf" class="btn btn-success">Save Updates</button>
+          <button type="button" class="btn" onclick="closeSelfEditModal()" style="padding:7px 14px; font-size:12px;">Cancel</button>
+          <button type="submit" id="btnSaveSelf" class="btn" style="padding:7px 14px; font-size:12px; font-weight:700;">Save Updates</button>
         </div>
       </form>
     </div>
@@ -196,15 +313,34 @@
       pagesHtml += `<div class="a4-sheet">${innerHtml}</div>`;
     }
 
-    document.getElementById('formCaptureArea').innerHTML = pagesHtml;
+    const captureArea = document.getElementById('formCaptureArea');
+    const viewportFit = document.getElementById('viewportFit');
+    captureArea.innerHTML = pagesHtml;
+
+    // Fit A4 sheet edge-to-edge on mobile screens
+    function fitFormToScreen() {
+      const screenWidth = viewportFit.clientWidth || window.innerWidth;
+      const scale = Math.min(1, screenWidth / 794);
+      captureArea.style.transform = `scale(${scale})`;
+      const fullHeight = 1123 * totalPages;
+      viewportFit.style.height = Math.ceil(fullHeight * scale) + 'px';
+    }
+
+    window.addEventListener('resize', fitFormToScreen);
+    window.addEventListener('DOMContentLoaded', fitFormToScreen);
+    fitFormToScreen();
 
     function downloadFormImage() {
-      html2canvas(document.getElementById('formCaptureArea'), { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+      captureArea.style.transform = 'scale(1)';
+      viewportFit.style.height = 'auto';
+
+      html2canvas(captureArea, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+        fitFormToScreen();
         const link = document.createElement('a');
         link.download = `${ST.admission_no}_Admission_Form.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
-      });
+      }).catch(() => fitFormToScreen());
     }
   </script>
 </body>

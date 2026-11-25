@@ -16,7 +16,7 @@
     }
 
     * { box-sizing: border-box; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { margin: 0; background: var(--bg-page); color: var(--text-dark); padding: 16px; }
+    body { margin: 0; background: var(--bg-page); color: var(--text-dark); padding: 14px 12px; }
     .container { max-width: 780px; margin: 0 auto; }
 
     /* Top Nav Header */
@@ -24,8 +24,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 14px;
-      padding: 0 4px;
+      margin-bottom: 12px;
+      padding: 0 2px;
     }
     .portal-brand {
       font-size: 15px;
@@ -48,9 +48,9 @@
       color: #dc2626;
       border: 1px solid #fecaca;
       text-decoration: none;
-      padding: 6px 13px;
+      padding: 6px 12px;
       border-radius: 8px;
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 700;
       display: inline-flex;
       align-items: center;
@@ -66,25 +66,22 @@
       border: 1px solid var(--border);
       box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
       overflow: hidden;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
     .profile-banner {
-      height: 54px;
+      height: 52px;
       background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
     }
-    .profile-body {
-      padding: 0 20px 18px;
-    }
+    .profile-body { padding: 0 16px 16px; }
     .profile-main {
       display: flex;
-      align-items: flex-end;
-      gap: 16px;
-      margin-top: -32px;
-      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 14px;
+      margin-top: -30px;
     }
     .student-photo {
-      width: 82px;
-      height: 82px;
+      width: 78px;
+      height: 78px;
       border-radius: 14px;
       object-fit: cover;
       border: 3px solid #ffffff;
@@ -103,22 +100,24 @@
     .student-heading {
       padding-top: 36px;
       flex: 1;
-      min-width: 200px;
+      min-width: 0;
     }
     .student-heading h2 {
       margin: 0 0 4px;
-      font-size: 19px;
+      font-size: 17px;
       font-weight: 800;
       color: var(--text-dark);
+      line-height: 1.25;
+      word-wrap: break-word;
     }
     .batch-tag {
       display: inline-block;
       background: var(--primary-soft);
       color: var(--primary);
       border: 1px solid #bfdbfe;
-      padding: 2px 10px;
+      padding: 2px 9px;
       border-radius: 99px;
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 700;
     }
 
@@ -126,26 +125,26 @@
     .info-pills {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-top: 16px;
-      padding-top: 14px;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 12px;
       border-top: 1px solid #f1f5f9;
     }
     .info-item {
       background: #f8fafc;
-      padding: 8px 11px;
-      border-radius: 10px;
+      padding: 7px 10px;
+      border-radius: 9px;
       border: 1px solid #f1f5f9;
     }
     .info-item span {
       display: block;
-      font-size: 11px;
+      font-size: 10.5px;
       color: var(--text-muted);
       font-weight: 600;
       margin-bottom: 2px;
     }
     .info-item strong {
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--text-dark);
       font-weight: 700;
     }
@@ -153,10 +152,10 @@
     /* Quick Action Bar */
     .action-bar {
       display: flex;
-      gap: 8px;
+      gap: 7px;
       flex-wrap: wrap;
-      margin-top: 14px;
-      padding-top: 14px;
+      margin-top: 12px;
+      padding-top: 12px;
       border-top: 1px solid #f1f5f9;
     }
     .btn-action {
@@ -164,42 +163,38 @@
       color: #1e293b;
       border: 1px solid #cbd5e1;
       text-decoration: none;
-      padding: 8px 14px;
-      border-radius: 9px;
-      font-size: 12.5px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
       font-weight: 700;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
+      cursor: pointer;
       transition: 0.15s;
     }
-    .btn-action:hover {
-      background: #f8fafc;
-      border-color: #94a3b8;
-      transform: translateY(-1px);
-    }
+    .btn-action:hover { background: #f8fafc; border-color: #94a3b8; }
     .btn-action.primary-pill {
       background: var(--primary-soft);
       color: var(--primary);
       border-color: #bfdbfe;
     }
-    .btn-action.primary-pill:hover {
-      background: #dbeafe;
-    }
+    .btn-action.primary-pill:hover { background: #dbeafe; }
 
-    /* Stats Cards */
+    /* Compact Single-Line Stats Cards */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 8px;
+      margin-bottom: 12px;
     }
     .stat-box {
       background: var(--surface);
-      padding: 14px 12px;
-      border-radius: 14px;
+      padding: 10px 6px;
+      border-radius: 12px;
       border: 1px solid var(--border);
-      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+      text-align: center;
       position: relative;
       overflow: hidden;
     }
@@ -207,97 +202,164 @@
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
-      height: 3.5px;
+      height: 3px;
     }
     .stat-p::before { background: #16a34a; }
     .stat-a::before { background: #dc2626; }
     .stat-l::before { background: #eab308; }
     .stat-pct::before { background: #2563eb; }
 
-    .stat-box h4 { margin: 2px 0 3px; font-size: 22px; font-weight: 800; }
-    .stat-box span { font-size: 11.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+    .stat-box h4 { margin: 2px 0 2px; font-size: 18px; font-weight: 800; line-height: 1.1; }
+    .stat-box span { display: block; font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.2px; white-space: nowrap; }
     .p-color { color: #16a34a; }
     .a-color { color: #dc2626; }
     .l-color { color: #ca8a04; }
     .pct-color { color: #2563eb; }
 
-    /* Filter Card */
+    /* Filter Card (Date + Month + Year) */
     .filter-card {
       background: var(--surface);
-      padding: 12px 16px;
+      padding: 10px 14px;
       border-radius: 12px;
       border: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 14px;
+      gap: 8px;
+      margin-bottom: 12px;
     }
     .filter-title {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 800;
       color: var(--text-dark);
     }
     .filter-controls {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
+      flex-wrap: wrap;
     }
-    select {
-      padding: 7px 11px;
-      border-radius: 8px;
+    select, input[type="date"] {
+      padding: 6px 9px;
+      border-radius: 7px;
       border: 1px solid #cbd5e1;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text-dark);
       background: #f8fafc;
       outline: none;
     }
-    select:focus { border-color: var(--primary); background: #fff; }
+    select:focus, input[type="date"]:focus { border-color: var(--primary); background: #fff; }
     .btn-show {
       background: var(--primary);
       color: #fff;
       border: none;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
+      padding: 7px 13px;
+      border-radius: 7px;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
     }
     .btn-show:hover { background: #1d4ed8; }
+    .btn-clear-date {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      padding: 6px 10px;
+      border-radius: 7px;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-decoration: none;
+    }
 
-    /* Attendance Table */
-    .table-card {
+    /* Compact Mini Cubes Grid */
+    .att-boxes-wrap {
       background: var(--surface);
       border-radius: 14px;
       border: 1px solid var(--border);
+      padding: 10px;
       box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
-      overflow-x: auto;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 13.5px; text-align: left; }
-    th {
-      background: #f8fafc;
-      color: var(--text-muted);
-      font-size: 11.5px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
+    .att-boxes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+      gap: 6px;
     }
-    td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f8fafc; }
+    .att-mini-box {
+      border-radius: 8px;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
 
-    .badge { padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 800; display: inline-block; letter-spacing: 0.3px; }
-    .badge.present { background: #dcfce7; color: #15803d; }
-    .badge.absent { background: #fee2e2; color: #b91c1c; }
-    .badge.leave { background: #fef9c3; color: #854d0e; }
+    /* Low Green for Present */
+    .att-mini-box.present {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #14532d;
+    }
+    /* Low Red for Absent */
+    .att-mini-box.absent {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #7f1d1d;
+    }
+    /* Low Yellow for Leave */
+    .att-mini-box.leave {
+      background: #fefce8;
+      border-color: #fef08a;
+      color: #713f12;
+    }
+
+    .mini-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 3px;
+    }
+    .mini-date {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+    }
+    .mini-tag {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+    .present .mini-tag { background: #dcfce7; color: #15803d; }
+    .absent .mini-tag { background: #fee2e2; color: #b91c1c; }
+    .leave .mini-tag { background: #fef9c3; color: #854d0e; }
+
+    .mini-sub {
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mini-teacher {
+      font-size: 9.5px;
+      opacity: 0.78;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     @media (max-width: 640px) {
       .info-pills { grid-template-columns: repeat(2, 1fr); }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+      .stat-box { padding: 8px 4px; border-radius: 10px; }
+      .stat-box h4 { font-size: 16px; }
+      .stat-box span { font-size: 9px; letter-spacing: 0; }
+      .att-boxes-grid { grid-template-columns: repeat(3, 1fr); gap: 5px; }
     }
   </style>
 </head>
@@ -354,29 +416,36 @@
         <div class="action-bar">
           <% if (typeof perms === 'undefined' || perms.showIdCard) { %>
             <a href="/my-id-card" target="_blank" class="btn-action primary-pill">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2"/><path d="M15 12h2"/><path d="M7 16h10"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h2"/><path d="M15 12h2"/><path d="M7 16h10"/></svg>
               ID Card
             </a>
           <% } %>
 
           <% if (typeof perms === 'undefined' || perms.showForm) { %>
             <a href="/my-admission-form" target="_blank" class="btn-action">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               <%= (typeof perms !== 'undefined' && perms.allowEdit) ? 'Admission Application (Edit / Print)' : 'Admission Application' %>
             </a>
           <% } %>
 
           <% if (student.photo_url) { %>
             <a href="<%= student.photo_url %>" download="<%= student.admission_no %>_photo.jpg" target="_blank" class="btn-action">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download Photo
             </a>
+          <% } %>
+
+          <% if (typeof perms !== 'undefined' && perms.allowPasswordChange === true) { %>
+            <button type="button" onclick="openPassModal()" class="btn-action">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Change Password
+            </button>
           <% } %>
         </div>
       </div>
     </div>
 
-    <!-- Attendance Summary Stats -->
+    <!-- Single-Line Attendance Summary Stats -->
     <div class="stats-grid">
       <div class="stat-box stat-p">
         <h4 class="p-color"><%= stats.present %></h4>
@@ -396,54 +465,130 @@
       </div>
     </div>
 
-    <!-- Month/Year Filter -->
-    <form class="filter-card" method="GET" action="/my-attendance">
+    <!-- Date / Month / Year Filter -->
+    <form class="filter-card" method="GET" action="/my-attendance" id="attFilterForm">
       <span class="filter-title">Attendance History</span>
       <div class="filter-controls">
-        <select name="month">
+        <input type="date" name="date" id="filterDateInp" value="<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>" title="Filter by Specific Date" onchange="document.getElementById('attFilterForm').submit()">
+
+        <select name="month" onchange="document.getElementById('filterDateInp').value='';">
           <% const months = ['January','February','March','April','May','June','July','August','September','October','November','December']; %>
           <% months.forEach((m, idx) => { %>
             <option value="<%= idx + 1 %>" <%= selectedMonth === (idx + 1) ? 'selected' : '' %>><%= m %></option>
           <% }) %>
         </select>
-        <select name="year">
+
+        <select name="year" onchange="document.getElementById('filterDateInp').value='';">
           <% [2026, 2027, 2028].forEach(y => { %>
             <option value="<%= y %>" <%= selectedYear === y ? 'selected' : '' %>><%= y %></option>
           <% }) %>
         </select>
+
         <button type="submit" class="btn-show">Show</button>
+
+        <% if (typeof selectedDate !== 'undefined' && selectedDate) { %>
+          <a href="/my-attendance?month=<%= selectedMonth %>&year=<%= selectedYear %>" class="btn-clear-date">All Month</a>
+        <% } %>
       </div>
     </form>
 
-    <!-- Attendance Records Table -->
-    <div class="table-card">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Subject</th>
-            <th>Teacher</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (records.length === 0) { %>
-            <tr>
-              <td colspan="4" style="text-align: center; color: #64748b; padding: 28px;">No attendance records found for this month.</td>
-            </tr>
-          <% } else { %>
-            <% records.forEach(r => { %>
-              <tr>
-                <td><strong><%= r.date %></strong></td>
-                <td><%= r.subject %></td>
-                <td><%= r.teacher %></td>
-                <td><span class="badge <%= r.status %>"><%= r.status.toUpperCase() %></span></td>
-              </tr>
-            <% }) %>
-          <% } %>
-        </tbody>
-      </table>
+    <!-- Compact Mini Cubes (Low Green = Present, Low Red = Absent, Low Yellow = Leave) -->
+    <div class="att-boxes-wrap">
+      <% if (records.length === 0) { %>
+        <div style="text-align: center; color: #64748b; padding: 20px; font-size: 13px;">
+          No attendance records found for this selection.
+        </div>
+      <% } else { %>
+        <div class="att-boxes-grid">
+          <% records.forEach(r => { %>
+            <div class="att-mini-box <%= r.status %>" title="<%= r.date %> | <%= r.subject %> | <%= r.teacher %>">
+              <div class="mini-top">
+                <span class="mini-date"><%= r.date %></span>
+                <span class="mini-tag"><%= r.status === 'present' ? 'P' : (r.status === 'absent' ? 'A' : 'L') %></span>
+              </div>
+              <div class="mini-sub"><%= r.subject %></div>
+              <div class="mini-teacher"><%= r.teacher %></div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
     </div>
   </div>
+
+  <!-- Change Password Modal -->
+  <div id="passModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:999; align-items:center; justify-content:center; padding:16px;" onclick="if(event.target === this) closePassModal()">
+    <div style="background:#fff; border-radius:14px; width:100%; max-width:380px; padding:20px; box-shadow:0 20px 35px rgba(0,0,0,0.2);">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:14px;">
+        <h3 style="margin:0; font-size:16px; font-weight:800;">Change Password</h3>
+        <button type="button" onclick="closePassModal()" style="border:none; background:none; font-size:22px; cursor:pointer; color:#64748b;">×</button>
+      </div>
+      <form onsubmit="submitNewPassword(event)">
+        <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:5px;">Current Password</label>
+        <input type="password" id="currentStuPass" required placeholder="Enter current password" style="width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:15px; margin-bottom:12px;">
+
+        <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:5px;">New Password</label>
+        <input type="password" id="newStuPass" required minlength="4" placeholder="Enter new password" style="width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:15px; margin-bottom:12px;">
+
+        <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:5px;">Confirm Password</label>
+        <input type="password" id="confirmStuPass" required minlength="4" placeholder="Re-enter new password" style="width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:15px; margin-bottom:16px;">
+
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" onclick="closePassModal()" class="btn-action">Cancel</button>
+          <button type="submit" id="btnSavePass" class="btn-show">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openPassModal() {
+      document.getElementById('currentStuPass').value = '';
+      document.getElementById('newStuPass').value = '';
+      document.getElementById('confirmStuPass').value = '';
+      document.getElementById('passModal').style.display = 'flex';
+    }
+    function closePassModal() {
+      document.getElementById('passModal').style.display = 'none';
+    }
+    async function submitNewPassword(e) {
+      e.preventDefault();
+      const currentPass = document.getElementById('currentStuPass').value.trim();
+      const p1 = document.getElementById('newStuPass').value.trim();
+      const p2 = document.getElementById('confirmStuPass').value.trim();
+
+      if (p1 !== p2) {
+        alert('New passwords do not match!');
+        return;
+      }
+      if (currentPass === p1) {
+        alert('New password must be different from current password!');
+        return;
+      }
+
+      const btn = document.getElementById('btnSavePass');
+      btn.disabled = true;
+      btn.innerText = 'Saving...';
+
+      try {
+        const res = await fetch('/api/my-password-change', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_password: currentPass, new_password: p1 })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Password updated successfully!');
+          closePassModal();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        alert('Server error!');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Update Password';
+      }
+    }
+  </script>
 </body>
 </html>

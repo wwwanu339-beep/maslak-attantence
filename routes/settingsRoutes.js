@@ -3,16 +3,50 @@ const router = express.Router();
 const { getSheet } = require('../config/sheets');
 const { requireAuth, checkManage, isProtectedAdmin, hashPassword, verifyPassword } = require('../middleware/auth');
 
+const DEFAULT_PORTAL_CFG = {
+  globalShowForm: true,
+  globalShowIdCard: true,
+  globalAllowEdit: false,
+  globalAllowPasswordChange: false,
+  allowedFields: ['phone', 'guardian_phone', 'address', 'place', 'pin', 'district', 'state'],
+  studentOverrides: {}
+};
+
+// Helper: Verify Main Admin Password for all Delete / Clear operations
+async function verifyMainAdminPassword(adminPassword) {
+  if (!adminPassword) return { ok: false, status: 400, error: 'Main Admin password is required!' };
+  const userSheet = await getSheet('users');
+  const uRows = await userSheet.getRows();
+  const protectedAdmins = uRows.filter(r => isProtectedAdmin(r));
+
+  if (protectedAdmins.length === 0) {
+    return { ok: false, status: 404, error: 'Main Admin account not found!' };
+  }
+
+  for (const adm of protectedAdmins) {
+    if (await verifyPassword(adminPassword, adm.get('password'))) {
+      return { ok: true };
+    }
+  }
+  return { ok: false, status: 401, error: 'Incorrect Main Admin password!' };
+}
+
 router.get('/settings', requireAuth, checkManage, async (req, res) => {
   try {
-    const batchSheet = await getSheet('batches');
-    const subjectSheet = await getSheet('subjects');
-    const userSheet = await getSheet('users');
+    const [batchSheet, subjectSheet, userSheet, admSheet, cfgSheet] = await Promise.all([
+      getSheet('batches'),
+      getSheet('subjects'),
+      getSheet('users'),
+      getSheet('admissions'),
+      getSheet('portal_config')
+    ]);
 
-    const [bRows, sRows, uRows] = await Promise.all([
+    const [bRows, sRows, uRows, aRows, cRows] = await Promise.all([
       batchSheet.getRows(),
       subjectSheet.getRows(),
-      userSheet.getRows()
+      userSheet.getRows(),
+      admSheet ? admSheet.getRows() : [],
+      cfgSheet ? cfgSheet.getRows() : []
     ]);
 
     const batches = bRows.map(r => ({ id: r.get('id'), name: r.get('name') })).reverse();
@@ -29,7 +63,33 @@ router.get('/settings', requireAuth, checkManage, async (req, res) => {
       }))
       .reverse();
 
-    res.render('add', { batches, subjects, users });
+    // Map Batch ID -> Name for Student Portal Control Table
+    const batchMap = {};
+    bRows.forEach(r => {
+      batchMap[String(r.get('id') || '').trim()] = r.get('name');
+    });
+
+    const students = aRows
+      .filter(r => (r.get('full_name') || '').trim() !== '')
+      .map(r => {
+        const rawB = String(r.get('batch_id') || '').split(',').map(x => x.trim()).filter(Boolean);
+        return {
+          admission_no: String(r.get('admission_no') || '').trim(),
+          roll_no: r.get('roll_no') || '',
+          full_name: r.get('full_name') || '',
+          batch_name: rawB.map(id => batchMap[id]).filter(Boolean).join(', ') || 'No Batch'
+        };
+      })
+      .reverse();
+
+    let portalCfg = { ...DEFAULT_PORTAL_CFG };
+    if (cRows.length > 0 && cRows[0].get('config_json')) {
+      try {
+        portalCfg = { ...DEFAULT_PORTAL_CFG, ...JSON.parse(cRows[0].get('config_json')) };
+      } catch (e) {}
+    }
+
+    res.render('add', { batches, subjects, users, students, portalCfg });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
   }
@@ -49,6 +109,9 @@ router.post('/api/batches', requireAuth, checkManage, async (req, res) => {
 
 router.delete('/api/batches/:id', requireAuth, checkManage, async (req, res) => {
   try {
+    const authCheck = await verifyMainAdminPassword(req.body.adminPassword);
+    if (!authCheck.ok) return res.status(authCheck.status).json({ success: false, error: authCheck.error });
+
     const sheet = await getSheet('batches');
     const rows = await sheet.getRows();
     const row = rows.find(r => String(r.get('id')) === String(req.params.id));
@@ -73,6 +136,9 @@ router.post('/api/subjects', requireAuth, checkManage, async (req, res) => {
 
 router.delete('/api/subjects/:id', requireAuth, checkManage, async (req, res) => {
   try {
+    const authCheck = await verifyMainAdminPassword(req.body.adminPassword);
+    if (!authCheck.ok) return res.status(authCheck.status).json({ success: false, error: authCheck.error });
+
     const sheet = await getSheet('subjects');
     const rows = await sheet.getRows();
     const row = rows.find(r => String(r.get('id')) === String(req.params.id));
@@ -139,6 +205,9 @@ router.post('/api/users', requireAuth, checkManage, async (req, res) => {
 
 router.delete('/api/users/:id', requireAuth, checkManage, async (req, res) => {
   try {
+    const authCheck = await verifyMainAdminPassword(req.body.adminPassword);
+    if (!authCheck.ok) return res.status(authCheck.status).json({ success: false, error: authCheck.error });
+
     const sheet = await getSheet('users');
     const rows = await sheet.getRows();
     const targetId = String(req.params.id).trim();
@@ -181,28 +250,13 @@ router.put('/api/change-password', requireAuth, async (req, res) => {
 
 router.delete('/api/clear/:target', requireAuth, checkManage, async (req, res) => {
   const target = req.params.target;
-  const { adminPassword } = req.body;
   const allowedTargets = ['attendance', 'students', 'subjects', 'batches', 'users'];
 
   if (!allowedTargets.includes(target)) return res.status(400).json({ success: false, error: 'Invalid clear target!' });
-  if (!adminPassword) return res.status(400).json({ success: false, error: 'Main Admin password is required!' });
 
   try {
-    const userSheet = await getSheet('users');
-    const uRows = await userSheet.getRows();
-
-    const protectedAdmins = uRows.filter(r => isProtectedAdmin(r));
-    if (protectedAdmins.length === 0) return res.status(404).json({ success: false, error: 'Main Admin account not found!' });
-
-    let isPasswordValid = false;
-    for (const adm of protectedAdmins) {
-      if (await verifyPassword(adminPassword, adm.get('password'))) {
-        isPasswordValid = true;
-        break;
-      }
-    }
-
-    if (!isPasswordValid) return res.status(401).json({ success: false, error: 'Incorrect Main Admin password!' });
+    const authCheck = await verifyMainAdminPassword(req.body.adminPassword);
+    if (!authCheck.ok) return res.status(authCheck.status).json({ success: false, error: authCheck.error });
 
     const sheet = await getSheet(target);
     if (!sheet) return res.status(404).json({ success: false, error: `Sheet "${target}" not found!` });
