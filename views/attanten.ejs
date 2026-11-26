@@ -4,64 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mark Attendance</title>
-  <link rel="stylesheet" href="/add.css">
-  <style>
-    .filter-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-    @media (max-width: 680px) {
-      .filter-grid { grid-template-columns: 1fr; }
-    }
-    .field-label {
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-muted);
-      margin-bottom: 5px;
-    }
-    input[type="date"] {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1px solid var(--border-color);
-      border-radius: 7px;
-      font-size: 14px;
-      font-family: inherit;
-      color: var(--text-main);
-      background-color: #f8fafc;
-      outline: none;
-    }
-    .att-toolbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 12px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border-color);
-    }
-    .status-pill-group {
-      display: inline-flex;
-      gap: 6px;
-    }
-    .st-btn {
-      padding: 6px 12px;
-      border-radius: 7px;
-      font-size: 12px;
-      font-weight: 800;
-      border: 1.5px solid #cbd5e1;
-      background: #f8fafc;
-      color: #475569;
-      cursor: pointer;
-      transition: 0.15s;
-    }
-    .st-btn.active-p { background: #dcfce7; border-color: #16a34a; color: #15803d; }
-    .st-btn.active-a { background: #fee2e2; border-color: #dc2626; color: #b91c1c; }
-    .st-btn.active-l { background: #fef9c3; border-color: #eab308; color: #854d0e; }
-  </style>
+  <link rel="stylesheet" href="/attanten.css">
 </head>
 <body>
   <div class="container">
@@ -76,190 +19,213 @@
       </a>
     </div>
 
-    <!-- Filter Selection Card -->
-    <div class="portal-card" style="margin-bottom: 16px;">
-      <div class="filter-grid">
-        <div>
-          <label class="field-label">Select Batch</label>
-          <select id="attBatchSelect" onchange="onBatchChange()">
-            <option value="" disabled selected>-- Choose Batch --</option>
-            <% (batches || []).forEach(b => { %>
-              <option value="<%= b.id %>"><%= b.name %></option>
-            <% }) %>
-          </select>
-        </div>
-
-        <div>
-          <label class="field-label">Select Subject</label>
-          <select id="attSubjectSelect" onchange="renderAttendanceList()">
-            <option value="" disabled selected>-- Choose Subject --</option>
-            <% (subjects || []).forEach(s => { %>
-              <option value="<%= s.id %>" data-batch="<%= s.batch_id %>"><%= s.name %></option>
-            <% }) %>
-          </select>
-        </div>
-
-        <div>
-          <label class="field-label">Attendance Date</label>
-          <input type="date" id="attDateInput" value="<%= today %>">
-        </div>
+    <!-- 1. Date Picker & Save Bar -->
+    <div class="attendance-header">
+      <div class="date-box">
+        <label for="attDate">Date:</label>
+        <input type="date" id="attDate" onchange="loadAttendanceData()">
       </div>
+      <button type="button" id="saveAttBtn" class="btn-save" onclick="saveAttendance()">Save Attendance</button>
     </div>
 
-    <!-- Student Attendance Marking Table -->
-    <div class="portal-card">
-      <div class="att-toolbar">
-        <span class="portal-sel-info">Students (<span id="attStuCount">0</span>)</span>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn btn-sm btn-success" onclick="markAllStatus('present')">All Present (P)</button>
-          <button type="button" class="btn btn-sm btn-delete" onclick="markAllStatus('absent')">All Absent (A)</button>
-          <button type="button" class="btn btn-sm btn-add" id="btnSaveAtt" onclick="submitAttendance()">Save Attendance</button>
+    <!-- 2. Filter Controls -->
+    <div class="filter-controls">
+      <select id="batchSelect" onchange="onBatchChange()">
+        <option value="" disabled selected>Select Batch</option>
+        <% if (!user || !user.allowed_batch || user.allowed_batch === 'all') { %>
+          <option value="all">All Batches</option>
+        <% } %>
+        <% (batches || []).forEach(b => { %>
+          <option value="<%= b.id %>"><%= b.name %></option>
+        <% }) %>
+      </select>
+
+      <select id="subjectSelect" onchange="loadAttendanceData()">
+        <option value="" disabled selected>Select Subject</option>
+        <% (subjects || []).forEach(s => { %>
+          <option value="<%= s.id %>" data-batch-id="<%= s.batch_id %>"><%= s.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <!-- 3. Student Cards Container -->
+    <div class="attendance-container">
+      <div class="top-controls">
+        <div>
+          <h3>Students (<span id="stuCount">0</span>)</h3>
+          <div id="savedByNote" style="font-size: 11.5px; color: #64748b; margin-top: 2px;"></div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn-action btn-all-absent" onclick="markAll('present')">All Present</button>
+          <button type="button" class="btn-action btn-all-present" onclick="markAll('absent')">All Absent</button>
         </div>
       </div>
 
-      <div class="table-responsive">
-        <table id="portalPermTable">
-          <thead>
-            <tr>
-              <th style="width:45px;">#</th>
-              <th>Adm No</th>
-              <th>Student Name</th>
-              <th style="text-align:center;">Status (P / A / L)</th>
-            </tr>
-          </thead>
-          <tbody id="attTableBody">
-            <tr>
-              <td colspan="4" style="text-align:center; padding:24px; color:#64748b;">
-                Select a Batch and Subject above to load students.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="cards-grid" id="cardsGrid">
+        <div class="grid-placeholder">Select Batch and Subject to load students.</div>
       </div>
     </div>
   </div>
 
-  <script id="allStudentsJson" type="application/json"><%- JSON.stringify(students || []).replace(/</g, '\\u003c') %></script>
-
   <script>
-    const ALL_STUDENTS = JSON.parse(document.getElementById('allStudentsJson').textContent || '[]');
-    const STATUS_MAP = {}; // admission_no -> 'present' | 'absent' | 'leave'
+    let CURRENT_STUDENTS = [];
+    let STATUS_MAP = {}; // admission_no -> 'present' | 'absent' | 'leave'
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('attDate').value = today;
+
+      const batchSel = document.getElementById('batchSelect');
+      const realBatches = Array.from(batchSel.options).filter(o => o.value && o.value !== 'all');
+      if (realBatches.length === 1) {
+        batchSel.value = realBatches[0].value;
+        onBatchChange();
+      }
+    });
 
     function onBatchChange() {
-      const batchId = document.getElementById('attBatchSelect').value;
-      const subSelect = document.getElementById('attSubjectSelect');
-      subSelect.value = '';
+      const batchId = document.getElementById('batchSelect').value;
+      const subSel = document.getElementById('subjectSelect');
+      const prevSub = subSel.value;
+      let validSubs = [];
 
-      subSelect.querySelectorAll('option').forEach(opt => {
+      subSel.querySelectorAll('option').forEach(opt => {
         if (!opt.value) return;
-        const optBatch = opt.getAttribute('data-batch');
-        const show = (optBatch === batchId || optBatch === 'all');
+        const optBatch = opt.getAttribute('data-batch-id');
+        const show = (batchId === 'all' || optBatch === batchId || optBatch === 'all');
         opt.hidden = !show;
         opt.disabled = !show;
+        if (show) validSubs.push(opt);
       });
 
-      renderAttendanceList();
+      if (validSubs.length === 1) {
+        subSel.value = validSubs[0].value;
+      } else if (!validSubs.some(o => o.value === prevSub)) {
+        subSel.value = '';
+      }
+
+      loadAttendanceData();
     }
 
-    function renderAttendanceList() {
-      const batchId = document.getElementById('attBatchSelect').value;
-      const tbody = document.getElementById('attTableBody');
+    async function loadAttendanceData() {
+      const batch_id = document.getElementById('batchSelect').value;
+      const subject_id = document.getElementById('subjectSelect').value;
+      const date = document.getElementById('attDate').value;
+      const grid = document.getElementById('cardsGrid');
+      const savedNote = document.getElementById('savedByNote');
 
-      if (!batchId) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">Select a Batch to load students.</td></tr>';
-        document.getElementById('attStuCount').innerText = '0';
+      if (!batch_id || !subject_id || !date) {
+        grid.innerHTML = '<div class="grid-placeholder">Select Batch and Subject to load students.</div>';
+        document.getElementById('stuCount').innerText = '0';
+        savedNote.innerText = '';
         return;
       }
 
-      const filtered = ALL_STUDENTS.filter(s => {
-        const bList = String(s.batch_id || '').split(',').map(x => x.trim());
-        return bList.includes(batchId);
-      });
+      grid.innerHTML = '<div class="grid-placeholder">Loading students...</div>';
 
-      document.getElementById('attStuCount').innerText = filtered.length;
+      try {
+        const res = await fetch(`/api/attendance-data?batch_id=${encodeURIComponent(batch_id)}&subject_id=${encodeURIComponent(subject_id)}&date=${encodeURIComponent(date)}`);
+        const data = await res.json();
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#64748b;">No students found in this batch.</td></tr>';
+        if (!data.success) {
+          grid.innerHTML = `<div class="grid-placeholder" style="color:#dc2626;">${data.error || 'Error loading data'}</div>`;
+          return;
+        }
+
+        CURRENT_STUDENTS = data.students || [];
+        STATUS_MAP = {};
+
+        CURRENT_STUDENTS.forEach(s => {
+          const saved = (data.statusMap && data.statusMap[s.admission_no])
+            ? String(data.statusMap[s.admission_no]).trim().toLowerCase()
+            : 'present';
+          STATUS_MAP[s.admission_no] = saved;
+        });
+
+        savedNote.innerText = data.savedBy ? `Last marked by: ${data.savedBy}` : 'Not marked yet for this date';
+        renderStudentCards();
+      } catch (err) {
+        grid.innerHTML = '<div class="grid-placeholder" style="color:#dc2626;">Server connection error!</div>';
+      }
+    }
+
+    function renderStudentCards() {
+      const grid = document.getElementById('cardsGrid');
+      const showBatchSub = document.getElementById('batchSelect').value === 'all';
+      document.getElementById('stuCount').innerText = CURRENT_STUDENTS.length;
+
+      if (CURRENT_STUDENTS.length === 0) {
+        grid.innerHTML = '<div class="grid-placeholder">No active students found in this batch.</div>';
         return;
       }
 
-      tbody.innerHTML = filtered.map((s, idx) => {
-        if (!STATUS_MAP[s.admission_no]) STATUS_MAP[s.admission_no] = 'present';
-        const st = STATUS_MAP[s.admission_no];
-
+      grid.innerHTML = CURRENT_STUDENTS.map(s => {
+        const st = STATUS_MAP[s.admission_no] || 'present';
+        const badgeText = st === 'present' ? 'P' : (st === 'absent' ? 'A' : 'L');
         return `
-          <tr>
-            <td><strong>${idx + 1}</strong></td>
-            <td><strong>${s.admission_no}</strong></td>
-            <td>${s.full_name}</td>
-            <td style="text-align:center;">
-              <div class="status-pill-group">
-                <button type="button" class="st-btn ${st === 'present' ? 'active-p' : ''}" onclick="setStudentStatus('${s.admission_no}', 'present')">P</button>
-                <button type="button" class="st-btn ${st === 'absent' ? 'active-a' : ''}" onclick="setStudentStatus('${s.admission_no}', 'absent')">A</button>
-                <button type="button" class="st-btn ${st === 'leave' ? 'active-l' : ''}" onclick="setStudentStatus('${s.admission_no}', 'leave')">L</button>
-              </div>
-            </td>
-          </tr>`;
+          <div class="student-card ${st}" onclick="cycleStatus('${s.admission_no}')">
+            <span class="status-badge">${badgeText}</span>
+            <div class="roll-no">${s.roll_no || s.admission_no}</div>
+            <div class="student-name" title="${s.full_name}">${s.full_name}</div>
+            ${showBatchSub ? `<div class="student-batch-sub">${s.batch_name}</div>` : ''}
+          </div>`;
       }).join('');
     }
 
-    function setStudentStatus(admNo, status) {
-      STATUS_MAP[admNo] = status;
-      renderAttendanceList();
+    function cycleStatus(admNo) {
+      const cur = STATUS_MAP[admNo] || 'present';
+      if (cur === 'present') STATUS_MAP[admNo] = 'absent';
+      else if (cur === 'absent') STATUS_MAP[admNo] = 'leave';
+      else STATUS_MAP[admNo] = 'present';
+      renderStudentCards();
     }
 
-    function markAllStatus(status) {
-      const batchId = document.getElementById('attBatchSelect').value;
-      if (!batchId) return alert('Please select a Batch first!');
-
-      ALL_STUDENTS.forEach(s => {
-        const bList = String(s.batch_id || '').split(',').map(x => x.trim());
-        if (bList.includes(batchId)) {
-          STATUS_MAP[s.admission_no] = status;
-        }
+    function markAll(status) {
+      if (CURRENT_STUDENTS.length === 0) return alert('No students loaded!');
+      CURRENT_STUDENTS.forEach(s => {
+        STATUS_MAP[s.admission_no] = status;
       });
-      renderAttendanceList();
+      renderStudentCards();
     }
 
-    async function submitAttendance() {
-      const batch_id = document.getElementById('attBatchSelect').value;
-      const subject_id = document.getElementById('attSubjectSelect').value;
-      const date = document.getElementById('attDateInput').value;
+    async function saveAttendance() {
+      const batch_id = document.getElementById('batchSelect').value;
+      const subject_id = document.getElementById('subjectSelect').value;
+      const date = document.getElementById('attDate').value;
 
-      if (!batch_id) return alert('Please select a Batch!');
-      if (!subject_id) return alert('Please select a Subject!');
-      if (!date) return alert('Please select a Date!');
+      if (!batch_id || !subject_id || !date) {
+        return alert('Please select Date, Batch, and Subject first!');
+      }
+      if (CURRENT_STUDENTS.length === 0) {
+        return alert('No students to save!');
+      }
 
-      const filtered = ALL_STUDENTS.filter(s => {
-        const bList = String(s.batch_id || '').split(',').map(x => x.trim());
-        return bList.includes(batch_id);
-      });
-
-      if (filtered.length === 0) return alert('No students to save!');
-
-      const records = filtered.map(s => ({
+      const records = CURRENT_STUDENTS.map(s => ({
+        admission_no: s.admission_no,
         student_id: s.admission_no,
+        batch_id: batch_id === 'all' ? (s.main_batch_id || '') : batch_id,
         status: STATUS_MAP[s.admission_no] || 'present'
       }));
 
-      const btn = document.getElementById('btnSaveAtt');
+      const btn = document.getElementById('saveAttBtn');
       btn.disabled = true;
       btn.innerText = 'Saving...';
 
       try {
-        const res = await fetch('/api/mark-attendance', {
+        const res = await fetch('/api/save-attendance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ batch_id, subject_id, date, records })
+          body: JSON.stringify({ subject_id, date, records })
         });
         const data = await res.json();
         if (data.success) {
           alert(data.message || 'Attendance saved successfully!');
+          loadAttendanceData();
         } else {
           alert('Error: ' + (data.error || 'Failed to save attendance!'));
         }
       } catch (err) {
-        alert('Server connection error!');
+        alert('Server error while saving attendance!');
       } finally {
         btn.disabled = false;
         btn.innerText = 'Save Attendance';
