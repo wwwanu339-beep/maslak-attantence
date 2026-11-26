@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Active Students</title>
+  <link rel="stylesheet" href="/student.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Unified Top Header Bar -->
+    <div class="top-bar">
+      <h1 class="top-bar-title">Active Students (<%= students.length %>)</h1>
+
+      <div class="top-bar-actions-group">
+        <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5"></path>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </a>
+
+        <div class="header-menu-wrapper" id="headerMenuWrapper">
+          <button type="button" class="btn-header-icon" id="headerMenuBtn" onclick="toggleHeaderMenu(event)" title="Options" aria-label="Options Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="1.5"></circle>
+              <circle cx="12" cy="12" r="1.5"></circle>
+              <circle cx="12" cy="19" r="1.5"></circle>
+            </svg>
+          </button>
+
+          <div class="header-dropdown-menu" id="headerDropdownMenu">
+            <a href="/admissions" class="menu-drop-item">
+              <span>+ New Admission</span>
+            </a>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openBulkBatchModal();">
+              <span>+ Assign Batch by Roll</span>
+            </button>
+            <div class="menu-divider"></div>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openExportModal('csv');">
+              <span>Download CSV</span>
+            </button>
+            <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); openExportModal('pdf');">
+              <span>Download PDF</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Bar Card -->
+    <div class="card" style="padding: 14px 16px; margin-bottom: 16px;">
+      <div class="toolbar">
+        <input type="text"
+               id="studentSearch"
+               class="search-input"
+               autocomplete="off"
+               readonly
+               onfocus="this.removeAttribute('readonly');"
+               placeholder="Search by Name, Admission No, Roll No, Phone, or Main Batch..."
+               onkeyup="filterStudentTable()">
+      </div>
+    </div>
+
+    <!-- Active Students Table -->
+    <div id="studentlist" class="card">
+      <div class="table-responsive">
+        <table id="studentsTable">
+          <thead>
+            <tr>
+              <th class="chk-col"><input type="checkbox" id="selectAllStudents" onclick="toggleSelectAll(this)" title="Select All"></th>
+              <th>Adm No</th>
+              <th style="width: 80px;">Roll No</th>
+              <th>Student Name</th>
+              <th>DOB</th>
+              <th>Phone Number</th>
+              <th>Main Batch</th>
+              <th style="text-align: center;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (students.length === 0) { %>
+              <tr>
+                <td colspan="8" style="text-align: center; color: #64748b; padding: 24px;">
+                  No active students found. Please activate students from the Admission Portal.
+                </td>
+              </tr>
+            <% } %>
+
+            <% students.forEach(s => { %>
+              <tr class="student-row"
+                  data-adm="<%= s.admission_no %>"
+                  data-roll="<%= s.roll_no || '' %>"
+                  data-name="<%= s.full_name %>"
+                  data-dob="<%= s.dob || '' %>"
+                  data-phone="<%= s.phone || '' %>"
+                  data-batch="<%= s.main_batch_name || s.batch_name || '' %>">
+                <td class="chk-col" data-label="Select">
+                  <input type="checkbox" class="student-select-chk" value="<%= s.admission_no %>">
+                </td>
+                <td data-label="Adm No"><strong><%= s.admission_no %></strong></td>
+                <td data-label="Roll No"><span class="badge-roll"><%= s.roll_no || '-' %></span></td>
+                <td data-label="Student Name"><strong><%= s.full_name %></strong></td>
+                <td data-label="DOB"><%= s.dob || '-' %></td>
+                <td data-label="Phone"><%= s.phone || '-' %></td>
+                <td data-label="Main Batch"><span class="badge"><%= s.main_batch_name || s.batch_name || 'No Batch' %></span></td>
+                <td data-label="Action">
+                  <div class="action-btns">
+                    <button type="button" class="btn btn-sm btn-warning"
+                      data-adm="<%= s.admission_no %>"
+                      data-name="<%= s.full_name %>"
+                      onclick="openPassModal(this)">
+                      Set Pass
+                    </button>
+                    <button type="button" class="btn btn-sm btn-edit-std" 
+                      data-adm="<%= s.admission_no %>"
+                      data-roll="<%= s.roll_no || '' %>"
+                      data-batch="<%= s.batch_id || '' %>"
+                      onclick="openEditModal(this)">
+                      Update
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteStudent('<%= s.admission_no %>', this)">
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assign Batch by Roll Numbers Modal (Opened from Menu) -->
+  <div id="bulkBatchModal" class="modal" onclick="if(event.target === this) closeBulkBatchModal()">
+    <div class="modal-content" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3>Assign Batch by Roll Numbers</h3>
+        <button type="button" class="modal-close" onclick="closeBulkBatchModal()">×</button>
+      </div>
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
+        Enter individual roll numbers (<strong>1, 2, 5</strong>) or ranges (<strong>1-20</strong>), or combine both (e.g., <strong>1, 3, 10-15</strong>).
+      </p>
+
+      <div class="modal-form-body">
+        <label class="field-label">Select Batch to Add:</label>
+        <select id="bulkTargetBatch">
+          <option value="" disabled selected>-- Select Batch --</option>
+          <% batches.forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+
+        <label class="field-label" style="margin-top: 6px;">Roll Numbers / Range:</label>
+        <input type="text"
+               id="bulkRollExpression"
+               autocomplete="off"
+               placeholder="e.g., 1, 2, 3 or 1-20"
+               onkeyup="if(event.key === 'Enter') executeBulkBatchAssign()">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeBulkBatchModal()">Cancel</button>
+        <button type="button" id="bulkAssignBtn" class="btn btn-primary" onclick="executeBulkBatchAssign()">Assign Batch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Column Selection Modal for Export (CSV / PDF) -->
+  <div id="exportColModal" class="modal" onclick="if(event.target === this) closeExportModal()">
+    <div class="modal-content" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3 id="exportModalTitle">Select Columns to Download</h3>
+        <button type="button" class="modal-close" onclick="closeExportModal()">×</button>
+      </div>
+      <p id="exportSelectedCount" style="font-size: 13px; color: #64748b; margin-bottom: 6px;"></p>
+      <input type="hidden" id="exportFormatType">
+
+      <div class="col-select-grid">
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="adm" data-label="Adm No" checked>
+          <span>Admission No</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="roll" data-label="Roll No" checked>
+          <span>Roll No</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="name" data-label="Full Name" checked>
+          <span>Student Name</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="dob" data-label="DOB" checked>
+          <span>Date of Birth</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="phone" data-label="Phone" checked>
+          <span>Phone Number</span>
+        </label>
+        <label class="col-chk-item">
+          <input type="checkbox" name="exportCols" value="batch" data-label="Main Batch" checked>
+          <span>Main Batch</span>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeExportModal()">Cancel</button>
+        <button type="button" id="confirmExportBtn" class="btn btn-primary" onclick="executeExport()">Download</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Update Student Roll & Batch Modal -->
+  <div id="editModal" class="modal" onclick="if(event.target === this) closeEditModal()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Update Roll & Batch</h3>
+        <button type="button" class="modal-close" onclick="closeEditModal()">×</button>
+      </div>
+      
+      <div class="modal-form-body">
+        <label class="field-label">Permanent Admission No (Read-only):</label>
+        <input type="text" id="editAdm" readonly style="background: #e2e8f0; font-weight: bold; cursor: not-allowed;">
+
+        <label class="field-label">Roll Number:</label>
+        <input type="number" id="editRoll" placeholder="Roll Number">
+        
+        <div class="batch-selection-wrapper">
+          <span class="batch-selection-title">Select Batches (First selected is Main Batch):</span>
+          <div class="batch-checkbox-group">
+            <% batches.forEach(b => { %>
+              <label class="batch-chip">
+                <input type="checkbox" name="editStudentBatches" value="<%= b.id %>">
+                <span><%= b.name %></span>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="cancelUpdateBtn" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button type="button" id="saveUpdateBtn" class="btn btn-primary" onclick="saveStudentUpdate()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Set Password Modal -->
+  <div id="passModal" class="modal" onclick="if(event.target === this) closePassModal()">
+    <div class="modal-content" style="max-width: 380px;">
+      <div class="modal-header">
+        <h3>Set Student Password</h3>
+        <button type="button" class="modal-close" onclick="closePassModal()">×</button>
+      </div>
+      <p id="passStudentName" style="font-size: 13px; color: #64748b; margin-bottom: 12px;"></p>
+      <input type="hidden" id="passStudentAdm">
+      
+      <div class="modal-form-body">
+        <label class="field-label">New Password:</label>
+        <input type="password" id="newStudentPass" placeholder="Enter new password" required>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" id="cancelPassBtn" class="btn btn-secondary" onclick="closePassModal()">Cancel</button>
+        <button type="button" id="savePassBtn" class="btn btn-primary" onclick="saveStudentPassword()">Save Password</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Header Dropdown Menu Toggle
+    function toggleHeaderMenu(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('headerDropdownMenu');
+      const btn = document.getElementById('headerMenuBtn');
+      const isOpen = menu.classList.toggle('open');
+      btn.classList.toggle('active', isOpen);
+    }
+
+    function closeHeaderMenu() {
+      const menu = document.getElementById('headerDropdownMenu');
+      const btn = document.getElementById('headerMenuBtn');
+      if (menu) menu.classList.remove('open');
+      if (btn) btn.classList.remove('active');
+    }
+
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('headerMenuWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeHeaderMenu();
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('studentSearch');
+      if (searchInput) searchInput.blur();
+    });
+
+    function filterStudentTable() {
+      const query = document.getElementById('studentSearch').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#studentsTable tbody tr.student-row');
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
+    }
+
+    function toggleSelectAll(masterChk) {
+      const rows = document.querySelectorAll('#studentsTable tbody tr.student-row');
+      rows.forEach(row => {
+        if (row.style.display !== 'none') {
+          const chk = row.querySelector('.student-select-chk');
+          if (chk) chk.checked = masterChk.checked;
+        }
+      });
+    }
+
+    // Assign Batch by Roll Numbers Modal Controls
+    function openBulkBatchModal() {
+      document.getElementById('bulkTargetBatch').value = '';
+      document.getElementById('bulkRollExpression').value = '';
+      document.getElementById('bulkBatchModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('bulkRollExpression').focus(), 100);
+    }
+
+    function closeBulkBatchModal() {
+      document.getElementById('bulkBatchModal').style.display = 'none';
+    }
+
+    function parseRollNumbersClient(inputStr) {
+      const clean = String(inputStr || '').trim();
+      if (!clean) return { error: 'Please enter roll numbers (e.g., 1, 2, 3 or 1-20)!' };
+      if (!/^[0-9,\-\s]+$/.test(clean)) {
+        return { error: 'Only numbers, commas (,), and hyphens (-) are allowed!' };
+      }
+
+      const rollSet = new Set();
+      const parts = clean.split(',').map(p => p.trim()).filter(Boolean);
+      if (parts.length === 0) return { error: 'Please enter valid roll numbers!' };
+
+      for (const part of parts) {
+        if (part.includes('-')) {
+          const bounds = part.split('-').map(b => b.trim());
+          if (bounds.length !== 2 || !bounds[0] || !bounds[1]) {
+            return { error: `Invalid range format "${part}". Use format like 1-20.` };
+          }
+          const start = parseInt(bounds[0], 10);
+          const end = parseInt(bounds[1], 10);
+          if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
+            return { error: `Invalid roll range "${part}". Start must be <= End.` };
+          }
+          if (end - start > 500) {
+            return { error: 'Range cannot exceed 500 roll numbers at once!' };
+          }
+          for (let n = start; n <= end; n++) {
+            rollSet.add(n);
+          }
+        } else {
+          const num = parseInt(part, 10);
+          if (isNaN(num) || num < 1) {
+            return { error: `Invalid roll number "${part}".` };
+          }
+          rollSet.add(num);
+        }
+      }
+
+      if (rollSet.size === 0 || rollSet.size > 500) {
+        return { error: 'Please enter between 1 and 500 valid roll numbers!' };
+      }
+
+      return { rolls: Array.from(rollSet).sort((a, b) => a - b) };
+    }
+
+    async function executeBulkBatchAssign() {
+      const batch_id = document.getElementById('bulkTargetBatch').value;
+      const roll_expression = document.getElementById('bulkRollExpression').value.trim();
+      const btn = document.getElementById('bulkAssignBtn');
+
+      if (btn.disabled) return;
+
+      if (!batch_id) {
+        return alert('Please select a batch first!');
+      }
+
+      const parsed = parseRollNumbersClient(roll_expression);
+      if (parsed.error) {
+        return alert(parsed.error);
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'Assigning...';
+
+      try {
+        const res = await fetch('/api/students/bulk-assign-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch_id, roll_expression })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message);
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to assign batch!'));
+          btn.disabled = false;
+          btn.innerText = 'Assign Batch';
+        }
+      } catch (err) {
+        alert('Server error while assigning batch!');
+        btn.disabled = false;
+        btn.innerText = 'Assign Batch';
+      }
+    }
+
+    function openExportModal(format) {
+      const checkedBoxes = document.querySelectorAll('.student-select-chk:checked');
+      if (checkedBoxes.length === 0) {
+        return alert('Please select at least one student checkbox first!');
+      }
+
+      document.getElementById('exportFormatType').value = format;
+      document.getElementById('exportModalTitle').innerText = format === 'pdf'
+        ? 'Select Columns for PDF'
+        : 'Select Columns for CSV';
+      document.getElementById('exportSelectedCount').innerText = `Selected Students: ${checkedBoxes.length}`;
+
+      const confirmBtn = document.getElementById('confirmExportBtn');
+      confirmBtn.innerText = format === 'pdf' ? 'Download PDF' : 'Download CSV';
+      confirmBtn.className = format === 'pdf' ? 'btn btn-danger' : 'btn btn-success';
+
+      document.getElementById('exportColModal').style.display = 'flex';
+    }
+
+    function closeExportModal() {
+      document.getElementById('exportColModal').style.display = 'none';
+    }
+
+    function executeExport() {
+      const format = document.getElementById('exportFormatType').value;
+      const selectedColInputs = Array.from(document.querySelectorAll('input[name="exportCols"]:checked'));
+
+      if (selectedColInputs.length === 0) {
+        return alert('Please select at least one column to download!');
+      }
+
+      const selectedCols = selectedColInputs.map(cb => ({
+        key: cb.value,
+        label: cb.getAttribute('data-label')
+      }));
+
+      const checkedRows = Array.from(document.querySelectorAll('.student-select-chk:checked'))
+        .map(chk => chk.closest('tr'));
+
+      const today = new Date().toISOString().split('T')[0];
+
+      if (format === 'csv') {
+        const headers = selectedCols.map(c => c.label);
+        const csvRows = [headers.join(',')];
+
+        checkedRows.forEach(row => {
+          const values = selectedCols.map(c => {
+            const rawVal = row.dataset[c.key] || '';
+            return `"${String(rawVal).replace(/"/g, '""')}"`;
+          });
+          csvRows.push(values.join(','));
+        });
+
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Students_List_${today}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        closeExportModal();
+      } else if (format === 'pdf') {
+        if (!window.jspdf) {
+          return alert('PDF library is loading. Please check your internet connection and try again.');
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        doc.setFontSize(15);
+        doc.setTextColor(15, 23, 42);
+        doc.text('Active Student List', 14, 16);
+
+        doc.setFontSize(9.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Generated Date: ${today}   |   Total Students: ${checkedRows.length}`, 14, 22);
+
+        const headRow = ['#', ...selectedCols.map(c => c.label)];
+        const bodyRows = checkedRows.map((row, idx) => [
+          idx + 1,
+          ...selectedCols.map(c => row.dataset[c.key] || '-')
+        ]);
+
+        doc.autoTable({
+          startY: 27,
+          head: [headRow],
+          body: bodyRows,
+          theme: 'grid',
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            textColor: [30, 41, 59],
+            lineColor: [203, 213, 225],
+            lineWidth: 0.2
+          },
+          headStyles: {
+            fillColor: [37, 99, 235],
+            textColor: 255,
+            fontStyle: 'bold',
+            halign: 'center'
+          },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 10 }
+          },
+          alternateRowStyles: {
+            fillColor: [248, 250, 252]
+          }
+        });
+
+        doc.save(`Students_List_${today}.pdf`);
+        closeExportModal();
+      }
+    }
+
+    // Track exact click order for Edit Student checkboxes in studet.ejs
+    let selectedStudentEditBatches = [];
+
+    document.addEventListener('change', (e) => {
+      if (e.target.name === 'editStudentBatches') {
+        const val = e.target.value;
+        if (e.target.checked) {
+          if (!selectedStudentEditBatches.includes(val)) {
+            selectedStudentEditBatches.push(val);
+          }
+        } else {
+          selectedStudentEditBatches = selectedStudentEditBatches.filter(item => item !== val);
+        }
+      }
+    });
+
+    function openEditModal(btn) {
+      document.getElementById('editAdm').value = btn.dataset.adm;
+      document.getElementById('editRoll').value = btn.dataset.roll;
+
+      const assignedBatches = String(btn.dataset.batch || '').split(',').map(b => b.trim()).filter(Boolean);
+      selectedStudentEditBatches = [...assignedBatches];
+
+      document.querySelectorAll('input[name="editStudentBatches"]').forEach(cb => {
+        cb.checked = assignedBatches.includes(String(cb.value).trim());
+      });
+
+      const saveBtn = document.getElementById('saveUpdateBtn');
+      const cancelBtn = document.getElementById('cancelUpdateBtn');
+      saveBtn.disabled = false;
+      saveBtn.innerText = 'Save Changes';
+      cancelBtn.disabled = false;
+
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      if (document.getElementById('saveUpdateBtn').disabled) return;
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    async function saveStudentUpdate() {
+      const saveBtn = document.getElementById('saveUpdateBtn');
+      const cancelBtn = document.getElementById('cancelUpdateBtn');
+      if (saveBtn.disabled) return;
+
+      const admNo = document.getElementById('editAdm').value;
+      const roll_no = document.getElementById('editRoll').value.trim();
+      const batch_id = selectedStudentEditBatches.join(',');
+
+      if (!batch_id) {
+        return alert('Please select at least one Batch!');
+      }
+
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      saveBtn.innerText = 'Saving...';
+
+      try {
+        const res = await fetch(`/api/students/${encodeURIComponent(admNo)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch_id, roll_no })
+        });
+        const data = await res.json();
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+          saveBtn.innerText = 'Save Changes';
+        }
+      } catch (err) {
+        alert('Failed to update student details!');
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        saveBtn.innerText = 'Save Changes';
+      }
+    }
+
+    function openPassModal(btn) {
+      document.getElementById('passStudentAdm').value = btn.dataset.adm;
+      document.getElementById('passStudentName').innerText = `Student: ${btn.dataset.name} (${btn.dataset.adm})`;
+      document.getElementById('newStudentPass').value = '';
+
+      const saveBtn = document.getElementById('savePassBtn');
+      const cancelBtn = document.getElementById('cancelPassBtn');
+      saveBtn.disabled = false;
+      saveBtn.innerText = 'Save Password';
+      cancelBtn.disabled = false;
+
+      document.getElementById('passModal').style.display = 'flex';
+    }
+
+    function closePassModal() {
+      if (document.getElementById('savePassBtn').disabled) return;
+      document.getElementById('passModal').style.display = 'none';
+    }
+
+    async function saveStudentPassword() {
+      const saveBtn = document.getElementById('savePassBtn');
+      const cancelBtn = document.getElementById('cancelPassBtn');
+      if (saveBtn.disabled) return;
+
+      const admNo = document.getElementById('passStudentAdm').value;
+      const password = document.getElementById('newStudentPass').value.trim();
+      if (!password) return alert('Please enter a new password!');
+
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      saveBtn.innerText = 'Saving...';
+
+      try {
+        const res = await fetch(`/api/students/${encodeURIComponent(admNo)}/password`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Password updated successfully!');
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+          saveBtn.innerText = 'Save Password';
+          closePassModal();
+        } else {
+          alert('Error: ' + data.error);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+          saveBtn.innerText = 'Save Password';
+        }
+      } catch (err) {
+        alert('Failed to save password!');
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        saveBtn.innerText = 'Save Password';
+      }
+    }
+
+    async function deleteStudent(admNo, btn) {
+      if (btn && btn.disabled) return;
+      if (!confirm('Are you sure you want to remove this student from the active list?')) return;
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'Deleting...';
+      }
+
+      try {
+        const res = await fetch(`/api/students/${encodeURIComponent(admNo)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = 'Delete';
+          }
+        }
+      } catch (err) {
+        alert('Failed to remove student!');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = 'Delete';
+        }
+      }
+    }
+  </script>
+</body>
+</html>

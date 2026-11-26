@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Attendance Login</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; background: #f8fafc; color: #0f172a; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+    .login-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; width: 100%; max-width: 400px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+    h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; }
+    p.sub { margin: 0 0 22px; color: #64748b; font-size: 13px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; }
+    input:focus { border-color: #2563eb; }
+    button { width: 100%; padding: 12px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    button:hover { background: #1d4ed8; }
+    .error-msg { background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; text-align: center; }
+    .back-link { margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 13px; }
+    .back-link a { color: #64748b; text-decoration: none; font-weight: 600; }
+    .back-link a:hover { color: #0f172a; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h2>Student Portal</h2>
+    <p class="sub">Sign in with your Admission Number to view attendance</p>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-msg"><%= error %></div>
+    <% } %>
+
+    <form action="/student-login" method="POST">
+      <div class="form-group">
+        <label for="admission_no">Admission Number</label>
+        <input type="text" id="admission_no" name="admission_no" placeholder="Enter Admission Number (e.g., ADM1001)" required autofocus>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Enter Password" required>
+      </div>
+      <button type="submit">View My Attendance</button>
+    </form>
+
+    <div class="back-link">
+      <a href="/login">← Back to Staff Login</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,365 @@
+/* =========================================================
+   MASLAK PORTAL - GLOBAL MOBILE-STANDARD CSS (student.css)
+   ========================================================= */
+:root {
+  --bg-page: #f1f5f9;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+  background: var(--bg-page);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.container {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 14px;
+}
+
+/* Sticky Top App Bar */
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+.top-bar-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.2px;
+}
+
+.top-bar-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-header-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition: 0.15s;
+}
+.btn-header-icon:hover, .btn-header-icon.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: var(--primary);
+}
+
+/* Dropdown Menu */
+.header-menu-wrapper { position: relative; }
+.header-dropdown-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 44px;
+  min-width: 215px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+  z-index: 200;
+}
+.header-dropdown-menu.open { display: block; }
+.menu-drop-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+.menu-drop-item:hover { background: #f1f5f9; color: var(--primary); }
+.menu-divider { height: 1px; background: var(--border); margin: 5px 0; }
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+.card h3 { margin: 0 0 6px; font-size: 15.5px; font-weight: 800; }
+.card-subtitle { margin: 0 0 12px; font-size: 12.5px; color: var(--text-muted); }
+
+/* Touch-Friendly Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  min-height: 38px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: 0.15s;
+  white-space: nowrap;
+}
+.btn-sm { padding: 5px 10px; min-height: 32px; font-size: 12px; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-warning { background: var(--warning); color: #fff; }
+.btn-secondary { background: #f8fafc; color: var(--text-main); border-color: #cbd5e1; }
+.btn-edit-std { background: #eff6ff; color: var(--primary); border-color: #bfdbfe; }
+.btn-draft { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+
+/* Inputs (16px font on mobile prevents iOS Safari auto-zoom) */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="password"],
+input[type="tel"],
+select,
+textarea,
+.search-input {
+  width: 100%;
+  padding: 10px 12px;
+  min-height: 42px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  color: var(--text-main);
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: #eff6ff;
+  color: var(--primary);
+  border: 1px solid #bfdbfe;
+  white-space: nowrap;
+}
+.badge-roll {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* Consistent Table View (Both Desktop & Mobile Horizontal Scroll) */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th {
+  background: #f8fafc;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 11px 12px;
+  border-bottom: 1.5px solid var(--border);
+  white-space: nowrap;
+}
+
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.chk-col {
+  width: 36px;
+  text-align: center;
+}
+
+.action-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+/* Modals */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+.modal-content {
+  background: var(--surface);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { margin: 0; font-size: 16px; font-weight: 800; }
+.modal-close {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #f1f5f9;
+  font-size: 20px;
+  cursor: pointer;
+}
+.modal-form-body { display: flex; flex-direction: column; gap: 10px; }
+.field-label { font-size: 12.5px; font-weight: 700; color: #334155; margin-bottom: -4px; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* Batch & Column Chips */
+.batch-checkbox-group, .col-select-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+.batch-chip, .col-chk-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #f8fafc;
+  cursor: pointer;
+}
+.batch-chip:has(input:checked), .col-chk-item:has(input:checked) {
+  background: #eff6ff;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Mobile Adjustments (Keeping Table Layout Intact) */
+@media (max-width: 768px) {
+  .container { padding: 10px; }
+  .top-bar { padding: 10px 12px; border-radius: 12px; }
+  .top-bar-title { font-size: 15.5px; }
+  .card { padding: 12px; border-radius: 12px; }
+
+  th, td {
+    padding: 9px 10px;
+    font-size: 12.5px;
+  }
+
+  /* Bottom Sheet Modal on Mobile */
+  .modal { align-items: flex-end; padding: 0; }
+  .modal-content {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 88vh;
+    padding: 18px 16px 24px;
+  }
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+  .modal-actions .btn {
+    flex: 1;
+    min-width: 110px;
+  }
+  .batch-checkbox-group, .col-select-grid { grid-template-columns: 1fr; }
+}

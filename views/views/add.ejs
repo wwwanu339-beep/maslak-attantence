@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings & Management</title>
+  <link rel="stylesheet" href="/add.css">
+</head>
+<body>
+
+  <div class="container">
+    <!-- Unified Top Header Bar -->
+    <div class="top-bar">
+      <h1 class="top-bar-title">Settings & Management</h1>
+      <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5"></path>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </a>
+    </div>
+
+    <div class="settings-grid">
+      
+      <!-- 1. Batch Management Card (Collapsible with Arrow) -->
+      <div class="settings-card collapsed" id="cardBatch">
+        <div class="acc-header" onclick="toggleCardAccordion('cardBatch')">
+          <div class="acc-title-wrap">
+            <h3>Manage Batches</h3>
+          </div>
+          <button type="button" class="acc-arrow-btn" aria-label="Toggle Batches">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+
+        <div class="acc-body">
+          <div class="input-action-row">
+            <input type="text" id="batchInput" placeholder="Enter Batch Name">
+            
+            <button type="button" class="btn btn-add" onclick="addBatch()">Add</button>
+          </div>
+          <div class="select-action-row">
+            <select id="batchSelect">
+              <option value="" disabled selected>Select Batch</option>
+              <% (batches || []).forEach(b => { %>
+                <option value="<%= b.id %>"><%= b.name %></option>
+              <% }) %>
+            </select>
+            <button type="button" class="btn btn-delete" onclick="deleteBatch()">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Subject Management Card (Collapsible with Arrow) -->
+      <div class="settings-card collapsed" id="cardSubject">
+        <div class="acc-header" onclick="toggleCardAccordion('cardSubject')">
+          <div class="acc-title-wrap">
+            <h3>Manage Subjects</h3>
+          </div>
+          <button type="button" class="acc-arrow-btn" aria-label="Toggle Subjects">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+
+        <div class="acc-body">
+          <div class="input-action-row subject-add-row">
+            <select id="subjectBatchSelect">
+              <option value="" disabled selected>Select Batch</option>
+              <option value="all">All Batches</option>
+              <% (batches || []).forEach(b => { %>
+                <option value="<%= b.id %>"><%= b.name %></option>
+              <% }) %>
+            </select>
+            <input type="text" id="subjectInput" placeholder="Subject Name">
+            <button type="button" class="btn btn-add" onclick="addSubject()">Add Subject</button>
+          </div>
+          <div class="select-action-row">
+            <select id="subjectSelect">
+              <option value="" disabled selected>Select Subject</option>
+              <% (subjects || []).forEach(s => { %>
+                <option value="<%= s.id %>"><%= s.name %></option>
+              <% }) %>
+            </select>
+            <button type="button" class="btn btn-delete" onclick="deleteSubject()">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. User Management Card (Collapsible with Arrow) -->
+      <div class="settings-card settings-card1 collapsed" id="cardUser">
+        <div class="acc-header" onclick="toggleCardAccordion('cardUser')">
+          <div class="acc-title-wrap">
+            <h3>Manage Users</h3>
+          </div>
+          <button type="button" class="acc-arrow-btn" aria-label="Toggle Users">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+
+        <div class="acc-body">
+          <div class="user-form-grid">
+            <input type="text" id="userFullName" placeholder="Full Name">
+            <input type="text" id="userPhone" placeholder="Phone Number">
+            <input type="text" id="userInput" placeholder="Username (Login ID)">
+            <input type="password" id="userPass" placeholder="Password">
+            
+            <select id="userRole" onchange="handleRoleChange()">
+              <option value="sub_admin">Sub Admin / Staff Access</option>
+              <option value="batch_leader">Batch Leader (Single Batch)</option>
+              <option value="subject_leader">Subject Leader (Single Subject)</option>
+            </select>
+
+            <select id="userBatchSelect" style="display: none;" onchange="filterRoleSubjects()">
+              <option value="" disabled selected>Select Assigned Batch</option>
+              <% (batches || []).forEach(b => { %>
+                <option value="<%= b.id %>"><%= b.name %></option>
+              <% }) %>
+            </select>
+
+            <select id="userSubjectSelect" style="display: none;">
+              <option value="" disabled selected>Select Assigned Subject</option>
+              <% (subjects || []).forEach(s => { %>
+                <option value="<%= s.id %>" data-batch-id="<%= s.batch_id %>"><%= s.name %></option>
+              <% }) %>
+            </select>
+
+          <div class="checkbox-group">
+  <label><input type="checkbox" id="userAtt" checked> Attendance</label>
+  <label><input type="checkbox" id="userUpdate" checked> Can Update</label>
+  <label><input type="checkbox" id="userManage"> Add / Manage</label>
+  <label><input type="checkbox" id="userview"> Attendance View</label>
+  <label><input type="checkbox" id="userstudet"> Student Manage</label>
+  <label><input type="checkbox" id="userAdmission"> Admission Access</label>
+  <label><input type="checkbox" id="userStudio"> Design Studio</label>
+</div>
+            
+            <button type="button" class="btn btn-add" onclick="addUser()">Add User</button>
+          </div>
+
+          <div class="select-action-row" style="margin-top: 15px;">
+            <select id="userSelect">
+              <option value="" disabled selected>Select User</option>
+              <% (users || []).forEach(u => { %>
+                <option value="<%= u.id %>">
+                  <%= u.name ? `${u.name} (@${u.username})` : u.username %> — <%= u.phone || 'No Phone' %> (<%= u.role || 'sub_admin' %>)
+                </option>
+              <% }) %>
+            </select>
+            <button type="button" class="btn btn-delete" onclick="deleteUser()">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Student Portal Control Card (Collapsible with Arrow + Row Hide) -->
+      <div class="portal-card collapsed" id="cardPortal">
+        <div class="acc-header" onclick="toggleCardAccordion('cardPortal')">
+          <div class="acc-title-wrap">
+            <h3>Student Portal Control</h3>
+            <p class="portal-card-subtitle">Manage student visibility, form editing permissions, and password reset access.</p>
+          </div>
+          <div class="portal-head-actions" onclick="event.stopPropagation()">
+            <button type="button" class="btn btn-sm btn-success" onclick="savePortalControl()">Save Portal</button>
+            <button type="button" class="btn btn-sm btn-add btn-menu" id="mainMenuBtn" onclick="openPortalMenuAndCard()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              <span>Menu</span>
+            </button>
+            <button type="button" class="acc-arrow-btn" onclick="toggleCardAccordion('cardPortal')" aria-label="Toggle Portal Control">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="acc-body">
+          <!-- Full-Width Expandable Menu Drawer -->
+          <div class="full-menu-drawer" id="fullMenuDrawer">
+            <div class="menu-top-actions">
+              <span class="menu-top-title">Global Portal Settings & Bulk Range Actions</span>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-sm btn-success" onclick="savePortalControl(); toggleFullMenu();">Save All</button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleFullMenu()">Close ✕</button>
+              </div>
+            </div>
+
+            <!-- 1 & 2: Default Global Permissions & Editable Fields -->
+            <div class="ctrl-grid">
+              <div class="sub-box">
+                <h4>1. Default Portal Permissions (All Students)</h4>
+                <p>Set default visibility, editing, and password change access.</p>
+
+                <label class="switch-row">
+                  <span>Show Admission Form to Students</span>
+                  <input type="checkbox" id="globalShowForm" onchange="renderStudentRows()">
+                </label>
+                <label class="switch-row">
+                  <span>Show ID Card to Students</span>
+                  <input type="checkbox" id="globalShowIdCard" onchange="renderStudentRows()">
+                </label>
+                <label class="switch-row">
+                  <span>Allow Students to Edit / Update Form</span>
+                  <input type="checkbox" id="globalAllowEdit" onchange="renderStudentRows()">
+                </label>
+                <label class="switch-row">
+                  <span>Allow Students to Change Password</span>
+                  <input type="checkbox" id="globalAllowPasswordChange" onchange="renderStudentRows()">
+                </label>
+              </div>
+
+              <div class="sub-box">
+                <h4>2. Fields Students Are Allowed to Edit</h4>
+                <p>Tick which fields students can update when Edit is enabled.</p>
+                <div class="field-chip-grid" id="editableFieldsGrid">
+                  <label class="field-chip"><input type="checkbox" name="editField" value="full_name"> Full Name</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="dob"> Date of Birth</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="father_name"> Father's Name</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="aadhaar_no"> Aadhaar Number</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="phone"> Student Phone</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="guardian_phone"> Guardian Phone</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="photo_file"> Student Photo</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="madrasa_class"> Madrasa Class</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="school_class"> School Class</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="address"> Full Address</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="place"> Place</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="pin"> PIN Code</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="district"> District</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="state"> State</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="is_muthallim"> Muthallim Status</label>
+                  <label class="field-chip"><input type="checkbox" name="editField" value="prev_institution"> Prev. Institution</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3: Range Selection & Red/Green Bulk Buttons -->
+            <div class="bulk-box">
+              <div class="bulk-box-title">
+                3. Bulk Range Actions (<span id="menuSelCount">0</span> Selected)
+              </div>
+              <div class="bulk-controls-flex">
+                <input type="text" id="rangeInput" class="range-inp" placeholder="e.g., 1, 2, 5 or 1-10">
+                <button type="button" class="btn btn-sm btn-add" onclick="selectByRange()">Select Range</button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="clearRangeSelection()">Clear</button>
+
+                <button type="button" class="mini-act-btn act-allow" onclick="applyBulkPerm('showForm', true)">+ Show Form</button>
+                <button type="button" class="mini-act-btn act-deny" onclick="applyBulkPerm('showForm', false)">- Hide Form</button>
+
+                <button type="button" class="mini-act-btn act-allow" onclick="applyBulkPerm('showIdCard', true)">+ Show ID Card</button>
+                <button type="button" class="mini-act-btn act-deny" onclick="applyBulkPerm('showIdCard', false)">- Hide ID Card</button>
+
+                <button type="button" class="mini-act-btn act-allow" onclick="applyBulkPerm('allowEdit', true)">+ Allow Edit</button>
+                <button type="button" class="mini-act-btn act-deny" onclick="applyBulkPerm('allowEdit', false)">- Lock Edit</button>
+
+                <button type="button" class="mini-act-btn act-allow" onclick="applyBulkPerm('allowPasswordChange', true)">+ Allow Pass</button>
+                <button type="button" class="mini-act-btn act-deny" onclick="applyBulkPerm('allowPasswordChange', false)">- Lock Pass</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toolbar & Student Permission Table -->
+          <div class="portal-toolbar">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span class="portal-sel-info">Student Permissions (<span id="selectedStuCount">0</span> Selected)</span>
+              <button type="button" id="btnShowHiddenRows" class="btn btn-sm btn-secondary" style="display:none;" onclick="restoreHiddenRows()">
+                Show Hidden (<span id="hiddenRowsCount">0</span>)
+              </button>
+            </div>
+            <input type="text" id="stuSearchInp" class="portal-search-inp" placeholder="Search Name / Adm No..." onkeyup="filterPortalTable()">
+          </div>
+
+          <div class="table-responsive">
+            <table id="portalPermTable">
+              <thead>
+                <tr>
+                  <th style="width:40px;"><input type="checkbox" id="chkAllRows" onclick="toggleAllRows(this)"></th>
+                  <th style="width:46px;">#</th>
+                  <th>Adm No</th>
+                  <th>Student Name</th>
+                  <th>Batch</th>
+                  <th style="text-align:center;">Admission Form</th>
+                  <th style="text-align:center;">ID Card</th>
+                  <th style="text-align:center;">Self Edit / Update</th>
+                  <th style="text-align:center;">Change Password</th>
+                  <th style="width:46px; text-align:center;">Hide</th>
+                </tr>
+              </thead>
+              <tbody id="portalTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Full Width Clear All Data Card (Collapsible with Arrow) -->
+      <div class="settings-card danger-zone collapsed" id="cardDanger">
+        <div class="acc-header" onclick="toggleCardAccordion('cardDanger')">
+          <div class="acc-title-wrap">
+            <h3>Clear All Records (Reset Data)</h3>
+          </div>
+          <button type="button" class="acc-arrow-btn" aria-label="Toggle Reset Zone">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+
+        <div class="acc-body">
+          <p class="danger-desc">
+            Warning: Clicking these buttons will permanently delete all records from the selected category. Main Admin password verification is required.
+          </p>
+          <div class="clear-btn-grid">
+            <button type="button" class="btn btn-clear" onclick="openClearModal('attendance')">Clear Attendance</button>
+            <button type="button" class="btn btn-clear" onclick="openClearModal('students')">Clear Students</button>
+            <button type="button" class="btn btn-clear" onclick="openClearModal('subjects')">Clear Subjects</button>
+            <button type="button" class="btn btn-clear" onclick="openClearModal('batches')">Clear Batches</button>
+            <button type="button" class="btn btn-clear" onclick="openClearModal('users')">Clear Users</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Main Admin Password Verification Modal (Used for Both Single Delete & Clear All) -->
+  <div id="clearAuthModal" class="auth-modal" onclick="if(event.target === this) closeClearModal()">
+    <div class="auth-modal-box">
+      <h3 id="clearModalTitle">Admin Verification Required</h3>
+      <p id="clearModalDesc">Enter the Main Admin password to permanently delete records.</p>
+      <input type="password" id="mainAdminPassword" placeholder="Enter Main Admin Password" onkeyup="if(event.key === 'Enter') executeClearData()">
+      <div class="auth-modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeClearModal()">Cancel</button>
+        <button type="button" id="confirmClearBtn" class="btn btn-clear" onclick="executeClearData()">Confirm & Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script id="studentsDataJson" type="application/json"><%- JSON.stringify(typeof students !== 'undefined' ? students : []).replace(/</g, '\\u003c') %></script>
+  <script id="portalCfgJson" type="application/json"><%- JSON.stringify(typeof portalCfg !== 'undefined' ? portalCfg : {}).replace(/</g, '\\u003c') %></script>
+
+  <script>
+    // ==========================================
+    // ACCORDION ARROW TOGGLE FOR ALL CARDS
+    // ==========================================
+    function toggleCardAccordion(cardId) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      const isCollapsed = card.classList.contains('collapsed');
+      if (isCollapsed) {
+        card.classList.remove('collapsed');
+        card.classList.add('acc-open');
+      } else {
+        card.classList.add('collapsed');
+        card.classList.remove('acc-open');
+      }
+    }
+
+    function openPortalMenuAndCard() {
+      const card = document.getElementById('cardPortal');
+      if (card.classList.contains('collapsed')) {
+        card.classList.remove('collapsed');
+        card.classList.add('acc-open');
+      }
+      toggleFullMenu();
+    }
+
+    // ==========================================
+    // 1. BATCH, SUBJECT & USER MANAGEMENT SCRIPTS
+    // ==========================================
+    async function addBatch() {
+      const name = document.getElementById('batchInput').value.trim();
+      if (!name) return alert('Please enter a batch name!');
+
+      const res = await fetch('/api/batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (data.success) location.reload();
+      else alert('Error: ' + (data.error || 'Failed to add batch!'));
+    }
+
+    function deleteBatch() {
+      const sel = document.getElementById('batchSelect');
+      if (!sel.value) return alert('Please select a batch to delete!');
+      const label = sel.options[sel.selectedIndex].text;
+      openDeleteAuthModal('batch', sel.value, label);
+    }
+
+    async function addSubject() {
+      const name = document.getElementById('subjectInput').value.trim();
+      const batch_id = document.getElementById('subjectBatchSelect').value;
+
+      if (!batch_id) return alert('Please select a batch!');
+      if (!name) return alert('Please enter a subject name!');
+
+      const res = await fetch('/api/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, batch_id })
+      });
+
+      const data = await res.json();
+      if (data.success) location.reload();
+      else alert('Error: ' + (data.error || 'Failed to add subject!'));
+    }
+
+    function deleteSubject() {
+      const sel = document.getElementById('subjectSelect');
+      if (!sel.value) return alert('Please select a subject to delete!');
+      const label = sel.options[sel.selectedIndex].text;
+      openDeleteAuthModal('subject', sel.value, label);
+    }
+
+    function handleRoleChange() {
+      const role = document.getElementById('userRole').value;
+      const batchSelect = document.getElementById('userBatchSelect');
+      const subjectSelect = document.getElementById('userSubjectSelect');
+      const updateCheck = document.getElementById('userUpdate');
+      const attCheck = document.getElementById('userAtt');
+
+      if (role === 'sub_admin') {
+        batchSelect.style.display = 'none';
+        subjectSelect.style.display = 'none';
+        updateCheck.checked = true;
+      } else if (role === 'batch_leader') {
+        batchSelect.style.display = 'block';
+        subjectSelect.style.display = 'none';
+        attCheck.checked = true;
+        updateCheck.checked = false;
+      } else if (role === 'subject_leader') {
+        batchSelect.style.display = 'block';
+        subjectSelect.style.display = 'block';
+        attCheck.checked = true;
+        updateCheck.checked = false;
+        filterRoleSubjects();
+      }
+    }
+
+    function filterRoleSubjects() {
+      const selectedBatch = document.getElementById('userBatchSelect').value;
+      const subjectSelect = document.getElementById('userSubjectSelect');
+      subjectSelect.value = '';
+
+      subjectSelect.querySelectorAll('option').forEach(opt => {
+        if (!opt.value) return;
+        const match = opt.getAttribute('data-batch-id') === selectedBatch;
+        opt.hidden = !match;
+        opt.disabled = !match;
+      });
+    }
+async function addUser() {
+  const name = document.getElementById('userFullName').value.trim();
+  const phone = document.getElementById('userPhone').value.trim();
+  const username = document.getElementById('userInput').value.trim();
+  const password = document.getElementById('userPass').value.trim();
+  const role = document.getElementById('userRole').value;
+  const allowed_batch = document.getElementById('userBatchSelect').value;
+  const allowed_subject = document.getElementById('userSubjectSelect').value;
+
+  const can_attendance = document.getElementById('userAtt').checked;
+  const can_update = document.getElementById('userUpdate').checked;
+  const can_manage = document.getElementById('userManage').checked;
+  const can_attendanceveiw = document.getElementById('userview').checked;
+  const can_studet = document.getElementById('userstudet').checked;
+  const can_admission = document.getElementById('userAdmission').checked;
+  const can_studio = document.getElementById('userStudio').checked; // പുതിയ ചെക്ക്ബോക്സ്
+
+  if (!name || !username || !password) return alert('Full Name, Username, and Password are required!');
+  if (role === 'batch_leader' && !allowed_batch) return alert('Please select an assigned batch for Batch Leader!');
+  if (role === 'subject_leader' && (!allowed_batch || !allowed_subject)) {
+    return alert('Please select both batch and subject for Subject Leader!');
+  }
+
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      name,
+      phone,
+      username, 
+      password, 
+      role,
+      allowed_batch: role === 'sub_admin' ? 'all' : allowed_batch,
+      allowed_subject: role === 'subject_leader' ? allowed_subject : 'all',
+      can_attendance, 
+      can_admission,
+      can_update,
+      can_manage, 
+      can_attendanceveiw, 
+      can_studet,
+      can_studio // Backend-ലേക്ക് അയക്കുന്നു
+    })
+  });
+  const data = await res.json();
+  if (data.success) location.reload();
+  else alert('Error: ' + (data.error || 'Failed to add user!'));
+}
+
+    // ==========================================
+    // UNIFIED ADMIN PASSWORD VERIFICATION MODAL
+    // ==========================================
+    let PENDING_ACTION = { mode: '', type: '', id: '' };
+
+    function openDeleteAuthModal(type, id, itemName) {
+      PENDING_ACTION = { mode: 'single', type, id };
+      document.getElementById('clearModalTitle').innerText = `Confirm Delete ${type.toUpperCase()}`;
+      document.getElementById('clearModalDesc').innerHTML = `You are about to permanently delete ${type}: <strong>${itemName}</strong>. Please enter the <strong>Main Admin Password</strong> to confirm:`;
+      document.getElementById('mainAdminPassword').value = '';
+      document.getElementById('confirmClearBtn').innerText = 'Confirm & Delete';
+      document.getElementById('clearAuthModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('mainAdminPassword').focus(), 100);
+    }
+
+    function openClearModal(target) {
+      PENDING_ACTION = { mode: 'clear', type: target, id: '' };
+      document.getElementById('clearModalTitle').innerText = 'Confirm Data Reset';
+      document.getElementById('clearModalDesc').innerHTML = `You are about to permanently delete <strong>ALL ${target.toUpperCase()}</strong> records. Please enter the <strong>Main Admin Password</strong> to continue:`;
+      document.getElementById('mainAdminPassword').value = '';
+      document.getElementById('confirmClearBtn').innerText = 'Confirm & Clear';
+      document.getElementById('clearAuthModal').style.display = 'flex';
+      setTimeout(() => document.getElementById('mainAdminPassword').focus(), 100);
+    }
+
+    function closeClearModal() {
+      document.getElementById('clearAuthModal').style.display = 'none';
+    }
+
+    async function executeClearData() {
+      const adminPassword = document.getElementById('mainAdminPassword').value.trim();
+      const confirmBtn = document.getElementById('confirmClearBtn');
+
+      if (!adminPassword) {
+        return alert('Please enter the Main Admin password!');
+      }
+
+      const prevText = confirmBtn.innerText;
+      confirmBtn.disabled = true;
+      confirmBtn.innerText = 'Verifying...';
+
+      try {
+        let url = '';
+        if (PENDING_ACTION.mode === 'single') {
+          const map = { batch: 'batches', subject: 'subjects', user: 'users' };
+          url = `/api/${map[PENDING_ACTION.type]}/${PENDING_ACTION.id}`;
+        } else {
+          url = `/api/clear/${PENDING_ACTION.type}`;
+        }
+
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminPassword })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (data.message) alert(data.message);
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Incorrect Main Admin Password!'));
+        }
+      } catch (err) {
+        alert('Server connection error!');
+      } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.innerText = prevText;
+      }
+    }
+
+    // ==========================================
+    // 2. STUDENT PORTAL CONTROL & ROW HIDE SCRIPTS
+    // ==========================================
+    const STUDENTS = JSON.parse(document.getElementById('studentsDataJson').textContent || '[]');
+    let CFG = JSON.parse(document.getElementById('portalCfgJson').textContent || '{}');
+    if (!CFG.studentOverrides) CFG.studentOverrides = {};
+    const HIDDEN_ADMS = new Set();
+
+    function toggleFullMenu() {
+      const drawer = document.getElementById('fullMenuDrawer');
+      const btn = document.getElementById('mainMenuBtn');
+      drawer.classList.toggle('open');
+      btn.classList.toggle('active');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('globalShowForm').checked = Boolean(CFG.globalShowForm);
+      document.getElementById('globalShowIdCard').checked = Boolean(CFG.globalShowIdCard);
+      document.getElementById('globalAllowEdit').checked = Boolean(CFG.globalAllowEdit);
+      document.getElementById('globalAllowPasswordChange').checked = Boolean(CFG.globalAllowPasswordChange);
+
+      const allowed = CFG.allowedFields || [];
+      document.querySelectorAll('input[name="editField"]').forEach(cb => {
+        cb.checked = allowed.includes(cb.value);
+      });
+
+      renderStudentRows();
+    });
+
+    function getPerms(admNo) {
+      const ov = CFG.studentOverrides[admNo] || {};
+      return {
+        showForm: ov.showForm !== undefined ? ov.showForm : document.getElementById('globalShowForm').checked,
+        showIdCard: ov.showIdCard !== undefined ? ov.showIdCard : document.getElementById('globalShowIdCard').checked,
+        allowEdit: ov.allowEdit !== undefined ? ov.allowEdit : document.getElementById('globalAllowEdit').checked,
+        allowPasswordChange: ov.allowPasswordChange !== undefined ? ov.allowPasswordChange : document.getElementById('globalAllowPasswordChange').checked
+      };
+    }
+
+    function renderStudentRows() {
+      const tbody = document.getElementById('portalTableBody');
+      if (!STUDENTS || STUDENTS.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:20px; color:#64748b;">No students found.</td></tr>';
+        updateSelCount();
+        return;
+      }
+
+      tbody.innerHTML = STUDENTS.map((s, idx) => {
+        const p = getPerms(s.admission_no);
+        const isHidden = HIDDEN_ADMS.has(s.admission_no);
+        return `
+          <tr class="stu-perm-row" data-adm="${s.admission_no}" data-search="${(s.admission_no + ' ' + s.full_name + ' ' + s.batch_name).toLowerCase()}" style="${isHidden ? 'display:none;' : ''}">
+            <td><input type="checkbox" class="row-chk" value="${s.admission_no}" onchange="updateSelCount()"></td>
+            <td class="row-num-cell"><strong>${idx + 1}</strong></td>
+            <td><strong>${s.admission_no}</strong></td>
+            <td>${s.full_name}</td>
+            <td>${s.batch_name}</td>
+            <td style="text-align:center;">
+              <button type="button" class="perm-badge ${p.showForm ? 'perm-yes' : 'perm-no'}" onclick="toggleSinglePerm('${s.admission_no}', 'showForm')">
+                ${p.showForm ? 'Visible ✓' : 'Hidden ✕'}
+              </button>
+            </td>
+            <td style="text-align:center;">
+              <button type="button" class="perm-badge ${p.showIdCard ? 'perm-yes' : 'perm-no'}" onclick="toggleSinglePerm('${s.admission_no}', 'showIdCard')">
+                ${p.showIdCard ? 'Visible ✓' : 'Hidden ✕'}
+              </button>
+            </td>
+            <td style="text-align:center;">
+              <button type="button" class="perm-badge ${p.allowEdit ? 'perm-yes' : 'perm-no'}" onclick="toggleSinglePerm('${s.admission_no}', 'allowEdit')">
+                ${p.allowEdit ? 'Allowed ✎' : 'Locked 🔒'}
+              </button>
+            </td>
+            <td style="text-align:center;">
+              <button type="button" class="perm-badge ${p.allowPasswordChange ? 'perm-yes' : 'perm-no'}" onclick="toggleSinglePerm('${s.admission_no}', 'allowPasswordChange')">
+                ${p.allowPasswordChange ? 'Allowed 🔑' : 'Locked 🔒'}
+              </button>
+            </td>
+            <td style="text-align:center;">
+              <button type="button" class="btn-eye-hide" title="Hide this row" onclick="hidePortalRow('${s.admission_no}')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+      updatePortalRowNumbers();
+      updateSelCount();
+    }
+
+    function hidePortalRow(admNo) {
+      HIDDEN_ADMS.add(admNo);
+      const row = document.querySelector(`.stu-perm-row[data-adm="${admNo}"]`);
+      if (row) {
+        row.style.display = 'none';
+        const chk = row.querySelector('.row-chk');
+        if (chk) chk.checked = false;
+      }
+      updatePortalRowNumbers();
+      updateSelCount();
+    }
+
+    function restoreHiddenRows() {
+      HIDDEN_ADMS.clear();
+      filterPortalTable();
+    }
+
+    function updatePortalRowNumbers() {
+      let visibleIndex = 1;
+      document.querySelectorAll('.stu-perm-row').forEach(row => {
+        if (row.style.display !== 'none') {
+          row.dataset.num = visibleIndex;
+          const cell = row.querySelector('.row-num-cell');
+          if (cell) cell.innerHTML = `<strong>${visibleIndex}</strong>`;
+          visibleIndex++;
+        } else {
+          row.dataset.num = '';
+        }
+      });
+
+      const hiddenBtn = document.getElementById('btnShowHiddenRows');
+      const hiddenCnt = document.getElementById('hiddenRowsCount');
+      if (HIDDEN_ADMS.size > 0) {
+        hiddenBtn.style.display = 'inline-flex';
+        hiddenCnt.innerText = HIDDEN_ADMS.size;
+      } else {
+        hiddenBtn.style.display = 'none';
+      }
+    }
+
+    function toggleSinglePerm(admNo, key) {
+      const current = getPerms(admNo)[key];
+      if (!CFG.studentOverrides[admNo]) CFG.studentOverrides[admNo] = {};
+      CFG.studentOverrides[admNo][key] = !current;
+      renderStudentRows();
+    }
+
+    function selectByRange() {
+      const raw = document.getElementById('rangeInput').value.trim();
+      if (!raw) return alert('Enter numbers like 1, 2, 5 or 1-10');
+
+      const targetNums = new Set();
+      raw.split(',').forEach(part => {
+        const clean = part.trim();
+        if (clean.includes('-')) {
+          const [startStr, endStr] = clean.split('-');
+          const s = parseInt(startStr, 10);
+          const e = parseInt(endStr, 10);
+          if (!isNaN(s) && !isNaN(e)) {
+            for (let i = Math.min(s, e); i <= Math.max(s, e); i++) targetNums.add(i);
+          }
+        } else {
+          const n = parseInt(clean, 10);
+          if (!isNaN(n)) targetNums.add(n);
+        }
+      });
+
+      document.querySelectorAll('.stu-perm-row').forEach(row => {
+        if (row.style.display === 'none') return;
+        const num = parseInt(row.dataset.num, 10);
+        const chk = row.querySelector('.row-chk');
+        if (chk) chk.checked = targetNums.has(num);
+      });
+      updateSelCount();
+    }
+
+    function clearRangeSelection() {
+      document.getElementById('rangeInput').value = '';
+      document.querySelectorAll('.row-chk').forEach(c => c.checked = false);
+      document.getElementById('chkAllRows').checked = false;
+      updateSelCount();
+    }
+
+    function toggleAllRows(master) {
+      document.querySelectorAll('.stu-perm-row').forEach(row => {
+        if (row.style.display !== 'none') {
+          const chk = row.querySelector('.row-chk');
+          if (chk) chk.checked = master.checked;
+        }
+      });
+      updateSelCount();
+    }
+
+    function updateSelCount() {
+      const count = document.querySelectorAll('.row-chk:checked').length;
+      document.getElementById('selectedStuCount').innerText = count;
+      const menuCnt = document.getElementById('menuSelCount');
+      if (menuCnt) menuCnt.innerText = count;
+    }
+
+    function applyBulkPerm(key, val) {
+      const selectedAdms = Array.from(document.querySelectorAll('.row-chk:checked')).map(c => c.value);
+      if (selectedAdms.length === 0) return alert('Please select students first (via checkboxes or Range input in Menu)!');
+
+      selectedAdms.forEach(admNo => {
+        if (!CFG.studentOverrides[admNo]) CFG.studentOverrides[admNo] = {};
+        CFG.studentOverrides[admNo][key] = val;
+      });
+      renderStudentRows();
+    }
+
+    function filterPortalTable() {
+      const q = document.getElementById('stuSearchInp').value.toLowerCase().trim();
+      document.querySelectorAll('.stu-perm-row').forEach(row => {
+        const adm = row.dataset.adm;
+        if (HIDDEN_ADMS.has(adm)) {
+          row.style.display = 'none';
+        } else {
+          row.style.display = row.dataset.search.includes(q) ? '' : 'none';
+        }
+      });
+      updatePortalRowNumbers();
+    }
+
+    async function savePortalControl() {
+      const payload = {
+        globalShowForm: document.getElementById('globalShowForm').checked,
+        globalShowIdCard: document.getElementById('globalShowIdCard').checked,
+        globalAllowEdit: document.getElementById('globalAllowEdit').checked,
+        globalAllowPasswordChange: document.getElementById('globalAllowPasswordChange').checked,
+        allowedFields: Array.from(document.querySelectorAll('input[name="editField"]:checked')).map(c => c.value),
+        studentOverrides: CFG.studentOverrides
+      };
+
+      const res = await fetch('/api/student-portal-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) alert('Student Portal Permissions saved for ALL devices!');
+      else alert('Error: ' + data.error);
+    }
+  </script>
+</body>
+</html>

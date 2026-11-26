@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ID Card - <%= student.full_name %></title>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    @page { margin: 0; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #0f172a;
+      margin: 0;
+      padding: 18px;
+      background: #f1f5f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .toolbar {
+      width: 100%;
+      max-width: 440px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 8px 14px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #0f172a;
+    }
+    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
+
+    .card-stage {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px;
+    }
+    .id-sheet {
+      background: #ffffff;
+      position: relative;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+      overflow: hidden;
+    }
+    .placed-box { position: absolute; }
+    .photo-box-inner {
+      width: 100%;
+      height: 100%;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .photo-box-inner img { width: 100%; height: 100%; object-fit: cover; }
+    .banner-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+    @media print {
+      body { background: #fff; padding: 0; justify-content: flex-start; align-items: flex-start; }
+      .toolbar { display: none !important; }
+      .card-stage { padding: 0; }
+      .id-sheet { box-shadow: none; border: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <a href="/my-attendance" class="btn">← Back</a>
+    <div style="display: flex; gap: 8px;">
+      <button type="button" onclick="downloadIdImage()" class="btn btn-primary">Download Image</button>
+      <button type="button" onclick="window.print()" class="btn btn-success">Download PDF</button>
+    </div>
+  </div>
+
+  <div class="card-stage">
+    <div class="id-sheet" id="idCardCapture"></div>
+  </div>
+
+  <script id="stDataJson" type="application/json"><%- JSON.stringify(student).replace(/</g, '\\u003c') %></script>
+  <script id="brandDataJson" type="application/json"><%- JSON.stringify(idBranding || {}).replace(/</g, '\\u003c') %></script>
+  <script id="savedIdTplJson" type="application/json"><%- JSON.stringify(typeof idTpl !== 'undefined' ? idTpl : {}).replace(/</g, '\\u003c') %></script>
+
+  <script>
+    const ST = JSON.parse(document.getElementById('stDataJson').textContent || '{}');
+    const BRAND = JSON.parse(document.getElementById('brandDataJson').textContent || '{}');
+    const SAVED = JSON.parse(document.getElementById('savedIdTplJson').textContent || '{}');
+    const HEADER_URL = BRAND.headerUrl || '';
+    const FOOTER_URL = BRAND.footerUrl || '';
+
+    const DEFAULT_ID_ITEMS = [
+      { id: 'id_header', page: 1, label: 'ID Header', type: 'header', customText: 'STUDENT IDENTITY CARD', x: 0, y: 0, width: 240, height: 52, fontSize: 11.5, bold: true, align: 'center', border: false, borderWidth: 1, borderRadius: 0, bgColor: '#1e3a8a', textColor: '#ffffff', borderColor: '#1e3a8a', visible: true },
+      { id: 'id_photo', page: 1, label: 'Student Photo', type: 'photo', x: 75, y: 60, width: 90, height: 95, fontSize: 11, align: 'center', border: true, borderWidth: 2, borderRadius: 10, bgColor: '#f8fafc', borderColor: '#94a3b8', visible: true },
+      { id: 'id_val_name', page: 1, label: 'Data: Full Name', fieldKey: 'full_name', x: 10, y: 162, width: 220, height: 22, fontSize: 13, bold: true, align: 'center', border: false, borderWidth: 1, borderRadius: 3, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_lbl_adm', page: 1, label: 'Heading: Adm No', type: 'text', customText: 'Adm No :', x: 18, y: 188, width: 75, height: 18, fontSize: 10.5, bold: true, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#475569', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_val_adm', page: 1, label: 'Data: Adm No', fieldKey: 'admission_no', x: 95, y: 188, width: 130, height: 18, fontSize: 10.5, bold: true, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_lbl_roll', page: 1, label: 'Heading: Roll No', type: 'text', customText: 'Roll No :', x: 18, y: 206, width: 75, height: 18, fontSize: 10.5, bold: true, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#475569', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_val_roll', page: 1, label: 'Data: Roll No', fieldKey: 'roll_no', x: 95, y: 206, width: 130, height: 18, fontSize: 10.5, bold: false, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_lbl_father', page: 1, label: 'Heading: Father', type: 'text', customText: 'Father :', x: 18, y: 224, width: 75, height: 18, fontSize: 10.5, bold: true, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#475569', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_val_father', page: 1, label: 'Data: Father', fieldKey: 'father_name', x: 95, y: 224, width: 130, height: 18, fontSize: 10.5, bold: false, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_lbl_dob', page: 1, label: 'Heading: DOB', type: 'text', customText: 'DOB :', x: 18, y: 242, width: 75, height: 18, fontSize: 10.5, bold: true, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#475569', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_val_dob', page: 1, label: 'Data: DOB', fieldKey: 'dob', x: 95, y: 242, width: 130, height: 18, fontSize: 10.5, bold: false, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_lbl_phone', page: 1, label: 'Heading: Phone', type: 'text', customText: 'Phone :', x: 18, y: 260, width: 75, height: 18, fontSize: 10.5, bold: true, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#475569', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_val_phone', page: 1, label: 'Data: Phone', fieldKey: 'phone', x: 95, y: 260, width: 130, height: 18, fontSize: 10.5, bold: false, align: 'left', border: false, borderWidth: 1, borderRadius: 2, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#cbd5e1', visible: true },
+      { id: 'id_barcode', page: 1, label: 'Auto Barcode', type: 'barcode', x: 35, y: 290, width: 170, height: 36, fontSize: 10, align: 'center', border: false, borderWidth: 1, borderRadius: 0, bgColor: 'transparent', textColor: '#0f172a', borderColor: '#0f172a', visible: true },
+      { id: 'id_footer', page: 1, label: 'ID Footer', type: 'footer', customText: 'Authorized Student ID', x: 0, y: 344, width: 240, height: 36, fontSize: 10, bold: true, align: 'center', border: false, borderWidth: 1, borderRadius: 0, bgColor: '#1e3a8a', textColor: '#ffffff', borderColor: '#1e3a8a', visible: true }
+    ];
+
+    const canvasW = (SAVED && SAVED.canvasW) ? SAVED.canvasW : 240;
+    const canvasH = (SAVED && SAVED.canvasH) ? SAVED.canvasH : 380;
+    const items = (SAVED && Array.isArray(SAVED.items) && SAVED.items.length > 0) ? SAVED.items : DEFAULT_ID_ITEMS;
+
+    const sheetEl = document.getElementById('idCardCapture');
+    sheetEl.style.width = canvasW + 'px';
+    sheetEl.style.height = canvasH + 'px';
+
+    // Set exact print page size matching ID card
+    const printStyle = document.createElement('style');
+    printStyle.textContent = `@media print { @page { size: ${canvasW}px ${canvasH}px; margin: 0; } }`;
+    document.head.appendChild(printStyle);
+
+    const visibleItems = items.filter(it => it.visible && (it.page || 1) === 1);
+    sheetEl.innerHTML = visibleItems.map((it, idx) => {
+      const bCol = it.borderColor || '#cbd5e1';
+      const bWidth = it.borderWidth || 1;
+      const bgCol = it.bgColor || 'transparent';
+      const txtCol = it.textColor || '#0f172a';
+      const borderCss = it.border ? `${bWidth}px solid ${bCol}` : 'none';
+      const rad = it.type === 'circle' ? '50%' : `${it.borderRadius || 0}px`;
+      const padCss = ['line', 'rect', 'circle', 'photo', 'header', 'footer'].includes(it.type) ? 'padding:0;' : 'padding:3px 5px;';
+      const weight = it.bold ? '700' : '500';
+      let contentHtml = '';
+
+      if (it.type === 'header') {
+        contentHtml = HEADER_URL
+          ? `<img src="${HEADER_URL}" crossorigin="anonymous" class="banner-img" style="border-radius:${rad};">`
+          : `<div style="font-weight:800; font-size:${it.fontSize}px; text-align:${it.align}; color:${txtCol}; padding:6px;">${it.customText}</div>`;
+      } else if (it.type === 'footer') {
+        contentHtml = FOOTER_URL
+          ? `<img src="${FOOTER_URL}" crossorigin="anonymous" class="banner-img" style="border-radius:${rad};">`
+          : `<div style="font-weight:600; font-size:${it.fontSize}px; text-align:${it.align}; color:${txtCol}; padding:4px;">${it.customText}</div>`;
+      } else if (it.type === 'photo') {
+        contentHtml = `<div class="photo-box-inner" style="border-radius:${rad};">${ST.photo_file ? `<img src="${ST.photo_file}" crossorigin="anonymous">` : 'Photo'}</div>`;
+      } else if (it.type === 'barcode') {
+        contentHtml = `<div style="text-align:${it.align};"><svg class="id-barcode-svg" data-code="${ST.admission_no || 'ADM-001'}"></svg></div>`;
+      } else if (it.type === 'sig') {
+        contentHtml = `<div style="border-top:${bWidth}px solid ${bCol}; padding-top:4px; font-weight:${weight}; font-size:${it.fontSize}px; text-align:${it.align}; color:${txtCol};">${it.customText}</div>`;
+      } else if (it.type === 'text') {
+        contentHtml = `<div style="font-weight:${weight}; font-size:${it.fontSize}px; text-align:${it.align}; color:${txtCol};">${it.customText}</div>`;
+      } else if (it.type === 'line') {
+        contentHtml = `<div style="width:100%; height:100%; background:${bCol};"></div>`;
+      } else if (it.fieldKey) {
+        const val = ST[it.fieldKey] || '-';
+        contentHtml = `<div style="font-size:${it.fontSize}px; text-align:${it.align}; font-weight:${weight}; color:${txtCol}; line-height:1.25;">${val}</div>`;
+      }
+
+      return `<div class="placed-box" style="left:${it.x}px; top:${it.y}px; width:${it.width}px; height:${it.height}px; z-index:${idx + 1}; background:${bgCol}; border:${borderCss}; border-radius:${rad}; ${padCss}">${contentHtml}</div>`;
+    }).join('');
+
+    if (typeof JsBarcode !== 'undefined') {
+      document.querySelectorAll('.id-barcode-svg').forEach(svg => {
+        const code = svg.getAttribute('data-code') || 'ADM-001';
+        try {
+          JsBarcode(svg, code, { format: 'CODE128', width: 1.3, height: 24, displayValue: true, fontSize: 9, margin: 0, background: 'transparent' });
+        } catch (e) {}
+      });
+    }
+
+    function downloadIdImage() {
+      html2canvas(sheetEl, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `${ST.admission_no}_ID_Card.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+  </script>
+</body>
+</html>

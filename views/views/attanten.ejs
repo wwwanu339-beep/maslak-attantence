@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Attendance</title>
+  <link rel="stylesheet" href="/attentenc.css">
+</head>
+<body>
+
+  <div class="container">
+    <!-- Unified Top Header Bar -->
+    <div class="top-bar">
+      <h1 class="top-bar-title">Quick Attendance</h1>
+      <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5"></path>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+      </a>
+    </div>
+
+    <!-- Date & Save Bar -->
+    <div class="attendance-header">
+      <div class="date-box">
+        <label for="attendanceDate">Date:</label>
+        <input type="date" id="attendanceDate" onchange="fetchStudents()">
+      </div>
+      <button type="button" id="saveAttendanceBtn" class="btn-save" onclick="saveAttendanceWithDate()">Save Attendance</button>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="filter-controls">
+      <select name="batchselect" id="batchSelect" onchange="filterSubjectsByBatch(); fetchStudents();">
+        <option value="" disabled selected>Select Batch</option>
+        <option value="all">All Classes</option>
+        <% batches.forEach(b => { %>
+          <option value="<%= b.id %>"><%= b.name %></option>
+        <% }) %>
+      </select>
+
+      <select id="subjectSelect" onchange="fetchStudents()">
+        <option value="" disabled selected>Select Subject</option>
+        <% subjects.forEach(s => { %>
+          <option value="<%= s.id %>" data-batch-id="<%= s.batch_id %>"><%= s.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <!-- Attendance Cards Grid -->
+    <div class="attendance-container">
+      <div class="top-controls">
+        <h3>Students List</h3>
+        <button type="button" id="toggleAllBtn" class="btn-action btn-all-present" onclick="toggleAllAttendance()">
+          Mark All Absent
+        </button>
+      </div>
+
+      <div class="cards-grid" id="studentsGrid">
+        <p class="grid-placeholder">
+          Please select a batch and subject to load students.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('attendanceDate').value = today;
+    });
+
+    async function fetchStudents() {
+      const batch_id = document.getElementById('batchSelect').value;
+      const subject_id = document.getElementById('subjectSelect').value;
+      const date = document.getElementById('attendanceDate').value;
+      const grid = document.getElementById('studentsGrid');
+
+      if (!batch_id || !subject_id || !date) return;
+
+      grid.innerHTML = '<p class="grid-placeholder">Loading students...</p>';
+
+      try {
+        const res = await fetch(`/api/attendance-data?batch_id=${batch_id}&subject_id=${subject_id}&date=${date}`);
+        const data = await res.json();
+
+        if (!data.success || data.students.length === 0) {
+          grid.innerHTML = '<p class="grid-placeholder">No active students found in this batch.</p>';
+          return;
+        }
+
+        grid.innerHTML = '';
+        data.students.forEach((st, idx) => {
+          const currentStatus = data.statusMap[st.admission_no] || 'present';
+          const isPresent = currentStatus === 'present';
+          const isLeave = currentStatus === 'leave';
+          const cardClass = isLeave ? 'leave' : (isPresent ? 'present' : 'absent');
+          const badgeText = isLeave ? 'L' : (isPresent ? 'P' : 'A');
+          const rollNo = st.roll_no || st.admission_no || String(idx + 1).padStart(2, '0');
+
+          grid.innerHTML += `
+            <div class="student-card ${cardClass}" 
+                 onclick="toggleAttendance(this)" 
+                 data-adm="${st.admission_no}" 
+                 data-batch-id="${st.batch_id}">
+              <span class="status-badge">${badgeText}</span>
+              <div class="roll-no">${rollNo}</div>
+              <div class="student-name">${st.full_name}</div>
+              ${st.batch_name ? `<div class="student-batch-sub">${st.batch_name}</div>` : ''}
+            </div>
+          `;
+        });
+
+        resetToggleAllButton();
+      } catch (err) {
+        grid.innerHTML = '<p class="grid-placeholder" style="color: #dc2626;">Failed to load student data.</p>';
+      }
+    }
+
+    let pressTimer = null;
+    let isLongPress = false;
+
+    function toggleAttendance(card) {
+      if (isLongPress) {
+        isLongPress = false;
+        return;
+      }
+      const badge = card.querySelector('.status-badge');
+      if (card.classList.contains('present')) {
+        card.classList.remove('present', 'leave');
+        card.classList.add('absent');
+        badge.innerText = 'A';
+      } else {
+        card.classList.remove('absent', 'leave');
+        card.classList.add('present');
+        badge.innerText = 'P';
+      }
+    }
+
+    function setLeave(card) {
+      const badge = card.querySelector('.status-badge');
+      card.classList.remove('present', 'absent');
+      card.classList.add('leave');
+      badge.innerText = 'L';
+      if (navigator.vibrate) navigator.vibrate(40);
+    }
+
+    const studentsGrid = document.getElementById('studentsGrid');
+    if (studentsGrid) {
+      const startPress = (e) => {
+        const card = e.target.closest('.student-card');
+        if (!card) return;
+        isLongPress = false;
+        pressTimer = setTimeout(() => {
+          isLongPress = true;
+          setLeave(card);
+        }, 500);
+      };
+      const cancelPress = () => clearTimeout(pressTimer);
+
+      studentsGrid.addEventListener('touchstart', startPress, { passive: true });
+      studentsGrid.addEventListener('touchend', cancelPress);
+      studentsGrid.addEventListener('touchmove', cancelPress);
+      studentsGrid.addEventListener('mousedown', startPress);
+      studentsGrid.addEventListener('mouseup', cancelPress);
+      studentsGrid.addEventListener('mouseleave', cancelPress);
+      studentsGrid.addEventListener('contextmenu', (e) => {
+        if (e.target.closest('.student-card')) e.preventDefault();
+      });
+    }
+
+    function toggleAllAttendance() {
+      const btn = document.getElementById('toggleAllBtn');
+      const cards = document.querySelectorAll('.student-card');
+      if (cards.length === 0) return;
+
+      const isSettingAbsent = btn.classList.contains('btn-all-present');
+      cards.forEach(card => {
+        const badge = card.querySelector('.status-badge');
+        if (isSettingAbsent) {
+          card.className = 'student-card absent';
+          badge.innerText = 'A';
+        } else {
+          card.className = 'student-card present';
+          badge.innerText = 'P';
+        }
+      });
+
+      if (isSettingAbsent) {
+        btn.innerText = 'Mark All Present';
+        btn.classList.replace('btn-all-present', 'btn-all-absent');
+      } else {
+        btn.innerText = 'Mark All Absent';
+        btn.classList.replace('btn-all-absent', 'btn-all-present');
+      }
+    }
+
+    function resetToggleAllButton() {
+      const btn = document.getElementById('toggleAllBtn');
+      btn.innerText = 'Mark All Absent';
+      btn.className = 'btn-action btn-all-present';
+    }
+
+    async function saveAttendanceWithDate() {
+      const saveBtn = document.getElementById('saveAttendanceBtn');
+      const batch_id = document.getElementById('batchSelect').value;
+      const subject_id = document.getElementById('subjectSelect').value;
+      const date = document.getElementById('attendanceDate').value;
+      const cards = document.querySelectorAll('.student-card');
+
+      if (!batch_id || !subject_id) return alert('Please select both batch and subject!');
+      if (!date) return alert('Please select a date!');
+      if (cards.length === 0) return alert('No students loaded in the list!');
+
+      const records = [];
+      cards.forEach(card => {
+        const admissionNo = card.getAttribute('data-adm');
+        if (admissionNo) {
+          let status = 'absent';
+          if (card.classList.contains('present')) status = 'present';
+          else if (card.classList.contains('leave')) status = 'leave';
+
+          records.push({
+            admission_no: admissionNo,
+            batch_id: batch_id !== 'all' ? batch_id : (card.getAttribute('data-batch-id') || '').split(',')[0].trim(),
+            status: status
+          });
+        }
+      });
+
+      if (records.length === 0) return alert('Unable to read student records!');
+
+      const originalBtnText = saveBtn ? saveBtn.innerText : 'Save Attendance';
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerText = 'Saving...';
+      }
+
+      try {
+        const res = await fetch('/api/save-attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subject_id, date, records })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message || 'Attendance saved successfully!');
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        alert('Failed to save attendance! Please check your network connection.');
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerText = originalBtnText;
+        }
+      }
+    }
+
+   function filterSubjectsByBatch() {
+      const selectedBatch = String(document.getElementById('batchSelect').value || '').trim();
+      const subjectSelect = document.getElementById('subjectSelect');
+      subjectSelect.value = "";
+
+      subjectSelect.querySelectorAll('option').forEach(opt => {
+        if (!opt.value) {
+          opt.hidden = false;
+          return;
+        }
+        const optBatchId = String(opt.getAttribute('data-batch-id') || '').trim();
+        const show = (optBatchId === selectedBatch);
+        opt.hidden = !show;
+        opt.disabled = !show;
+      });
+    }
+  </script>
+</body>
+</html>
