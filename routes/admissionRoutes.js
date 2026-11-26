@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
-const { getSheet, generateNextAdmissionNo, syncAndReorderRolls } = require('../config/sheets');
+const { getSheet, generateNextAdmissionNo } = require('../config/sheets');
 const {
   uploadDir, admUploads, brandingUpload, idBrandingUpload,
   getBrandingUrls, getIdBrandingUrls
@@ -276,11 +276,11 @@ router.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
   }
 });
 
-// Create Staff Direct Admission
+// Create Staff Direct Admission (Roll No kept empty; assigned via Active Student List)
 router.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const {
-      full_name, dob, roll_no, father_name, phone, guardian_phone, aadhaar_no,
+      full_name, dob, father_name, phone, guardian_phone, aadhaar_no,
       address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
       school_class, madrasa_class, batch_id, password, status
     } = req.body;
@@ -302,7 +302,7 @@ router.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (r
 
     await admSheet.addRow({
       admission_no: permanentAdmNo,
-      roll_no: roll_no ? String(roll_no).trim() : '',
+      roll_no: '',
       full_name: full_name.trim(),
       dob: String(dob).trim(),
       father_name: father_name ? father_name.trim() : '',
@@ -333,12 +333,12 @@ router.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (r
   }
 });
 
-// Edit Admission
+// Edit Admission (Preserves existing roll_no without modifying it)
 router.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
     const {
-      full_name, dob, roll_no, father_name, phone, guardian_phone, aadhaar_no,
+      full_name, dob, father_name, phone, guardian_phone, aadhaar_no,
       address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
       school_class, madrasa_class, batch_id, password, status
     } = req.body;
@@ -352,11 +352,9 @@ router.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, as
 
     const photoPath = req.files?.photo?.[0] ? `/uploads/${req.files.photo[0].filename}` : admRow.get('photo_file');
     const aadhaarPath = req.files?.aadhaar_doc?.[0] ? `/uploads/${req.files.aadhaar_doc[0].filename}` : admRow.get('aadhaar_file');
-    const cleanRoll = roll_no ? String(roll_no).trim() : '';
 
     admRow.set('full_name', full_name.trim());
     admRow.set('dob', String(dob).trim());
-    admRow.set('roll_no', cleanRoll);
     admRow.set('father_name', father_name ? father_name.trim() : '');
     admRow.set('phone', phone ? String(phone).trim() : '');
     admRow.set('guardian_phone', guardian_phone ? String(guardian_phone).trim() : '');
@@ -385,16 +383,11 @@ router.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, as
       if (stuRow) {
         stuRow.set('full_name', admRow.get('full_name'));
         stuRow.set('dob', admRow.get('dob'));
-        stuRow.set('roll_no', cleanRoll);
         stuRow.set('phone', admRow.get('phone'));
         stuRow.set('batch_id', admRow.get('batch_id'));
         stuRow.set('password', admRow.get('password'));
         await stuRow.save();
       }
-    }
-
-    if (cleanRoll) {
-      await syncAndReorderRolls(targetAdmNo, cleanRoll, stuSheet, admSheet, sRows, aRows);
     }
 
     res.json({ success: true });
@@ -403,7 +396,7 @@ router.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, as
   }
 });
 
-// Change Admission Status (Supports: active, pending / Not Active, completed / Complete)
+// Change Admission Status
 router.put('/api/admissions/:admNo/status', requireAuth, checkAdmission, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
@@ -418,13 +411,8 @@ router.put('/api/admissions/:admNo/status', requireAuth, checkAdmission, async (
 
     if (status === 'active') {
       const existingStu = sRows.find(r => String(r.get('admission_no')).trim() === targetAdmNo);
-      const effectiveBatchId = admRow.get('batch_id') || (existingStu ? existingStu.get('batch_id') : '');
+      const effectiveBatchId = admRow.get('batch_id') || (existingStu ? existingStu.get('batch_id') : '') || '';
 
-      if (!effectiveBatchId) {
-        return res.status(400).json({ success: false, error: 'Please assign at least one batch via Edit before activating!' });
-      }
-
-      if (!admRow.get('batch_id')) admRow.set('batch_id', effectiveBatchId);
       admRow.set('status', 'active');
       await admRow.save();
 
@@ -491,8 +479,6 @@ router.delete('/api/admissions/:admNo', requireAuth, checkAdmission, async (req,
   }
 });
 
-// ID Card Studio Routes
-// ID Card Studio Routes
 // Unified Design Studio Loader (Supports both ID Card & Admission Form tabs)
 async function renderUnifiedStudio(req, res, initialTab = 'form') {
   try {
@@ -595,7 +581,7 @@ router.post('/api/id-card-branding', requireAuth, checkAdmission, idBrandingUplo
     res.status(500).json({ success: false, error: err.message });
   }
 });
-// ID Card ഡിസൈൻ സെറ്റിംഗ്സ് Google Sheet-ൽ സേവ് ചെയ്യാനും എടുക്കാനും
+
 router.post('/api/id-card-template', requireAuth, checkAdmission, async (req, res) => {
   try {
     let sheet = await getSheet('id_config');
@@ -614,7 +600,6 @@ router.post('/api/id-card-template', requireAuth, checkAdmission, async (req, re
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
 
 router.post('/api/admission-form-template', requireAuth, checkAdmission, async (req, res) => {
   try {

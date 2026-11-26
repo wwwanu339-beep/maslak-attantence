@@ -8,28 +8,33 @@
 </head>
 <body>
 
-  <!-- Individual Student Detail Card -->
+  <!-- Compact Individual Student Detail Card (Always Shows Full Day Attendance) -->
   <div class="student-detail-card no-print" id="studentDetailBox" style="display: none;">
     <div class="student-header">
       <div class="avatar" id="detailAvatar">01</div>
-      <div>
+      <div class="student-info-block">
         <h4 id="detailName">Student Name</h4>
         <p id="detailSub">Batch: - | Date: -</p>
       </div>
-      <div class="summary-badge" id="detailSummary">0 / 0 Attended</div>
+      <div class="detail-right-actions">
+        <div class="summary-badge" id="detailSummary">0 / 0 Attended</div>
+        <button type="button" class="btn-close-detail" onclick="closeStudentDetail()" title="Close">×</button>
+      </div>
     </div>
 
-    <table class="session-table">
-      <thead>
-        <tr>
-          <th>Session</th>
-          <th>Subject</th>
-          <th>Teacher</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="sessionTableBody"></tbody>
-    </table>
+    <div class="session-table-wrap">
+      <table class="session-table">
+        <thead>
+          <tr>
+            <th style="width: 75px;">Session</th>
+            <th>Subject</th>
+            <th>Teacher</th>
+            <th style="width: 95px; text-align: center;">Status</th>
+          </tr>
+        </thead>
+        <tbody id="sessionTableBody"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Attendance Report Section -->
@@ -37,7 +42,7 @@
     <div class="top-bar no-print">
       <h2 id="reportHeading">Monthly Attendance Matrix</h2>
       <a href="/dashboard" class="btn-header-icon" title="Back to Dashboard" aria-label="Back to Dashboard">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 12H5"></path>
           <polyline points="12 19 5 12 12 5"></polyline>
         </svg>
@@ -102,26 +107,26 @@
         </select>
       </div>
 
-      <!-- Daily Filters (Date & P/A/L Status) -->
+      <!-- Daily Date Picker -->
       <div class="filter-item" id="dateFilterBox" style="display: none;">
         <label>Select Date</label>
         <input type="date" id="filterDate">
       </div>
 
-      <div class="filter-item" id="statusFilterBox" style="display: none;">
-        <label>Status (P / A / L)</label>
-        <select id="filterDailyStatus" onchange="applyDailyStatusFilter()">
-          <option value="all" selected>All Status (P, A, L)</option>
-          <option value="present">Present (P)</option>
-          <option value="absent">Absent (A)</option>
-          <option value="leave">Leave (L)</option>
-          <option value="unmarked">Not Marked (-)</option>
-        </select>
-      </div>
-
       <div class="filter-actions">
         <button type="button" class="btn-filter" onclick="loadAttendance()">Filter</button>
-        <button type="button" class="btn-filter btn-print-action" id="btnDownload" onclick="Attendancedownload()" style="display: none;">Print / Save PDF</button>
+        <button type="button" class="btn-filter btn-print-action" id="btnDownload" onclick="Attendancedownload()" style="display: none;">Print / PDF</button>
+      </div>
+    </div>
+
+    <!-- Segmented P / A / L Status Filter Bar -->
+    <div id="dailyStatusSegmentWrap" class="no-print" style="display: none; margin-bottom: 12px;">
+      <div class="status-segment-bar" role="group" aria-label="Filter Daily Status">
+        <button type="button" class="status-seg-btn active" data-val="all" onclick="setDailyStatusFilter('all', this)">All</button>
+        <button type="button" class="status-seg-btn" data-val="present" onclick="setDailyStatusFilter('present', this)">Present (P)</button>
+        <button type="button" class="status-seg-btn" data-val="absent" onclick="setDailyStatusFilter('absent', this)">Absent (A)</button>
+        <button type="button" class="status-seg-btn" data-val="leave" onclick="setDailyStatusFilter('leave', this)">Leave (L)</button>
+        <button type="button" class="status-seg-btn" data-val="unmarked" onclick="setDailyStatusFilter('unmarked', this)">Not Marked (-)</button>
       </div>
     </div>
 
@@ -129,7 +134,7 @@
       <table class="matrix-table">
         <tbody id="matrixBody">
           <tr>
-            <td colspan="36" style="padding: 25px; color: #64748b; text-align: center;">Select filters and click 'Filter' to view the report.</td>
+            <td colspan="36" style="padding: 20px; color: #64748b; text-align: center;">Select filters and click 'Filter' to view the report.</td>
           </tr>
         </tbody>
       </table>
@@ -138,6 +143,7 @@
 
   <script>
     let globalReportData = null;
+    let currentDailyStatus = 'all';
 
     document.addEventListener('DOMContentLoaded', () => {
       const now = new Date();
@@ -160,13 +166,30 @@
               return;
             }
             const optBatchId = String(opt.getAttribute('data-batch-id') || '').trim();
-            const show = optBatchId === selectedBatch;
+            const show = (optBatchId === selectedBatch);
             opt.hidden = !show;
             opt.disabled = !show;
           });
         });
       }
     });
+
+    function closeStudentDetail() {
+      document.getElementById('studentDetailBox').style.display = 'none';
+    }
+
+    function setDailyStatusFilter(statusVal, btnEl) {
+      currentDailyStatus = statusVal;
+      document.querySelectorAll('#dailyStatusSegmentWrap .status-seg-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+
+      if (document.getElementById('viewMode').value === 'daily' && globalReportData) {
+        const batch_id = document.getElementById('filterBatch').value;
+        const subject_id = document.getElementById('filterSubject').value;
+        const selectedDate = document.getElementById('filterDate').value;
+        renderDailyReport(globalReportData, batch_id, subject_id, selectedDate);
+      }
+    }
 
     function toggleViewMode() {
       const mode = document.getElementById('viewMode').value;
@@ -175,19 +198,20 @@
       document.getElementById('monthFilterBox').style.display = isDaily ? 'none' : '';
       document.getElementById('yearFilterBox').style.display = isDaily ? 'none' : '';
       document.getElementById('dateFilterBox').style.display = isDaily ? '' : 'none';
-      document.getElementById('statusFilterBox').style.display = isDaily ? '' : 'none';
+      document.getElementById('dailyStatusSegmentWrap').style.display = isDaily ? 'block' : 'none';
 
       document.getElementById('reportHeading').innerText = isDaily
         ? 'Daily Attendance Report'
         : 'Monthly Attendance Matrix';
 
       document.getElementById('btnDownload').style.display = 'none';
+      closeStudentDetail();
       globalReportData = null;
       document.getElementById('printArea').innerHTML = `
         <table class="matrix-table">
           <tbody>
             <tr>
-              <td colspan="36" style="padding: 25px; color: #64748b; text-align: center;">Select filters and click 'Filter' to view the report.</td>
+              <td colspan="36" style="padding: 20px; color: #64748b; text-align: center;">Select filters and click 'Filter' to view the report.</td>
             </tr>
           </tbody>
         </table>`;
@@ -216,7 +240,7 @@
       }
 
       const printArea = document.getElementById('printArea');
-      printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: #475569;">Loading report data...</div>';
+      printArea.innerHTML = '<div style="padding: 20px; text-align: center; color: #475569;">Loading report data...</div>';
 
       try {
         const res = await fetch(`/api/monthly-matrix?batch_id=${batch_id}&subject_id=${subject_id}&month=${month}&year=${year}`);
@@ -224,28 +248,21 @@
         const data = await res.json();
 
         if (!data.success || !data.students || data.students.length === 0) {
-          printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: #64748b;">No students or attendance records found.</div>';
+          printArea.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">No students or attendance records found.</div>';
           return;
         }
 
         globalReportData = data;
         if (mode === 'daily') {
+          document.getElementById('dailyStatusSegmentWrap').style.display = 'block';
           renderDailyReport(data, batch_id, subject_id, selectedDate);
         } else {
+          document.getElementById('dailyStatusSegmentWrap').style.display = 'none';
           renderPaginatedMatrix(data, batch_id, subject_id, month, year);
         }
         downloadBtn.style.display = 'inline-block';
       } catch (err) {
-        printArea.innerHTML = '<div style="padding: 25px; text-align: center; color: red;">Failed to load attendance report.</div>';
-      }
-    }
-
-    function applyDailyStatusFilter() {
-      if (document.getElementById('viewMode').value === 'daily' && globalReportData) {
-        const batch_id = document.getElementById('filterBatch').value;
-        const subject_id = document.getElementById('filterSubject').value;
-        const selectedDate = document.getElementById('filterDate').value;
-        renderDailyReport(globalReportData, batch_id, subject_id, selectedDate);
+        printArea.innerHTML = '<div style="padding: 20px; text-align: center; color: red;">Failed to load attendance report.</div>';
       }
     }
 
@@ -254,7 +271,7 @@
       const isAllBatch = batch_id === 'all';
       const batchText = document.getElementById('filterBatch').options[document.getElementById('filterBatch').selectedIndex].text;
       const subjectText = document.getElementById('filterSubject').options[document.getElementById('filterSubject').selectedIndex].text;
-      const statusFilter = document.getElementById('filterDailyStatus').value;
+      const statusFilter = currentDailyStatus;
       const dayNum = parseInt(selectedDate.split('-')[2], 10);
       const markedTeacherName = data.markedTeachers || '-';
       const printedOn = new Date().toLocaleDateString('en-GB');
@@ -322,7 +339,7 @@
                 </div>
               </div>
 
-              <div class="daily-summary-strip" style="margin-top: 10px;">
+              <div class="daily-summary-strip" style="margin-top: 8px;">
                 <span class="sum-pill all">Total: ${enriched.length}</span>
                 <span class="sum-pill p">Present (P): ${pTotal}</span>
                 <span class="sum-pill a">Absent (A): ${aTotal}</span>
@@ -333,40 +350,40 @@
             <table class="matrix-table daily-table">
               <thead>
                 <tr>
-                  <th class="center" style="width: 50px;">#</th>
-                  <th class="center" style="width: 80px;">Roll No</th>
-                  <th style="width: 115px;">Adm No</th>
+                  <th class="center" style="width: 45px;">#</th>
+                  <th class="center" style="width: 70px;">Roll No</th>
+                  <th style="width: 105px;">Adm No</th>
                   <th>Student Name</th>
                   <th>Batch</th>
-                  <th class="center" style="width: 125px;">Status</th>
+                  <th class="center" style="width: 115px;">Status</th>
                 </tr>
               </thead>
               <tbody>`;
 
         if (pageStudents.length === 0) {
-          fullHtml += `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">No students found for "${filterLabelMap[statusFilter]}" on ${selectedDate}.</td></tr>`;
+          fullHtml += `<tr><td colspan="6" style="text-align: center; padding: 18px; color: #64748b;">No students found for "${filterLabelMap[statusFilter]}" on ${selectedDate}.</td></tr>`;
         } else {
           pageStudents.forEach((st, idx) => {
             const serialNo = (pIdx * pageSize) + idx + 1;
             const rollNo = st.roll_no || st.admission_no || '-';
-            let statusCell = '<td class="center">-</td>';
+            let statusCell = '';
 
             if (st.dayStatus === 'present') {
-              statusCell = `<td class="status-p center" style="cursor: pointer;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')">P (Present)</td>`;
+              statusCell = `<td class="status-p center">P (Present)</td>`;
             } else if (st.dayStatus === 'absent') {
-              statusCell = `<td class="status-a center" style="cursor: pointer;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')">A (Absent)</td>`;
+              statusCell = `<td class="status-a center">A (Absent)</td>`;
             } else if (st.dayStatus === 'leave') {
-              statusCell = `<td class="status-l center" style="cursor: pointer;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')">L (Leave)</td>`;
+              statusCell = `<td class="status-l center">L (Leave)</td>`;
             } else {
-              statusCell = `<td class="center" style="color: #94a3b8;">Not Marked</td>`;
+              statusCell = `<td class="center" style="color: #94a3b8;">Not Marked (-)</td>`;
             }
 
             fullHtml += `
-              <tr>
+              <tr style="cursor: pointer;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')" title="Click to view full day attendance">
                 <td class="center">${serialNo}</td>
                 <td class="center"><strong>${rollNo}</strong></td>
                 <td>${st.admission_no}</td>
-                <td style="cursor: pointer; font-weight: 600;" onclick="showStudentDay('${st.admission_no}', '${selectedDate}')">${st.full_name || '-'}</td>
+                <td style="font-weight: 600;">${st.full_name || '-'}</td>
                 <td>${st.batch_name || '-'}</td>
                 ${statusCell}
               </tr>`;
@@ -468,15 +485,15 @@
 
             if (status === 'present') {
               p++;
-              row += `<td class="status-p" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view details">P</td>`;
+              row += `<td class="status-p" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view full day details">P</td>`;
             } else if (status === 'leave') {
               l++;
-              row += `<td class="status-l" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view details">L</td>`;
+              row += `<td class="status-l" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view full day details">L</td>`;
             } else if (status === 'absent') {
               a++;
-              row += `<td class="status-a" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view details">A</td>`;
+              row += `<td class="status-a" style="cursor: pointer;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view full day details">A</td>`;
             } else {
-              row += `<td>-</td>`;
+              row += `<td style="cursor: pointer; color: #94a3b8;" onclick="showStudentDay('${admNo}', '${fullDate}')" title="Click to view full day details">-</td>`;
             }
           }
 
@@ -531,37 +548,39 @@
       showStudentDay(admissionNo, `${year}-${String(month).padStart(2, '0')}-${day}`);
     }
 
+    // Always fetches & displays the FULL day's attendance across ALL batches & subjects
     async function showStudentDay(admissionNo, date) {
       const box = document.getElementById('studentDetailBox');
       const tbody = document.getElementById('sessionTableBody');
 
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 15px;">Loading details...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 12px;">Loading full day attendance...</td></tr>';
       box.style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       try {
-        const res = await fetch(`/api/student-day-details?admission_no=${encodeURIComponent(admissionNo)}&date=${date}`);
+        const res = await fetch(`/api/student-day-details?admission_no=${encodeURIComponent(admissionNo)}&date=${encodeURIComponent(date)}`);
         const data = await res.json();
 
         if (!data.success || !data.student) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red; padding: 15px;">Student details not available.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red; padding: 12px;">Student details not available.</td></tr>';
           return;
         }
 
         document.getElementById('detailAvatar').innerText = data.student.admission_no || 'ST';
         document.getElementById('detailName').innerText = data.student.full_name;
-        document.getElementById('detailSub').innerText = `Batch: ${data.student.batch_name || '-'} | Date: ${date}`;
+        document.getElementById('detailSub').innerText = `Batch: ${data.student.batch_name || '-'} | Date: ${date} (Full Day)`;
 
+        const sessionsList = Array.isArray(data.sessions) ? data.sessions : [];
         tbody.innerHTML = '';
 
-        if (!data.sessions || data.sessions.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 15px;">No attendance recorded on ${date}.</td></tr>`;
-          document.getElementById('detailSummary').innerText = 'No Sessions';
+        if (sessionsList.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 12px;">No attendance recorded on ${date}.</td></tr>`;
+          document.getElementById('detailSummary').innerText = '0 Sessions';
           return;
         }
 
         let presentCount = 0;
-        data.sessions.forEach((s, i) => {
+        sessionsList.forEach((s, i) => {
           if (s.status === 'present') presentCount++;
 
           let badgeClass = 'a';
@@ -573,14 +592,14 @@
               <td>Period ${i + 1}</td>
               <td>${s.subject_name}</td>
               <td>${s.user || '-'}</td>
-              <td><span class="badge ${badgeClass}">${s.status.toUpperCase()}</span></td>
+              <td style="text-align: center;"><span class="badge ${badgeClass}">${s.status.toUpperCase()}</span></td>
             </tr>
           `;
         });
 
-        document.getElementById('detailSummary').innerText = `${presentCount} / ${data.sessions.length} Attended`;
+        document.getElementById('detailSummary').innerText = `${presentCount} / ${sessionsList.length} Attended`;
       } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red; padding: 15px;">Error loading session details.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red; padding: 12px;">Error loading session details.</td></tr>';
       }
     }
   </script>

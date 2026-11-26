@@ -292,7 +292,7 @@
     </div>
 
     <!-- Quick Navigation -->
-    <div class="menu-section">
+   <div class="menu-section">
       <h2>Quick Navigation</h2>
       <div class="links-grid">
 
@@ -331,9 +331,15 @@
           </a>
         <% } %>
 
+        <% if (user && (user.role === 'admin' || user.can_studio == 1)) { %>
+  <a href="/admission-form-studio" class="nav-card">
+    Form & ID Design Studio
+    <span>Customize Admission Form & ID Card layouts</span>
+  </a>
+<% } %>
+
       </div>
     </div>
-  </div>
 
   <!-- Profile Popup Modal -->
   <div id="profileModal" class="profile-modal" onclick="if(event.target === this) closeProfileModal()">

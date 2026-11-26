@@ -36,6 +36,7 @@
         <div class="acc-body">
           <div class="input-action-row">
             <input type="text" id="batchInput" placeholder="Enter Batch Name">
+            
             <button type="button" class="btn btn-add" onclick="addBatch()">Add</button>
           </div>
           <div class="select-action-row">
@@ -123,14 +124,15 @@
               <% }) %>
             </select>
 
-            <div class="checkbox-group">
-              <label><input type="checkbox" id="userAtt" checked> Attendance</label>
-              <label><input type="checkbox" id="userUpdate" checked> Can Update</label>
-              <label><input type="checkbox" id="userManage"> Add / Manage</label>
-              <label><input type="checkbox" id="userview"> Attendance View</label>
-              <label><input type="checkbox" id="userstudet"> Student Manage</label>
-              <label><input type="checkbox" id="userAdmission"> Admission Access</label>
-            </div>
+          <div class="checkbox-group">
+  <label><input type="checkbox" id="userAtt" checked> Attendance</label>
+  <label><input type="checkbox" id="userUpdate" checked> Can Update</label>
+  <label><input type="checkbox" id="userManage"> Add / Manage</label>
+  <label><input type="checkbox" id="userview"> Attendance View</label>
+  <label><input type="checkbox" id="userstudet"> Student Manage</label>
+  <label><input type="checkbox" id="userAdmission"> Admission Access</label>
+  <label><input type="checkbox" id="userStudio"> Design Studio</label>
+</div>
             
             <button type="button" class="btn btn-add" onclick="addUser()">Add User</button>
           </div>
@@ -441,59 +443,53 @@
         opt.disabled = !match;
       });
     }
+async function addUser() {
+  const name = document.getElementById('userFullName').value.trim();
+  const phone = document.getElementById('userPhone').value.trim();
+  const username = document.getElementById('userInput').value.trim();
+  const password = document.getElementById('userPass').value.trim();
+  const role = document.getElementById('userRole').value;
+  const allowed_batch = document.getElementById('userBatchSelect').value;
+  const allowed_subject = document.getElementById('userSubjectSelect').value;
 
-    async function addUser() {
-      const name = document.getElementById('userFullName').value.trim();
-      const phone = document.getElementById('userPhone').value.trim();
-      const username = document.getElementById('userInput').value.trim();
-      const password = document.getElementById('userPass').value.trim();
-      const role = document.getElementById('userRole').value;
-      const allowed_batch = document.getElementById('userBatchSelect').value;
-      const allowed_subject = document.getElementById('userSubjectSelect').value;
-      const can_admission = document.getElementById('userAdmission').checked;
+  const can_attendance = document.getElementById('userAtt').checked;
+  const can_update = document.getElementById('userUpdate').checked;
+  const can_manage = document.getElementById('userManage').checked;
+  const can_attendanceveiw = document.getElementById('userview').checked;
+  const can_studet = document.getElementById('userstudet').checked;
+  const can_admission = document.getElementById('userAdmission').checked;
+  const can_studio = document.getElementById('userStudio').checked; // പുതിയ ചെക്ക്ബോക്സ്
 
-      const can_attendance = document.getElementById('userAtt').checked;
-      const can_update = document.getElementById('userUpdate').checked;
-      const can_manage = document.getElementById('userManage').checked;
-      const can_attendanceveiw = document.getElementById('userview').checked;
-      const can_studet = document.getElementById('userstudet').checked;
+  if (!name || !username || !password) return alert('Full Name, Username, and Password are required!');
+  if (role === 'batch_leader' && !allowed_batch) return alert('Please select an assigned batch for Batch Leader!');
+  if (role === 'subject_leader' && (!allowed_batch || !allowed_subject)) {
+    return alert('Please select both batch and subject for Subject Leader!');
+  }
 
-      if (!name || !username || !password) return alert('Full Name, Username, and Password are required!');
-      if (role === 'batch_leader' && !allowed_batch) return alert('Please select an assigned batch for Batch Leader!');
-      if (role === 'subject_leader' && (!allowed_batch || !allowed_subject)) {
-        return alert('Please select both batch and subject for Subject Leader!');
-      }
-
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name,
-          phone,
-          username, 
-          password, 
-          role,
-          allowed_batch: role === 'sub_admin' ? 'all' : allowed_batch,
-          allowed_subject: role === 'subject_leader' ? allowed_subject : 'all',
-          can_attendance, 
-          can_admission,
-          can_update,
-          can_manage, 
-          can_attendanceveiw, 
-          can_studet 
-        })
-      });
-      const data = await res.json();
-      if (data.success) location.reload();
-      else alert('Error: ' + (data.error || 'Failed to add user!'));
-    }
-
-    function deleteUser() {
-      const sel = document.getElementById('userSelect');
-      if (!sel.value) return alert('Please select a user to delete!');
-      const label = sel.options[sel.selectedIndex].text;
-      openDeleteAuthModal('user', sel.value, label);
-    }
+  const res = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      name,
+      phone,
+      username, 
+      password, 
+      role,
+      allowed_batch: role === 'sub_admin' ? 'all' : allowed_batch,
+      allowed_subject: role === 'subject_leader' ? allowed_subject : 'all',
+      can_attendance, 
+      can_admission,
+      can_update,
+      can_manage, 
+      can_attendanceveiw, 
+      can_studet,
+      can_studio // Backend-ലേക്ക് അയക്കുന്നു
+    })
+  });
+  const data = await res.json();
+  if (data.success) location.reload();
+  else alert('Error: ' + (data.error || 'Failed to add user!'));
+}
 
     // ==========================================
     // UNIFIED ADMIN PASSWORD VERIFICATION MODAL

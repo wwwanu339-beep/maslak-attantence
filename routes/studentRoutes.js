@@ -35,9 +35,20 @@ function parseRollExpressionServer(expr) {
 router.get('/students', requireAuth, checkStudent, async (req, res) => {
   try {
     const studentSheet = await getSheet('students');
+    const admSheet = await getSheet('admissions');
     const batchSheet = await getSheet('batches');
 
-    const [sRows, bRows] = await Promise.all([studentSheet.getRows(), batchSheet.getRows()]);
+    const [sRows, aRows, bRows] = await Promise.all([
+      studentSheet.getRows(),
+      admSheet.getRows(),
+      batchSheet.getRows()
+    ]);
+
+    const activeAdmissionSet = new Set(
+      aRows
+        .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active')
+        .map(r => String(r.get('admission_no') || '').trim())
+    );
 
     const batchMap = {};
     const batches = bRows.map(r => {
@@ -46,7 +57,14 @@ router.get('/students', requireAuth, checkStudent, async (req, res) => {
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
     const students = sRows
-      .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active' && (r.get('full_name') || '').trim() !== '')
+      .filter(r => {
+        const admNo = String(r.get('admission_no') || '').trim();
+        const isStuActive = (r.get('status') || '').trim().toLowerCase() === 'active';
+        const isAdmActive = activeAdmissionSet.has(admNo);
+        const hasName = (r.get('full_name') || '').trim() !== '';
+
+        return isStuActive && isAdmActive && hasName;
+      })
       .map(r => {
         const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
         const batchNamesList = rawBatchIds.map(id => batchMap[id]).filter(Boolean);
@@ -202,37 +220,42 @@ router.put('/api/students/:admNo/password', requireAuth, checkStudent, async (re
 router.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
-    const { full_name, dob, phone, batch_id, roll_no, password } = req.body;
+    const { batch_id, roll_no } = req.body;
+
+    let cleanBatchId = '';
+    if (Array.isArray(batch_id)) {
+      cleanBatchId = batch_id.map(id => String(id).trim()).filter(Boolean).join(', ');
+    } else if (batch_id !== undefined && batch_id !== null) {
+      cleanBatchId = String(batch_id).split(',').map(id => id.trim()).filter(Boolean).join(', ');
+    }
+
+    if (!cleanBatchId) {
+      return res.status(400).json({ success: false, error: 'At least one batch is required!' });
+    }
 
     const stuSheet = await getSheet('students');
     const admSheet = await getSheet('admissions');
     const [sRows, aRows] = await Promise.all([stuSheet.getRows(), admSheet.getRows()]);
 
-    const hashedPassword = (password && password.trim() !== '') ? await hashPassword(password) : null;
-    const cleanRoll = roll_no ? String(roll_no).trim() : '';
+    const cleanRoll = roll_no !== undefined ? String(roll_no).trim() : '';
 
+    // 1. students ഷീറ്റിൽ roll_no, batch_id എന്നിവ മാത്രം മാറ്റുന്നു
     const row = sRows.find(r => String(r.get('admission_no')).trim() === targetAdmNo);
     if (row) {
-      row.set('full_name', full_name ? full_name.trim() : '');
       row.set('roll_no', cleanRoll);
-      if (dob !== undefined) row.set('dob', String(dob).trim());
-      row.set('phone', phone ? String(phone).trim() : '');
-      row.set('batch_id', batch_id ? String(batch_id) : '');
-      if (hashedPassword) row.set('password', hashedPassword);
+      row.set('batch_id', cleanBatchId);
       await row.save();
     }
 
+    // 2. admissions ഷീറ്റിലും roll_no, batch_id എന്നിവ മാറ്റുന്നു
     const admRow = aRows.find(r => String(r.get('admission_no')).trim() === targetAdmNo);
     if (admRow) {
-      admRow.set('full_name', full_name ? full_name.trim() : '');
       admRow.set('roll_no', cleanRoll);
-      if (dob !== undefined) admRow.set('dob', String(dob).trim());
-      admRow.set('phone', phone ? String(phone).trim() : '');
-      admRow.set('batch_id', batch_id ? String(batch_id) : '');
-      if (hashedPassword) admRow.set('password', hashedPassword);
+      admRow.set('batch_id', cleanBatchId);
       await admRow.save();
     }
 
+    // 3. റോൾ നമ്പർ ഉണ്ടെങ്കിൽ രണ്ട് ഷീറ്റിലും റീ-ഓർഡർ ചെയ്യുന്നു
     if (cleanRoll) {
       await syncAndReorderRolls(targetAdmNo, cleanRoll, stuSheet, admSheet, sRows, aRows);
     }

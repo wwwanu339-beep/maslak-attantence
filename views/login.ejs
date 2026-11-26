@@ -75,10 +75,14 @@
       font-weight: 600;
       cursor: pointer;
       margin-top: 8px;
-      transition: background 0.2s;
+      transition: background 0.2s, opacity 0.2s;
     }
-    .btn-submit:hover {
+    .btn-submit:hover:not(:disabled) {
       background: var(--primary-hover);
+    }
+    .btn-submit:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
     }
     .error-msg {
       background: #fee2e2;
@@ -117,7 +121,7 @@
       <div class="error-msg"><%= error %></div>
     <% } %>
 
-    <form action="/login" method="POST">
+    <form id="staffLoginForm" action="/login" method="POST">
       <div class="form-group">
         <label for="username">Username</label>
         <input type="text" id="username" name="username" placeholder="Enter username" required autofocus>
@@ -128,13 +132,36 @@
         <input type="password" id="password" name="password" placeholder="Enter password" required>
       </div>
 
-      <button type="submit" class="btn-submit">Sign In</button>
+      <button type="submit" id="staffLoginBtn" class="btn-submit">Sign In</button>
     </form>
 
     <div class="student-link-box">
       Are you a student? <a href="/student-login">Check Your Attendance →</a>
     </div>
   </div>
+
+  <script>
+    const staffForm = document.getElementById('staffLoginForm');
+    const staffBtn = document.getElementById('staffLoginBtn');
+    let isStaffSubmitting = false;
+
+    staffForm.addEventListener('submit', function(e) {
+      if (isStaffSubmitting) {
+        e.preventDefault();
+        return;
+      }
+      isStaffSubmitting = true;
+      staffBtn.disabled = true;
+      staffBtn.innerText = 'Signing In...';
+    });
+
+    // Reset button state if user navigates back via browser cache
+    window.addEventListener('pageshow', function() {
+      isStaffSubmitting = false;
+      staffBtn.disabled = false;
+      staffBtn.innerText = 'Sign In';
+    });
+  </script>
  
 </body>
 </html>

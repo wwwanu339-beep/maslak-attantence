@@ -2,6 +2,24 @@ const express = require('express');
 const router = express.Router();
 const { getSheet } = require('../config/sheets');
 const { requireAuth, checkAttendance, checkAttendanceView, checkAdmission } = require('../middleware/auth');
+
+// Helper: യൂസർനെയിമും ശരിയായ പേരും മാപ്പ് ചെയ്യാൻ
+async function getUserMap() {
+  const userSheet = (await getSheet('users')) || (await getSheet('user'));
+  const userMap = {};
+  if (userSheet) {
+    const uRows = await userSheet.getRows();
+    uRows.forEach(r => {
+      const uname = String(r.get('username') || '').trim().toLowerCase();
+      const fullName = String(r.get('name') || r.get('full_name') || '').trim();
+      if (uname && fullName) {
+        userMap[uname] = fullName;
+      }
+    });
+  }
+  return userMap;
+}
+
 router.get('/attendance', requireAuth, checkAttendance, async (req, res) => {
   try {
     const batchSheet = await getSheet('batches');
@@ -35,10 +53,11 @@ router.get('/api/attendance-data', requireAuth, checkAttendance, async (req, res
     const batchSheet = await getSheet('batches');
     const attSheet = await getSheet('attendance');
 
-    const [sRows, bRows, attRows] = await Promise.all([
+    const [sRows, bRows, attRows, userMap] = await Promise.all([
       studentSheet.getRows(),
       batchSheet.getRows(),
-      attSheet.getRows()
+      attSheet.getRows(),
+      getUserMap()
     ]);
 
     const batchMap = {};
@@ -48,12 +67,15 @@ router.get('/api/attendance-data', requireAuth, checkAttendance, async (req, res
       .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active' && (r.get('full_name') || '').trim() !== '')
       .map(r => {
         const admNo = String(r.get('admission_no') || '').trim();
+        const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
+        const mainBatchId = rawBatchIds[0];
+
         return {
           admission_no: admNo,
           roll_no: r.get('roll_no') || admNo,
           full_name: r.get('full_name'),
           batch_id: r.get('batch_id'),
-          batch_name: batchMap[r.get('batch_id')] || 'N/A'
+          batch_name: batchMap[mainBatchId] || 'N/A'
         };
       });
 
@@ -81,7 +103,10 @@ router.get('/api/attendance-data', requireAuth, checkAttendance, async (req, res
       if (matchDate && matchBatch && matchSub) {
         const admKey = String(r.get('admission_no') || r.get('student_id') || '').trim();
         statusMap[admKey] = r.get('status');
-        if (r.get('user')) savedBy = String(r.get('user')).trim();
+        if (r.get('user')) {
+          const rawUser = String(r.get('user')).trim();
+          savedBy = userMap[rawUser.toLowerCase()] || rawUser;
+        }
       }
     });
 
@@ -224,10 +249,11 @@ router.get('/api/monthly-matrix', requireAuth, checkAttendanceView, async (req, 
     const batchSheet = await getSheet('batches');
     const attSheet = await getSheet('attendance');
 
-    const [sRows, bRows, attRows] = await Promise.all([
+    const [sRows, bRows, attRows, userMap] = await Promise.all([
       studentSheet.getRows(),
       batchSheet.getRows(),
-      attSheet.getRows()
+      attSheet.getRows(),
+      getUserMap()
     ]);
 
     const batchMap = {};
@@ -237,12 +263,15 @@ router.get('/api/monthly-matrix', requireAuth, checkAttendanceView, async (req, 
       .filter(r => (r.get('status') || '').trim().toLowerCase() === 'active' && (r.get('full_name') || '').trim() !== '')
       .map(r => {
         const admNo = String(r.get('admission_no') || '').trim();
+        const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
+        const mainBatchId = rawBatchIds[0];
+
         return {
           admission_no: admNo,
           roll_no: r.get('roll_no') || admNo,
           full_name: r.get('full_name'),
           batch_id: r.get('batch_id'),
-          batch_name: batchMap[r.get('batch_id')] || 'N/A'
+          batch_name: batchMap[mainBatchId] || 'N/A'
         };
       });
 
@@ -275,9 +304,13 @@ router.get('/api/monthly-matrix', requireAuth, checkAttendanceView, async (req, 
       if (matchMonth && matchYear && matchBatch && matchSub) {
         const studentAdm = String(r.get('admission_no') || r.get('student_id') || '').trim();
         const st = String(r.get('status') || '').trim().toLowerCase();
-        const markedBy = String(r.get('user') || '').trim();
+        const markedByRaw = String(r.get('user') || '').trim();
 
-        if (markedBy) teachersSet.add(markedBy);
+        if (markedByRaw) {
+          const teacherName = userMap[markedByRaw.toLowerCase()] || markedByRaw;
+          teachersSet.add(teacherName);
+        }
+
         if (!attMap[studentAdm]) attMap[studentAdm] = {};
         if (!attMap[studentAdm][rDay] || st === 'present') attMap[studentAdm][rDay] = st;
       }
@@ -305,11 +338,12 @@ router.get('/api/student-day-details', requireAuth, checkAttendanceView, async (
     const subjectSheet = await getSheet('subjects');
     const attSheet = await getSheet('attendance');
 
-    const [sRows, bRows, subRows, attRows] = await Promise.all([
+    const [sRows, bRows, subRows, attRows, userMap] = await Promise.all([
       studentSheet.getRows(),
       batchSheet.getRows(),
       subjectSheet.getRows(),
-      attSheet.getRows()
+      attSheet.getRows(),
+      getUserMap()
     ]);
 
     const batchMap = {};
@@ -333,19 +367,20 @@ router.get('/api/student-day-details', requireAuth, checkAttendanceView, async (
 
     const sessions = attRows
       .filter(r => String(r.get('admission_no') || r.get('student_id')).trim() === targetAdmNo && String(r.get('date')).trim() === String(date).trim())
-      .map(r => ({
-        subject_name: subjectMap[r.get('subject_id')] || 'General',
-        user: r.get('user') || '-',
-        status: r.get('status'),
-        created_at: r.get('date')
-      }));
+      .map(r => {
+        const rawUser = String(r.get('user') || '').trim();
+        return {
+          subject_name: subjectMap[r.get('subject_id')] || 'General',
+          user: rawUser ? (userMap[rawUser.toLowerCase()] || rawUser) : '-',
+          status: r.get('status'),
+          created_at: r.get('date')
+        };
+      });
 
     res.json({ success: true, student, sessions });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
-// Admission Form Design Studio Page & Save API
 
 module.exports = router;

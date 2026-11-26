@@ -59,6 +59,7 @@ router.post('/login', async (req, res) => {
         can_attendanceveiw: parseInt(matchedUser.get('can_attendanceveiw') || 0),
         can_studet: parseInt(matchedUser.get('can_studet') || 0),
         can_admission: parseInt(matchedUser.get('can_admission') || 0),
+        can_studio: parseInt(matchedUser.get('can_studio') || 0),
         role: String(matchedUser.get('role') || 'sub_admin').trim(),
         allowed_batch: String(matchedUser.get('allowed_batch') || 'all').trim(),
         allowed_subject: String(matchedUser.get('allowed_subject') || 'all').trim(),

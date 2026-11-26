@@ -52,9 +52,6 @@
             <a href="/students" class="menu-drop-item">
               <span>Active Student List →</span>
             </a>
-            <a href="/admission-form-studio" class="menu-drop-item">
-  <span>Form & ID Design Studio →</span>
-</a>
 
             <div class="menu-divider"></div>
             <button type="button" class="menu-drop-item" onclick="closeHeaderMenu(); downloadSelectedIdCards();">
@@ -273,7 +270,7 @@
                     <button type="button" class="btn btn-sm btn-success" onclick="approveOnlineApp('<%= appItem.app_id %>', this)">
                       Final Submit
                     </button>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteOnlineApp('<%= appItem.app_id %>')">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteOnlineApp('<%= appItem.app_id %>', this)">
                       Reject
                     </button>
                   </div>
@@ -286,7 +283,7 @@
     </div>
   </div>
 
-  <!-- Staff Direct Admission Modal -->
+  <!-- Staff Direct Admission Modal (Roll No Removed) -->
   <div id="staffNewAdmModal" class="modal" onclick="if(event.target === this) closeStaffNewAdmModal()">
     <div class="modal-content modal-lg">
       <div class="modal-header">
@@ -299,11 +296,6 @@
           <div class="field-box">
             <label>Auto Admission No:</label>
             <input type="text" id="admNo" value="<%= nextAdmissionNo %>" class="readonly-adm" readonly>
-          </div>
-
-          <div class="field-box">
-            <label>Roll No (Optional):</label>
-            <input type="number" id="stRoll" name="roll_no" placeholder="Roll No (e.g., 1)" min="1">
           </div>
 
           <div class="field-box">
@@ -406,11 +398,11 @@
           </div>
         </div>
 
-        <div class="modal-actions">
+        <div class="modal-actions" id="newAdmActions">
           <button type="button" class="btn btn-secondary" onclick="closeStaffNewAdmModal()">Cancel</button>
-          <button type="button" class="btn btn-draft" onclick="submitStaffAdmission('draft', false)">Save Draft</button>
-          <button type="button" class="btn btn-primary" onclick="submitStaffAdmission('pending', false)">Submit Admission</button>
-          <button type="button" class="btn btn-success" onclick="submitStaffAdmission('pending', true)">Submit & Print</button>
+          <button type="button" class="btn btn-draft" onclick="submitStaffAdmission('draft', false, this)">Save Draft</button>
+          <button type="button" class="btn btn-primary" onclick="submitStaffAdmission('pending', false, this)">Submit Admission</button>
+          <button type="button" class="btn btn-success" onclick="submitStaffAdmission('pending', true, this)">Submit & Print</button>
         </div>
       </form>
     </div>
@@ -478,7 +470,7 @@
     </div>
   </div>
 
-  <!-- Edit Admission Modal -->
+  <!-- Edit Admission Modal (Roll No Removed) -->
   <div id="editAdmModal" class="modal" onclick="if(event.target === this) closeEditAdmModal()">
     <div class="modal-content modal-lg">
       <div class="modal-header">
@@ -491,11 +483,6 @@
         <div class="field-box">
           <label>Admission No (Read-only):</label>
           <input type="text" id="editAdmNo" class="readonly-adm" readonly>
-        </div>
-
-        <div class="field-box">
-          <label>Roll No:</label>
-          <input type="number" id="editAdmRoll" min="1" placeholder="Roll No">
         </div>
 
         <div class="field-box">
@@ -596,24 +583,12 @@
           <label>Update Aadhaar Doc (Optional): <span id="currentDocLink"></span></label>
           <input type="file" id="editAdmAadhaarFile" accept="image/*,.pdf">
         </div>
-
-        <div class="batch-selection-wrapper full-span">
-          <span class="batch-selection-title">Assign Batches (Required before activating student):</span>
-          <div class="batch-checkbox-group">
-            <% batches.forEach(b => { %>
-              <label class="batch-chip">
-                <input type="checkbox" name="editAdmBatches" value="<%= b.id %>">
-                <span><%= b.name %></span>
-              </label>
-            <% }) %>
-          </div>
-        </div>
       </div>
 
-      <div class="modal-actions">
+      <div class="modal-actions" id="editAdmActions">
         <button type="button" class="btn btn-secondary" onclick="closeEditAdmModal()">Cancel</button>
-        <button type="button" class="btn btn-draft" onclick="saveAdmissionEdit('draft')">Save as Draft</button>
-        <button type="button" class="btn btn-primary" onclick="saveAdmissionEdit('submit')">Update & Submit</button>
+        <button type="button" class="btn btn-draft" onclick="saveAdmissionEdit('draft', this)">Save as Draft</button>
+        <button type="button" class="btn btn-primary" onclick="saveAdmissionEdit('submit', this)">Update & Submit</button>
       </div>
     </div>
   </div>
@@ -662,9 +637,12 @@
     const SERVER_HEADER_URL = BRANDING_CFG.headerUrl || '';
     const SERVER_FOOTER_URL = BRANDING_CFG.footerUrl || '';
 
-    let selectedEditBatches = [];
+    let currentEditBatchId = '';
+    let currentEditRollNo = '';
     let currentActiveTab = 'confirmed';
     let currentStatusFilter = 'all';
+    let isSubmittingNewAdm = false;
+    let isSavingEditAdm = false;
 
     window.addEventListener('DOMContentLoaded', () => {
       const searchInput = document.getElementById('admissionSearch');
@@ -688,8 +666,13 @@
     }
 
     async function approveOnlineApp(appId, btnEl) {
+      if (btnEl && btnEl.disabled) return;
       if (!confirm('Final submit this application and allot a new Admission Number?')) return;
+
+      const row = btnEl.closest('tr');
+      const rejectBtn = row ? row.querySelector('.btn-danger') : null;
       btnEl.disabled = true;
+      if (rejectBtn) rejectBtn.disabled = true;
       btnEl.innerText = 'Approving...';
 
       try {
@@ -703,30 +686,57 @@
         } else {
           alert('Error: ' + (data.error || 'Failed to approve application!'));
           btnEl.disabled = false;
+          if (rejectBtn) rejectBtn.disabled = false;
           btnEl.innerText = 'Final Submit';
         }
       } catch (err) {
         alert('Server error!');
         btnEl.disabled = false;
+        if (rejectBtn) rejectBtn.disabled = false;
         btnEl.innerText = 'Final Submit';
       }
     }
 
-    async function deleteOnlineApp(appId) {
+    async function deleteOnlineApp(appId, btnEl) {
+      if (btnEl && btnEl.disabled) return;
       if (!confirm('Are you sure you want to reject and delete this online application?')) return;
+
+      const row = btnEl ? btnEl.closest('tr') : null;
+      const approveBtn = row ? row.querySelector('.btn-success') : null;
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerText = 'Rejecting...';
+      }
+      if (approveBtn) approveBtn.disabled = true;
+
       try {
         const res = await fetch(`/api/online-admissions/${encodeURIComponent(appId)}`, {
           method: 'DELETE'
         });
         const data = await res.json();
-        if (data.success) location.reload();
-        else alert('Error: ' + (data.error || 'Failed to delete!'));
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to delete!'));
+          if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerText = 'Reject';
+          }
+          if (approveBtn) approveBtn.disabled = false;
+        }
       } catch (err) {
         alert('Server error!');
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.innerText = 'Reject';
+        }
+        if (approveBtn) approveBtn.disabled = false;
       }
     }
 
     function openStaffNewAdmModal() {
+      isSubmittingNewAdm = false;
+      document.querySelectorAll('#newAdmActions button').forEach(b => b.disabled = false);
       document.getElementById('stIsMuthallim').value = 'no';
       toggleMuthallimFields('stIsMuthallim', 'newMuthallimBox');
       document.getElementById('staffNewAdmModal').style.display = 'flex';
@@ -734,13 +744,15 @@
     }
 
     function closeStaffNewAdmModal() {
+      if (isSubmittingNewAdm) return;
       document.getElementById('staffNewAdmModal').style.display = 'none';
     }
 
-    async function submitStaffAdmission(saveMode, autoPrint = false) {
+    async function submitStaffAdmission(saveMode, autoPrint = false, clickedBtn = null) {
+      if (isSubmittingNewAdm) return;
+
       const full_name = document.getElementById('stName').value.trim();
       const dob = document.getElementById('stDob').value.trim();
-      const roll_no = document.getElementById('stRoll').value.trim();
       const father_name = document.getElementById('stFather').value.trim();
       const phone = document.getElementById('stPhone').value.trim();
       const guardian_phone = document.getElementById('stGuardianPhone').value.trim();
@@ -758,10 +770,15 @@
 
       if (!full_name || !dob) return alert('Please enter both Full Name and Date of Birth!');
 
+      isSubmittingNewAdm = true;
+      const allActionBtns = document.querySelectorAll('#newAdmActions button');
+      const prevBtnText = clickedBtn ? clickedBtn.innerText : '';
+      allActionBtns.forEach(b => b.disabled = true);
+      if (clickedBtn) clickedBtn.innerText = saveMode === 'draft' ? 'Saving...' : 'Submitting...';
+
       const formData = new FormData();
       formData.append('full_name', full_name);
       formData.append('dob', dob);
-      formData.append('roll_no', roll_no);
       formData.append('father_name', father_name);
       formData.append('phone', phone);
       formData.append('guardian_phone', guardian_phone);
@@ -793,7 +810,7 @@
           if (autoPrint) {
             printAdmissionRecords([{
               admission_no: data.admission_no,
-              roll_no, full_name, dob, father_name, phone, guardian_phone,
+              roll_no: '', full_name, dob, father_name, phone, guardian_phone,
               aadhaar_no, is_muthallim, prev_institution, prev_place,
               school_class, madrasa_class, place, pin, district, state, address,
               status: saveMode, photo_file: ''
@@ -805,9 +822,15 @@
           }
         } else {
           alert('Error: ' + (data.error || 'Failed to save admission!'));
+          isSubmittingNewAdm = false;
+          allActionBtns.forEach(b => b.disabled = false);
+          if (clickedBtn) clickedBtn.innerText = prevBtnText;
         }
       } catch (err) {
         alert('Server connection failed!');
+        isSubmittingNewAdm = false;
+        allActionBtns.forEach(b => b.disabled = false);
+        if (clickedBtn) clickedBtn.innerText = prevBtnText;
       }
     }
 
@@ -1060,21 +1083,13 @@
       }
     }
 
-    document.addEventListener('change', (e) => {
-      if (e.target.name === 'editAdmBatches') {
-        const val = e.target.value;
-        if (e.target.checked) {
-          if (!selectedEditBatches.includes(val)) selectedEditBatches.push(val);
-        } else {
-          selectedEditBatches = selectedEditBatches.filter(item => item !== val);
-        }
-      }
-    });
-
     async function handleStatusDropdown(selectEl) {
+      if (selectEl.disabled) return;
       const admNo = selectEl.dataset.adm;
       const action = selectEl.value;
       const prevStatus = selectEl.getAttribute('data-current');
+
+      selectEl.disabled = true;
 
       try {
         const res = await fetch(`/api/admissions/${encodeURIComponent(admNo)}/status`, {
@@ -1083,20 +1098,26 @@
           body: JSON.stringify({ status: action })
         });
         const data = await res.json();
-        if (data.success) location.reload();
-        else {
+        if (data.success) {
+          location.reload();
+        } else {
           alert('Error: ' + (data.error || 'Failed to update status!'));
           selectEl.value = prevStatus;
+          selectEl.disabled = false;
         }
       } catch (err) {
         alert('Server error!');
         selectEl.value = prevStatus;
+        selectEl.disabled = false;
       }
     }
 
     function openEditAdmByIndex(idx) {
       const s = ADMISSIONS_LIST[Number(idx)];
       if (!s) return;
+
+      isSavingEditAdm = false;
+      document.querySelectorAll('#editAdmActions button').forEach(b => b.disabled = false);
 
       let formattedDob = s.dob || '';
       if (formattedDob.includes('/')) {
@@ -1106,9 +1127,10 @@
         }
       }
 
+      currentEditBatchId = s.batch_id || '';
+      currentEditRollNo = s.roll_no || '';
       document.getElementById('editAdmStatus').value = s.status || 'pending';
       document.getElementById('editAdmNo').value = s.admission_no || '';
-      document.getElementById('editAdmRoll').value = s.roll_no || '';
       document.getElementById('editAdmName').value = s.full_name || '';
       document.getElementById('editAdmDob').value = formattedDob;
       document.getElementById('editAdmFather').value = s.father_name || '';
@@ -1138,20 +1160,17 @@
       document.getElementById('currentDocLink').innerHTML = s.aadhaar_file
         ? `(<a href="${s.aadhaar_file}" target="_blank" class="doc-link">Current</a>)` : '';
 
-      const assignedBatches = String(s.batch_id || '').split(',').map(b => b.trim()).filter(Boolean);
-      selectedEditBatches = [...assignedBatches];
-      document.querySelectorAll('input[name="editAdmBatches"]').forEach(cb => {
-        cb.checked = assignedBatches.includes(String(cb.value).trim());
-      });
-
       document.getElementById('editAdmModal').style.display = 'flex';
     }
 
     function closeEditAdmModal() {
+      if (isSavingEditAdm) return;
       document.getElementById('editAdmModal').style.display = 'none';
     }
 
-    async function saveAdmissionEdit(mode) {
+    async function saveAdmissionEdit(mode, clickedBtn = null) {
+      if (isSavingEditAdm) return;
+
       const admNo = document.getElementById('editAdmNo').value.trim();
       const currentStatus = document.getElementById('editAdmStatus').value;
       const full_name = document.getElementById('editAdmName').value.trim();
@@ -1159,7 +1178,12 @@
 
       if (!full_name || !dob) return alert('Full Name and Date of Birth are required!');
 
-      const batch_id = selectedEditBatches.join(',');
+      isSavingEditAdm = true;
+      const allActionBtns = document.querySelectorAll('#editAdmActions button');
+      const prevBtnText = clickedBtn ? clickedBtn.innerText : '';
+      allActionBtns.forEach(b => b.disabled = true);
+      if (clickedBtn) clickedBtn.innerText = mode === 'draft' ? 'Saving...' : 'Updating...';
+
       let newStatus = currentStatus;
       if (mode === 'draft') newStatus = 'draft';
       else if (currentStatus === 'draft') newStatus = 'pending';
@@ -1167,7 +1191,7 @@
       const formData = new FormData();
       formData.append('full_name', full_name);
       formData.append('dob', dob);
-      formData.append('roll_no', document.getElementById('editAdmRoll').value.trim());
+      formData.append('roll_no', currentEditRollNo);
       formData.append('father_name', document.getElementById('editAdmFather').value.trim());
       formData.append('phone', document.getElementById('editAdmPhone').value.trim());
       formData.append('guardian_phone', document.getElementById('editAdmGuardianPhone').value.trim());
@@ -1183,7 +1207,7 @@
       formData.append('state', document.getElementById('editAdmState').value.trim());
       formData.append('address', document.getElementById('editAdmAddress').value.trim());
       formData.append('password', document.getElementById('editAdmPass').value.trim());
-      formData.append('batch_id', batch_id);
+      formData.append('batch_id', currentEditBatchId);
       formData.append('status', newStatus);
 
       const photoInput = document.getElementById('editAdmPhoto');
@@ -1195,10 +1219,19 @@
       try {
         const res = await fetch(`/api/admissions/${encodeURIComponent(admNo)}`, { method: 'PUT', body: formData });
         const data = await res.json();
-        if (data.success) location.reload();
-        else alert('Error: ' + (data.error || 'Failed to update admission!'));
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + (data.error || 'Failed to update admission!'));
+          isSavingEditAdm = false;
+          allActionBtns.forEach(b => b.disabled = false);
+          if (clickedBtn) clickedBtn.innerText = prevBtnText;
+        }
       } catch (err) {
         alert('Server error while updating!');
+        isSavingEditAdm = false;
+        allActionBtns.forEach(b => b.disabled = false);
+        if (clickedBtn) clickedBtn.innerText = prevBtnText;
       }
     }
 
@@ -1213,6 +1246,7 @@
     }
 
     function closeBrandingModal() {
+      if (document.getElementById('saveBrandBtn').disabled) return;
       document.getElementById('brandingModal').style.display = 'none';
     }
 
@@ -1229,9 +1263,11 @@
     }
 
     async function saveBranding() {
+      const btn = document.getElementById('saveBrandBtn');
+      if (btn.disabled) return;
+
       const hFile = document.getElementById('brandHeaderInput').files[0];
       const fFile = document.getElementById('brandFooterInput').files[0];
-      const btn = document.getElementById('saveBrandBtn');
 
       if (!hFile && !fFile) {
         closeBrandingModal();
@@ -1251,10 +1287,13 @@
         if (data.success) {
           alert('Header & Footer uploaded for all devices!');
           location.reload();
-        } else alert('Error: ' + data.error);
+        } else {
+          alert('Error: ' + data.error);
+          btn.disabled = false;
+          btn.innerText = 'Save Header & Footer';
+        }
       } catch (err) {
         alert('Upload failed!');
-      } finally {
         btn.disabled = false;
         btn.innerText = 'Save Header & Footer';
       }

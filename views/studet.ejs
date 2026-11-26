@@ -118,14 +118,11 @@
                     <button type="button" class="btn btn-sm btn-edit-std" 
                       data-adm="<%= s.admission_no %>"
                       data-roll="<%= s.roll_no || '' %>"
-                      data-name="<%= s.full_name %>"
-                      data-dob="<%= s.dob || '' %>"
-                      data-phone="<%= s.phone || '' %>"
                       data-batch="<%= s.batch_id || '' %>"
                       onclick="openEditModal(this)">
                       Update
                     </button>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteStudent('<%= s.admission_no %>')">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteStudent('<%= s.admission_no %>', this)">
                       Delete
                     </button>
                   </div>
@@ -217,11 +214,11 @@
     </div>
   </div>
 
-  <!-- Update Student Modal -->
+  <!-- Update Student Roll & Batch Modal -->
   <div id="editModal" class="modal" onclick="if(event.target === this) closeEditModal()">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Update Student</h3>
+        <h3>Update Roll & Batch</h3>
         <button type="button" class="modal-close" onclick="closeEditModal()">×</button>
       </div>
       
@@ -231,18 +228,6 @@
 
         <label class="field-label">Roll Number:</label>
         <input type="number" id="editRoll" placeholder="Roll Number">
-        
-        <label class="field-label">Full Name:</label>
-        <input type="text" id="editName" placeholder="Student Name" required>
-
-        <label class="field-label">Date of Birth:</label>
-        <input type="date" id="editDob">
-
-        <label class="field-label">Phone Number:</label>
-        <input type="text" id="editPhone" placeholder="Phone Number">
-
-        <label class="field-label">New Password (Leave blank to keep current password):</label>
-        <input type="password" id="editPass" placeholder="Enter new password (optional)">
         
         <div class="batch-selection-wrapper">
           <span class="batch-selection-title">Select Batches (First selected is Main Batch):</span>
@@ -258,8 +243,8 @@
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-        <button type="button" class="btn btn-primary" onclick="saveStudentUpdate()">Save Changes</button>
+        <button type="button" id="cancelUpdateBtn" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button type="button" id="saveUpdateBtn" class="btn btn-primary" onclick="saveStudentUpdate()">Save Changes</button>
       </div>
     </div>
   </div>
@@ -280,8 +265,8 @@
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" onclick="closePassModal()">Cancel</button>
-        <button type="button" class="btn btn-primary" onclick="saveStudentPassword()">Save Password</button>
+        <button type="button" id="cancelPassBtn" class="btn btn-secondary" onclick="closePassModal()">Cancel</button>
+        <button type="button" id="savePassBtn" class="btn btn-primary" onclick="saveStudentPassword()">Save Password</button>
       </div>
     </div>
   </div>
@@ -395,6 +380,8 @@
       const roll_expression = document.getElementById('bulkRollExpression').value.trim();
       const btn = document.getElementById('bulkAssignBtn');
 
+      if (btn.disabled) return;
+
       if (!batch_id) {
         return alert('Please select a batch first!');
       }
@@ -419,10 +406,11 @@
           location.reload();
         } else {
           alert('Error: ' + (data.error || 'Failed to assign batch!'));
+          btn.disabled = false;
+          btn.innerText = 'Assign Batch';
         }
       } catch (err) {
         alert('Server error while assigning batch!');
-      } finally {
         btn.disabled = false;
         btn.innerText = 'Assign Batch';
       }
@@ -563,10 +551,6 @@
     function openEditModal(btn) {
       document.getElementById('editAdm').value = btn.dataset.adm;
       document.getElementById('editRoll').value = btn.dataset.roll;
-      document.getElementById('editName').value = btn.dataset.name;
-      document.getElementById('editDob').value = btn.dataset.dob;
-      document.getElementById('editPhone').value = btn.dataset.phone;
-      document.getElementById('editPass').value = '';
 
       const assignedBatches = String(btn.dataset.batch || '').split(',').map(b => b.trim()).filter(Boolean);
       selectedStudentEditBatches = [...assignedBatches];
@@ -575,38 +559,57 @@
         cb.checked = assignedBatches.includes(String(cb.value).trim());
       });
 
+      const saveBtn = document.getElementById('saveUpdateBtn');
+      const cancelBtn = document.getElementById('cancelUpdateBtn');
+      saveBtn.disabled = false;
+      saveBtn.innerText = 'Save Changes';
+      cancelBtn.disabled = false;
+
       document.getElementById('editModal').style.display = 'flex';
     }
 
     function closeEditModal() {
+      if (document.getElementById('saveUpdateBtn').disabled) return;
       document.getElementById('editModal').style.display = 'none';
     }
 
     async function saveStudentUpdate() {
+      const saveBtn = document.getElementById('saveUpdateBtn');
+      const cancelBtn = document.getElementById('cancelUpdateBtn');
+      if (saveBtn.disabled) return;
+
       const admNo = document.getElementById('editAdm').value;
       const roll_no = document.getElementById('editRoll').value.trim();
-      const full_name = document.getElementById('editName').value.trim();
-      const dob = document.getElementById('editDob').value;
-      const phone = document.getElementById('editPhone').value.trim();
-      const password = document.getElementById('editPass').value.trim();
-
       const batch_id = selectedStudentEditBatches.join(',');
 
-      if (!full_name || !batch_id) {
-        return alert('Full Name and at least one Batch are required!');
+      if (!batch_id) {
+        return alert('Please select at least one Batch!');
       }
+
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      saveBtn.innerText = 'Saving...';
 
       try {
         const res = await fetch(`/api/students/${encodeURIComponent(admNo)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name, dob, phone, batch_id, roll_no, password })
+          body: JSON.stringify({ batch_id, roll_no })
         });
         const data = await res.json();
-        if (data.success) location.reload();
-        else alert('Error: ' + data.error);
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+          saveBtn.innerText = 'Save Changes';
+        }
       } catch (err) {
         alert('Failed to update student details!');
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        saveBtn.innerText = 'Save Changes';
       }
     }
 
@@ -614,17 +617,33 @@
       document.getElementById('passStudentAdm').value = btn.dataset.adm;
       document.getElementById('passStudentName').innerText = `Student: ${btn.dataset.name} (${btn.dataset.adm})`;
       document.getElementById('newStudentPass').value = '';
+
+      const saveBtn = document.getElementById('savePassBtn');
+      const cancelBtn = document.getElementById('cancelPassBtn');
+      saveBtn.disabled = false;
+      saveBtn.innerText = 'Save Password';
+      cancelBtn.disabled = false;
+
       document.getElementById('passModal').style.display = 'flex';
     }
 
     function closePassModal() {
+      if (document.getElementById('savePassBtn').disabled) return;
       document.getElementById('passModal').style.display = 'none';
     }
 
     async function saveStudentPassword() {
+      const saveBtn = document.getElementById('savePassBtn');
+      const cancelBtn = document.getElementById('cancelPassBtn');
+      if (saveBtn.disabled) return;
+
       const admNo = document.getElementById('passStudentAdm').value;
       const password = document.getElementById('newStudentPass').value.trim();
       if (!password) return alert('Please enter a new password!');
+
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      saveBtn.innerText = 'Saving...';
 
       try {
         const res = await fetch(`/api/students/${encodeURIComponent(admNo)}/password`, {
@@ -635,24 +654,51 @@
         const data = await res.json();
         if (data.success) {
           alert('Password updated successfully!');
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+          saveBtn.innerText = 'Save Password';
           closePassModal();
         } else {
           alert('Error: ' + data.error);
+          saveBtn.disabled = false;
+          cancelBtn.disabled = false;
+          saveBtn.innerText = 'Save Password';
         }
       } catch (err) {
         alert('Failed to save password!');
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        saveBtn.innerText = 'Save Password';
       }
     }
 
-    async function deleteStudent(admNo) {
+    async function deleteStudent(admNo, btn) {
+      if (btn && btn.disabled) return;
       if (!confirm('Are you sure you want to remove this student from the active list?')) return;
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'Deleting...';
+      }
+
       try {
         const res = await fetch(`/api/students/${encodeURIComponent(admNo)}`, { method: 'DELETE' });
         const data = await res.json();
-        if (data.success) location.reload();
-        else alert('Error: ' + data.error);
+        if (data.success) {
+          location.reload();
+        } else {
+          alert('Error: ' + data.error);
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = 'Delete';
+          }
+        }
       } catch (err) {
         alert('Failed to remove student!');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = 'Delete';
+        }
       }
     }
   </script>

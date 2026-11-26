@@ -195,7 +195,8 @@ router.post('/api/users', requireAuth, checkManage, async (req, res) => {
       can_manage: can_manage ? '1' : '0',
       can_attendanceveiw: can_attendanceveiw ? '1' : '0',
       can_studet: can_studet ? '1' : '0',
-      can_admission: can_admission ? '1' : '0'
+      can_admission: can_admission ? '1' : '0',
+      can_studio: can_studio ? '1' : '0'
     });
     res.json({ success: true });
   } catch (err) {

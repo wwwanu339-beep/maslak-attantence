@@ -140,14 +140,14 @@ html, body {
 .card h3 { margin: 0 0 6px; font-size: 15.5px; font-weight: 800; }
 .card-subtitle { margin: 0 0 12px; font-size: 12.5px; color: var(--text-muted); }
 
-/* Touch-Friendly Buttons (Min 40px height on mobile) */
+/* Touch-Friendly Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   padding: 9px 14px;
-  min-height: 40px;
+  min-height: 38px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 700;
@@ -157,7 +157,7 @@ html, body {
   transition: 0.15s;
   white-space: nowrap;
 }
-.btn-sm { padding: 6px 11px; min-height: 34px; font-size: 12px; }
+.btn-sm { padding: 5px 10px; min-height: 32px; font-size: 12px; }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-hover); }
 .btn-success { background: var(--success); color: #fff; }
@@ -165,6 +165,7 @@ html, body {
 .btn-warning { background: var(--warning); color: #fff; }
 .btn-secondary { background: #f8fafc; color: var(--text-main); border-color: #cbd5e1; }
 .btn-edit-std { background: #eff6ff; color: var(--primary); border-color: #bfdbfe; }
+.btn-draft { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 
 /* Inputs (16px font on mobile prevents iOS Safari auto-zoom) */
 input[type="text"],
@@ -201,6 +202,7 @@ input:focus, select:focus, textarea:focus {
   background: #eff6ff;
   color: var(--primary);
   border: 1px solid #bfdbfe;
+  white-space: nowrap;
 }
 .badge-roll {
   display: inline-block;
@@ -212,9 +214,21 @@ input:focus, select:focus, textarea:focus {
   color: #334155;
 }
 
-/* Desktop Table */
-.table-responsive { width: 100%; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; text-align: left; }
+/* Consistent Table View (Both Desktop & Mobile Horizontal Scroll) */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
 th {
   background: #f8fafc;
   color: var(--text-muted);
@@ -222,16 +236,30 @@ th {
   font-weight: 700;
   text-transform: uppercase;
   padding: 11px 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1.5px solid var(--border);
+  white-space: nowrap;
 }
+
 td {
-  padding: 11px 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
+  white-space: nowrap;
 }
-.action-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 
-/* Bottom-Sheet / Centered Mobile Modals */
+.chk-col {
+  width: 36px;
+  text-align: center;
+}
+
+.action-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+/* Modals */
 .modal {
   display: none;
   position: fixed;
@@ -306,66 +334,17 @@ td {
   color: var(--primary);
 }
 
-/* =========================================================
-   MOBILE CARD VIEW FOR TABLES (Screens <= 768px)
-   ========================================================= */
+/* Mobile Adjustments (Keeping Table Layout Intact) */
 @media (max-width: 768px) {
   .container { padding: 10px; }
   .top-bar { padding: 10px 12px; border-radius: 12px; }
   .top-bar-title { font-size: 15.5px; }
   .card { padding: 12px; border-radius: 12px; }
 
-  /* Convert Tables into Clean Mobile Cards */
-  #studentsTable thead,
-  #admissionsTable thead {
-    display: none;
+  th, td {
+    padding: 9px 10px;
+    font-size: 12.5px;
   }
-
-  #studentsTable tbody tr,
-  #admissionsTable tbody tr {
-    display: block;
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
-  }
-
-  #studentsTable tbody td,
-  #admissionsTable tbody td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0;
-    border-bottom: 1px dashed #e2e8f0;
-    font-size: 13px;
-    text-align: right;
-  }
-
-  #studentsTable tbody td:last-child,
-  #admissionsTable tbody td:last-child {
-    border-bottom: none;
-    padding-top: 10px;
-    justify-content: stretch;
-  }
-
-  #studentsTable tbody td::before,
-  #admissionsTable tbody td::before {
-    content: attr(data-label);
-    font-weight: 700;
-    color: var(--text-muted);
-    font-size: 12px;
-    text-align: left;
-  }
-
-  .action-btns {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-  .action-btns .btn { width: 100%; padding: 7px 4px; font-size: 11.5px; }
 
   /* Bottom Sheet Modal on Mobile */
   .modal { align-items: flex-end; padding: 0; }
@@ -375,6 +354,12 @@ td {
     max-height: 88vh;
     padding: 18px 16px 24px;
   }
-  .modal-actions .btn { flex: 1; }
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+  .modal-actions .btn {
+    flex: 1;
+    min-width: 110px;
+  }
   .batch-checkbox-group, .col-select-grid { grid-template-columns: 1fr; }
 }
