@@ -145,7 +145,7 @@
     let globalReportData = null;
     let currentDailyStatus = 'all';
 
-    document.addEventListener('DOMContentLoaded', () => {
+ document.addEventListener('DOMContentLoaded', () => {
       const now = new Date();
       document.getElementById('filterMonth').value = now.getMonth() + 1;
       document.getElementById('filterYear').value = now.getFullYear();
@@ -157,19 +157,31 @@
       if (batchSelect && subjectSelect) {
         batchSelect.addEventListener('change', () => {
           const selectedBatch = String(batchSelect.value || '').trim();
-          subjectSelect.value = 'all';
+          let firstVisibleVal = '';
 
           subjectSelect.querySelectorAll('option').forEach(opt => {
             if (!opt.value || opt.value === 'all') {
-              opt.hidden = false;
-              opt.disabled = false;
+              // 'All Classes' തിരഞ്ഞെടുത്താൽ മാത്രം 'All Subjects' കാണിക്കും; 
+              // പ്രത്യേക ബാച്ച് തിരഞ്ഞെടുത്താൽ 'All Subjects' മറയ്ക്കും.
+              const showAllOpt = (selectedBatch === 'all');
+              opt.hidden = !showAllOpt;
+              opt.disabled = !showAllOpt;
+              if (showAllOpt && !firstVisibleVal) firstVisibleVal = opt.value;
               return;
             }
+
             const optBatchId = String(opt.getAttribute('data-batch-id') || '').trim();
             const show = (optBatchId === selectedBatch);
             opt.hidden = !show;
             opt.disabled = !show;
+
+            if (show && !firstVisibleVal) {
+              firstVisibleVal = opt.value;
+            }
           });
+
+          // ലഭ്യമായ ആദ്യത്തെ ഓപ്ഷൻ ഓട്ടോമാറ്റിക്കായി സെലക്ട് ചെയ്യുന്നു
+          subjectSelect.value = firstVisibleVal || 'all';
         });
       }
     });
