@@ -45,8 +45,16 @@ router.get('/attendance', requireAuth, checkAttendance, async (req, res) => {
 });
 
 router.get('/api/attendance-data', requireAuth, checkAttendance, async (req, res) => {
-  const { batch_id, subject_id, date } = req.query;
+  let { batch_id, subject_id, date } = req.query;
   if (!batch_id || !subject_id || !date) return res.status(400).json({ success: false, error: 'Missing required parameters!' });
+
+  const currentUser = req.session?.user || {};
+  if (currentUser.allowed_batch && currentUser.allowed_batch !== 'all') {
+    batch_id = String(currentUser.allowed_batch).trim();
+  }
+  if (currentUser.allowed_subject && currentUser.allowed_subject !== 'all') {
+    subject_id = String(currentUser.allowed_subject).trim();
+  }
 
   try {
     const studentSheet = await getSheet('students');
@@ -75,6 +83,7 @@ router.get('/api/attendance-data', requireAuth, checkAttendance, async (req, res
           roll_no: r.get('roll_no') || admNo,
           full_name: r.get('full_name'),
           batch_id: r.get('batch_id'),
+          main_batch_id: mainBatchId || '',
           batch_name: batchMap[mainBatchId] || 'N/A'
         };
       });
