@@ -83,7 +83,7 @@ router.post('/api/public-admissions', admUploads, async (req, res) => {
   }
 });
 
-// Staff Approve Online Application
+// Staff Approve Online Application (Roll & Batch kept empty; assigned via Student List)
 router.post('/api/online-admissions/:appId/approve', requireAuth, checkAdmission, async (req, res) => {
   try {
     const targetAppId = String(req.params.appId).trim();
@@ -196,17 +196,32 @@ router.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
       return { id: r.get('id'), name: r.get('name') };
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
+    // Map Student List roll_no & batch_id as single source of truth
+    const stuInfoMap = {};
+    sRows.forEach(r => {
+      const adm = String(r.get('admission_no') || '').trim();
+      if (adm) {
+        stuInfoMap[adm] = {
+          roll_no: String(r.get('roll_no') || '').trim(),
+          batch_id: String(r.get('batch_id') || '').trim()
+        };
+      }
+    });
+
     const nextAdmissionNo = generateNextAdmissionNo(aRows, sRows);
 
     const allStudents = aRows
       .filter(r => (r.get('full_name') || '').trim() !== '')
       .map(r => {
-        const rawBatchIds = String(r.get('batch_id') || '').split(',').map(id => id.trim()).filter(Boolean);
+        const admNo = String(r.get('admission_no') || '').trim();
+        const effectiveBatchId = (stuInfoMap[admNo] && stuInfoMap[admNo].batch_id) || String(r.get('batch_id') || '').trim();
+        const effectiveRollNo = (stuInfoMap[admNo] && stuInfoMap[admNo].roll_no) || String(r.get('roll_no') || '').trim();
+        const rawBatchIds = effectiveBatchId.split(',').map(id => id.trim()).filter(Boolean);
         const batchNamesList = rawBatchIds.map(id => batchMap[id]).filter(Boolean);
 
         return {
-          admission_no: String(r.get('admission_no') || '').trim(),
-          roll_no: r.get('roll_no') || '',
+          admission_no: admNo,
+          roll_no: effectiveRollNo,
           full_name: r.get('full_name'),
           dob: r.get('dob') || '',
           father_name: r.get('father_name') || '',
@@ -225,7 +240,7 @@ router.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
           prev_place: r.get('prev_place') || '',
           school_class: r.get('school_class') || '',
           madrasa_class: r.get('madrasa_class') || '',
-          batch_id: r.get('batch_id') || '',
+          batch_id: effectiveBatchId,
           batch_name: batchNamesList.join(', ') || 'No Batch',
           status: (r.get('status') || 'pending').trim().toLowerCase()
         };
@@ -276,13 +291,13 @@ router.get('/admissions', requireAuth, checkAdmission, async (req, res) => {
   }
 });
 
-// Create Staff Direct Admission (Roll No kept empty; assigned via Active Student List)
+// Create Staff Direct Admission (Never sets roll_no or batch_id; managed exclusively via Student List)
 router.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const {
       full_name, dob, father_name, phone, guardian_phone, aadhaar_no,
       address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
-      school_class, madrasa_class, batch_id, password, status
+      school_class, madrasa_class, password, status
     } = req.body;
 
     if (!full_name || !dob) {
@@ -321,7 +336,7 @@ router.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (r
       photo_file: photoPath,
       phone: phone ? String(phone).trim() : '',
       guardian_phone: guardian_phone ? String(guardian_phone).trim() : '',
-      batch_id: batch_id ? String(batch_id).trim() : '',
+      batch_id: '',
       password: hashedPassword,
       status: status === 'draft' ? 'draft' : 'pending',
       created_at: new Date().toISOString().split('T')[0]
@@ -333,14 +348,14 @@ router.post('/api/admissions', requireAuth, checkAdmission, admUploads, async (r
   }
 });
 
-// Edit Admission (Preserves existing roll_no without modifying it)
+// Edit Admission (Never modifies roll_no or batch_id; those are controlled strictly from Student List)
 router.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
     const {
       full_name, dob, father_name, phone, guardian_phone, aadhaar_no,
       address, place, pin, district, state, is_muthallim, prev_institution, prev_place,
-      school_class, madrasa_class, batch_id, password, status
+      school_class, madrasa_class, password, status
     } = req.body;
 
     const admSheet = await getSheet('admissions');
@@ -369,7 +384,6 @@ router.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, as
     admRow.set('prev_place', (is_muthallim === 'yes' && prev_place) ? prev_place.trim() : '');
     admRow.set('school_class', school_class ? String(school_class).trim() : '');
     admRow.set('madrasa_class', madrasa_class ? String(madrasa_class).trim() : '');
-    if (batch_id !== undefined) admRow.set('batch_id', String(batch_id).trim());
     if (password && password.trim() !== '') {
       admRow.set('password', await hashPassword(password));
     }
@@ -384,7 +398,6 @@ router.put('/api/admissions/:admNo', requireAuth, checkAdmission, admUploads, as
         stuRow.set('full_name', admRow.get('full_name'));
         stuRow.set('dob', admRow.get('dob'));
         stuRow.set('phone', admRow.get('phone'));
-        stuRow.set('batch_id', admRow.get('batch_id'));
         stuRow.set('password', admRow.get('password'));
         await stuRow.save();
       }
@@ -411,9 +424,12 @@ router.put('/api/admissions/:admNo/status', requireAuth, checkAdmission, async (
 
     if (status === 'active') {
       const existingStu = sRows.find(r => String(r.get('admission_no')).trim() === targetAdmNo);
-      const effectiveBatchId = admRow.get('batch_id') || (existingStu ? existingStu.get('batch_id') : '') || '';
+      const effectiveBatchId = (existingStu ? existingStu.get('batch_id') : '') || admRow.get('batch_id') || '';
+      const effectiveRollNo = (existingStu ? existingStu.get('roll_no') : '') || admRow.get('roll_no') || '';
 
       admRow.set('status', 'active');
+      if (effectiveBatchId) admRow.set('batch_id', effectiveBatchId);
+      if (effectiveRollNo) admRow.set('roll_no', effectiveRollNo);
       await admRow.save();
 
       const defaultPass = admRow.get('password') || await hashPassword(targetAdmNo);
@@ -421,7 +437,7 @@ router.put('/api/admissions/:admNo/status', requireAuth, checkAdmission, async (
       if (existingStu) {
         existingStu.set('status', 'active');
         existingStu.set('full_name', admRow.get('full_name'));
-        existingStu.set('roll_no', admRow.get('roll_no') || existingStu.get('roll_no') || '');
+        existingStu.set('roll_no', effectiveRollNo);
         existingStu.set('dob', admRow.get('dob') || '');
         existingStu.set('phone', admRow.get('phone') || '');
         existingStu.set('batch_id', effectiveBatchId);
@@ -430,7 +446,7 @@ router.put('/api/admissions/:admNo/status', requireAuth, checkAdmission, async (
       } else {
         await stuSheet.addRow({
           admission_no: targetAdmNo,
-          roll_no: admRow.get('roll_no') || '',
+          roll_no: effectiveRollNo,
           full_name: admRow.get('full_name'),
           dob: admRow.get('dob') || '',
           phone: admRow.get('phone') || '',

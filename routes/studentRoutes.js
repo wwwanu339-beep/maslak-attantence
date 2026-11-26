@@ -95,6 +95,7 @@ router.get('/students', requireAuth, checkStudent, async (req, res) => {
   }
 });
 
+// Bulk Assign Batch by Roll Numbers (Updates BOTH students & admissions sheets identically)
 router.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async (req, res) => {
   try {
     const { batch_id, roll_expression, from_roll, to_roll } = req.body;
@@ -124,60 +125,48 @@ router.post('/api/students/bulk-assign-batch', requireAuth, checkStudent, async 
 
     const stuSheet = await getSheet('students');
     const admSheet = await getSheet('admissions');
+    const [sRows, aRows] = await Promise.all([stuSheet.getRows(), admSheet.getRows()]);
 
-    async function updateBatchInSheet(sheet, onlyActive = false) {
-      if (!sheet) return 0;
-      await sheet.loadHeaderRow();
-      const rollIdx = sheet.headerValues.indexOf('roll_no');
-      const batchIdx = sheet.headerValues.indexOf('batch_id');
-      const statusIdx = sheet.headerValues.indexOf('status');
-      if (rollIdx === -1 || batchIdx === -1 || sheet.rowCount < 2) return 0;
+    const admRowMap = {};
+    aRows.forEach(r => {
+      const adm = String(r.get('admission_no') || '').trim();
+      if (adm) admRowMap[adm] = r;
+    });
 
-      const cols = [rollIdx, batchIdx];
-      if (statusIdx !== -1) cols.push(statusIdx);
+    let updatedCount = 0;
+    for (const sRow of sRows) {
+      const st = String(sRow.get('status') || '').trim().toLowerCase();
+      if (st !== 'active') continue;
 
-      await sheet.loadCells({
-        startRowIndex: 1,
-        endRowIndex: sheet.rowCount,
-        startColumnIndex: Math.min(...cols),
-        endColumnIndex: Math.max(...cols) + 1
-      });
+      const rollVal = parseInt(String(sRow.get('roll_no') || '').trim(), 10);
+      if (!isNaN(rollVal) && targetRollSet.has(rollVal)) {
+        const admNo = String(sRow.get('admission_no') || '').trim();
+        const existingBatches = String(sRow.get('batch_id') || '')
+          .split(',')
+          .map(b => b.trim())
+          .filter(Boolean);
 
-      let updatedCount = 0;
-      for (let r = 1; r < sheet.rowCount; r++) {
-        if (onlyActive && statusIdx !== -1) {
-          const st = String(sheet.getCell(r, statusIdx).value || '').trim().toLowerCase();
-          if (st !== 'active') continue;
-        }
+        if (!existingBatches.includes(targetBatch)) {
+          existingBatches.push(targetBatch);
+          const mergedBatchStr = existingBatches.join(', ');
 
-        const rollVal = parseInt(String(sheet.getCell(r, rollIdx).value || '').trim(), 10);
-        if (!isNaN(rollVal) && targetRollSet.has(rollVal)) {
-          const batchCell = sheet.getCell(r, batchIdx);
-          const existingBatches = String(batchCell.value || '')
-            .split(',')
-            .map(b => b.trim())
-            .filter(Boolean);
+          sRow.set('batch_id', mergedBatchStr);
+          await sRow.save();
 
-          if (!existingBatches.includes(targetBatch)) {
-            existingBatches.push(targetBatch);
-            batchCell.value = existingBatches.join(',');
-            updatedCount++;
+          const matchedAdm = admRowMap[admNo];
+          if (matchedAdm) {
+            matchedAdm.set('batch_id', mergedBatchStr);
+            matchedAdm.set('roll_no', String(rollVal));
+            await matchedAdm.save();
           }
+          updatedCount++;
         }
       }
-
-      if (updatedCount > 0) await sheet.saveUpdatedCells();
-      return updatedCount;
     }
-
-    const [stuUpdated] = await Promise.all([
-      updateBatchInSheet(stuSheet, true),
-      updateBatchInSheet(admSheet, false)
-    ]);
 
     res.json({
       success: true,
-      message: `Batch "${validBatch.get('name')}" assigned successfully to ${stuUpdated} student(s)!`
+      message: `Batch "${validBatch.get('name')}" assigned successfully to ${updatedCount} student(s) in both Student List & Admissions!`
     });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Failed to assign batch: ' + err.message });
@@ -217,6 +206,7 @@ router.put('/api/students/:admNo/password', requireAuth, checkStudent, async (re
   }
 });
 
+// Update Roll & Batch from Active Student List (Syncs to BOTH students & admissions sheets)
 router.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) => {
   try {
     const targetAdmNo = String(req.params.admNo).trim();
@@ -239,7 +229,7 @@ router.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) =
 
     const cleanRoll = roll_no !== undefined ? String(roll_no).trim() : '';
 
-    // 1. students ഷീറ്റിൽ roll_no, batch_id എന്നിവ മാത്രം മാറ്റുന്നു
+    // 1. Update in students sheet
     const row = sRows.find(r => String(r.get('admission_no')).trim() === targetAdmNo);
     if (row) {
       row.set('roll_no', cleanRoll);
@@ -247,7 +237,7 @@ router.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) =
       await row.save();
     }
 
-    // 2. admissions ഷീറ്റിലും roll_no, batch_id എന്നിവ മാറ്റുന്നു
+    // 2. Sync identical roll_no & batch_id to admissions sheet
     const admRow = aRows.find(r => String(r.get('admission_no')).trim() === targetAdmNo);
     if (admRow) {
       admRow.set('roll_no', cleanRoll);
@@ -255,7 +245,7 @@ router.put('/api/students/:admNo', requireAuth, checkStudent, async (req, res) =
       await admRow.save();
     }
 
-    // 3. റോൾ നമ്പർ ഉണ്ടെങ്കിൽ രണ്ട് ഷീറ്റിലും റീ-ഓർഡർ ചെയ്യുന്നു
+    // 3. Reorder roll numbers across both sheets if roll_no is provided
     if (cleanRoll) {
       await syncAndReorderRolls(targetAdmNo, cleanRoll, stuSheet, admSheet, sRows, aRows);
     }

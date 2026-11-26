@@ -224,15 +224,90 @@ router.post('/api/save-attendance', requireAuth, checkAttendance, async (req, re
 
 router.get('/monthly-report', requireAuth, checkAttendanceView, async (req, res) => {
   try {
-    const batchSheet = await getSheet('batches');
-    const subjectSheet = await getSheet('subjects');
+    const [batchSheet, subjectSheet, studentSheet, admSheet, attSheet] = await Promise.all([
+      getSheet('batches'),
+      getSheet('subjects'),
+      getSheet('students'),
+      getSheet('admissions'),
+      getSheet('attendance')
+    ]);
 
-    const [bRows, sRows] = await Promise.all([batchSheet.getRows(), subjectSheet.getRows()]);
+    const [bRows, sRows, stRows, admRows, attRows] = await Promise.all([
+      batchSheet.getRows(),
+      subjectSheet.getRows(),
+      studentSheet ? studentSheet.getRows() : [],
+      admSheet ? admSheet.getRows() : [],
+      attSheet ? attSheet.getRows() : []
+    ]);
 
-    const batches = bRows.map(r => ({ id: r.get('id'), name: r.get('name') })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    const subjects = sRows.map(r => ({ id: r.get('id'), name: r.get('name'), batch_id: r.get('batch_id') })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const batches = bRows
+      .map(r => ({ id: String(r.get('id') || '').trim(), name: String(r.get('name') || '').trim() }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-    res.render('attveiw', { batches, subjects });
+    const subjects = sRows
+      .map(r => ({
+        id: String(r.get('id') || '').trim(),
+        name: String(r.get('name') || '').trim(),
+        batch_id: String(r.get('batch_id') || '').trim()
+      }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    // 1. students & admissions രണ്ട് ടാബിൽ നിന്നും ഓരോ കുട്ടിയുടെയും batch_id ലിസ്റ്റ് എടുക്കുന്നു
+    const studentBatchesByAdm = {};
+    const collectBatches = (rows) => {
+      rows.forEach(r => {
+        const adm = String(r.get('admission_no') || r.get('student_id') || '').trim().toLowerCase();
+        if (!adm) return;
+        const bIds = String(r.get('batch_id') || '').split(',').map(x => x.trim()).filter(Boolean);
+        if (!studentBatchesByAdm[adm]) studentBatchesByAdm[adm] = new Set();
+        bIds.forEach(id => studentBatchesByAdm[adm].add(id));
+      });
+    };
+    collectBatches(stRows);
+    collectBatches(admRows);
+
+    // 2. ഓരോ ബാച്ചിലെയും കുട്ടികൾ ഉൾപ്പെടുന്ന മറ്റു ബാച്ചുകൾ (relatedBatchesMap)
+    const relatedBatchesMap = {};
+    batches.forEach(b => { relatedBatchesMap[b.id] = new Set([b.id]); });
+
+    Object.values(studentBatchesByAdm).forEach(bSet => {
+      const arr = Array.from(bSet);
+      arr.forEach(primaryId => {
+        if (!relatedBatchesMap[primaryId]) relatedBatchesMap[primaryId] = new Set([primaryId]);
+        arr.forEach(otherId => relatedBatchesMap[primaryId].add(otherId));
+      });
+    });
+
+    // 3. ആ ബാച്ചിലെ കുട്ടികൾക്ക് ഹാജർ രേഖപ്പെടുത്തിയിട്ടുള്ള എല്ലാ subject_id-കളും
+    const relatedSubjectsMap = {};
+    batches.forEach(b => { relatedSubjectsMap[b.id] = new Set(); });
+
+    attRows.forEach(r => {
+      const adm = String(r.get('admission_no') || r.get('student_id') || '').trim().toLowerCase();
+      const subId = String(r.get('subject_id') || '').trim();
+      if (!adm || !subId) return;
+
+      const stuBatches = studentBatchesByAdm[adm];
+      if (stuBatches) {
+        stuBatches.forEach(bId => {
+          if (!relatedSubjectsMap[bId]) relatedSubjectsMap[bId] = new Set();
+          relatedSubjectsMap[bId].add(subId);
+        });
+      }
+    });
+
+    const relatedBatchesObj = {};
+    Object.keys(relatedBatchesMap).forEach(k => { relatedBatchesObj[k] = Array.from(relatedBatchesMap[k]); });
+
+    const relatedSubjectsObj = {};
+    Object.keys(relatedSubjectsMap).forEach(k => { relatedSubjectsObj[k] = Array.from(relatedSubjectsMap[k]); });
+
+    res.render('attveiw', {
+      batches,
+      subjects,
+      relatedBatchesMap: relatedBatchesObj,
+      relatedSubjectsMap: relatedSubjectsObj
+    });
   } catch (err) {
     res.status(500).send("Database Error: " + err.message);
   }

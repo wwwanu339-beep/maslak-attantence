@@ -5,6 +5,89 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Attendance Report & Matrix</title>
   <link rel="stylesheet" href="/veiw.css">
+  <style>
+    /* Searchable Combo Dropdown Styles */
+    .combo-wrap {
+      position: relative;
+      width: 100%;
+    }
+    .combo-input {
+      width: 100%;
+      padding: 9px 30px 9px 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #0f172a;
+      background: #ffffff;
+      outline: none;
+      cursor: pointer;
+    }
+    .combo-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      cursor: text;
+    }
+    .combo-arrow {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: #64748b;
+      font-size: 11px;
+    }
+    .combo-list {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      max-height: 230px;
+      overflow-y: auto;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.14);
+      z-index: 999;
+      padding: 4px;
+    }
+    .combo-list.open {
+      display: block;
+    }
+    .combo-item {
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .combo-item:hover,
+    .combo-item.selected {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+    .combo-item-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 1px 6px;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+    .combo-empty {
+      padding: 10px;
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+  </style>
 </head>
 <body>
 
@@ -58,25 +141,26 @@
         </select>
       </div>
 
+      <!-- Searchable Batch Combo -->
       <div class="filter-item">
         <label>Batch</label>
-        <select id="filterBatch">
-          <option value="" disabled selected>Select Batch</option>
-          <option value="all">All Classes</option>
-          <% batches.forEach(b => { %>
-            <option value="<%= b.id %>"><%= b.name %></option>
-          <% }) %>
-        </select>
+        <div class="combo-wrap">
+          <input type="text" id="batchSearchInp" class="combo-input" placeholder="Select or type Batch..." autocomplete="off">
+          <span class="combo-arrow">▼</span>
+          <input type="hidden" id="filterBatch" value="">
+          <div class="combo-list" id="batchComboList"></div>
+        </div>
       </div>
 
+      <!-- Searchable Subject Combo -->
       <div class="filter-item">
         <label>Subject</label>
-        <select id="filterSubject">
-          <option value="all" selected>All Subjects</option>
-          <% subjects.forEach(s => { %>
-            <option value="<%= s.id %>" data-batch-id="<%= s.batch_id %>"><%= s.name %></option>
-          <% }) %>
-        </select>
+        <div class="combo-wrap">
+          <input type="text" id="subjectSearchInp" class="combo-input" placeholder="Select or type Subject..." autocomplete="off" value="All Subjects">
+          <span class="combo-arrow">▼</span>
+          <input type="hidden" id="filterSubject" value="all">
+          <div class="combo-list" id="subjectComboList"></div>
+        </div>
       </div>
 
       <!-- Monthly Filters -->
@@ -141,49 +225,171 @@
     </div>
   </div>
 
+  <script id="batchesJson" type="application/json"><%- JSON.stringify(batches || []).replace(/</g, '\\u003c') %></script>
+  <script id="subjectsJson" type="application/json"><%- JSON.stringify(subjects || []).replace(/</g, '\\u003c') %></script>
+  <script id="relatedBatchesJson" type="application/json"><%- JSON.stringify(typeof relatedBatchesMap !== 'undefined' ? relatedBatchesMap : {}).replace(/</g, '\\u003c') %></script>
+  <script id="relatedSubjectsJson" type="application/json"><%- JSON.stringify(typeof relatedSubjectsMap !== 'undefined' ? relatedSubjectsMap : {}).replace(/</g, '\\u003c') %></script>
+
   <script>
+    const ALL_BATCHES = JSON.parse(document.getElementById('batchesJson').textContent || '[]');
+    const ALL_SUBJECTS = JSON.parse(document.getElementById('subjectsJson').textContent || '[]');
+    const RELATED_BATCHES = JSON.parse(document.getElementById('relatedBatchesJson').textContent || '{}');
+    const RELATED_SUBJECTS = JSON.parse(document.getElementById('relatedSubjectsJson').textContent || '{}');
+
+    const BATCH_NAME_MAP = { all: 'All Classes' };
+    ALL_BATCHES.forEach(b => { BATCH_NAME_MAP[String(b.id)] = b.name; });
+
     let globalReportData = null;
     let currentDailyStatus = 'all';
+    let selectedBatchLabel = '';
+    let selectedSubjectLabel = 'All Subjects';
 
- document.addEventListener('DOMContentLoaded', () => {
+    const BATCH_OPTIONS = [
+      { id: 'all', label: 'All Classes', tag: '' },
+      ...ALL_BATCHES.map(b => ({ id: String(b.id), label: b.name, tag: '' }))
+    ];
+
+    function getAllowedSubjectOptions() {
+      const selectedBatch = String(document.getElementById('filterBatch').value || '').trim();
+      let filteredSubs = [];
+
+      if (selectedBatch === 'all') {
+        // 'All Classes' തിരഞ്ഞെടുത്താൽ 'All Classes'-ലേക്ക് ആഡ് ചെയ്തവ (batch_id === 'all') മാത്രം കാണിക്കുന്നു
+        filteredSubs = ALL_SUBJECTS.filter(s => String(s.batch_id || '').trim().toLowerCase() === 'all');
+      } else if (selectedBatch) {
+        // 1. ആ ബാച്ചിലെ കുട്ടികൾ ഉൾപ്പെടുന്ന എല്ലാ ബാച്ചുകളും
+        const allowedBatchIds = new Set(RELATED_BATCHES[selectedBatch] || [selectedBatch]);
+        allowedBatchIds.add('all');
+
+        // 2. ആ ബാച്ചിലെ കുട്ടികൾക്ക് ഹാജർ രേഖപ്പെടുത്തിയിട്ടുള്ള എല്ലാ വിഷയങ്ങളും
+        const allowedSubIds = new Set(RELATED_SUBJECTS[selectedBatch] || []);
+
+        filteredSubs = ALL_SUBJECTS.filter(s => {
+          const sId = String(s.id || '').trim();
+          const sb = String(s.batch_id || '').trim();
+          return allowedBatchIds.has(sb) || allowedSubIds.has(sId);
+        });
+      } else {
+        filteredSubs = [...ALL_SUBJECTS];
+      }
+
+      return [
+        { id: 'all', label: 'All Subjects', tag: '' },
+        ...filteredSubs.map(s => {
+          const sb = String(s.batch_id || '').trim();
+          const tag = (sb && sb !== selectedBatch) ? (BATCH_NAME_MAP[sb] || 'All') : '';
+          return { id: String(s.id), label: s.name, tag };
+        })
+      ];
+    }
+
+    function renderComboDropdown(listEl, options, query, currentVal, onSelect) {
+      const q = String(query || '').trim().toLowerCase();
+      let matched = options.filter(opt => !q || opt.label.toLowerCase().includes(q) || (opt.tag && opt.tag.toLowerCase().includes(q)));
+
+      // ടൈപ്പ് ചെയ്യുമ്പോൾ മാച്ച് ആകുന്നവ മുകളിലേക്ക് കൊണ്ടുവരുന്നു
+      if (q) {
+        matched.sort((a, b) => {
+          const aStarts = a.label.toLowerCase().startsWith(q) ? 0 : 1;
+          const bStarts = b.label.toLowerCase().startsWith(q) ? 0 : 1;
+          return aStarts - bStarts;
+        });
+      }
+
+      if (matched.length === 0) {
+        listEl.innerHTML = '<div class="combo-empty">No matching options</div>';
+        return;
+      }
+
+      listEl.innerHTML = matched.map(opt => `
+        <div class="combo-item ${String(opt.id) === String(currentVal) ? 'selected' : ''}" data-id="${opt.id}">
+          <span>${opt.label}</span>
+          ${opt.tag ? `<span class="combo-item-tag">${opt.tag}</span>` : ''}
+        </div>
+      `).join('');
+
+      listEl.querySelectorAll('.combo-item').forEach(el => {
+        el.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const id = el.getAttribute('data-id');
+          const found = options.find(o => String(o.id) === String(id));
+          if (found) onSelect(found);
+        });
+      });
+    }
+
+    function setupSearchableCombos() {
+      const batchInp = document.getElementById('batchSearchInp');
+      const batchHidden = document.getElementById('filterBatch');
+      const batchList = document.getElementById('batchComboList');
+
+      const subInp = document.getElementById('subjectSearchInp');
+      const subHidden = document.getElementById('filterSubject');
+      const subList = document.getElementById('subjectComboList');
+
+      function selectBatch(opt) {
+        batchHidden.value = opt.id;
+        batchInp.value = opt.label;
+        selectedBatchLabel = opt.label;
+        batchList.classList.remove('open');
+
+        // Reset Subject to 'All Subjects' whenever batch changes
+        subHidden.value = 'all';
+        subInp.value = 'All Subjects';
+        selectedSubjectLabel = 'All Subjects';
+      }
+
+      function selectSubject(opt) {
+        subHidden.value = opt.id;
+        subInp.value = opt.label;
+        selectedSubjectLabel = opt.label;
+        subList.classList.remove('open');
+      }
+
+      batchInp.addEventListener('focus', () => {
+        batchInp.select();
+        renderComboDropdown(batchList, BATCH_OPTIONS, '', batchHidden.value, selectBatch);
+        batchList.classList.add('open');
+      });
+
+      batchInp.addEventListener('input', () => {
+        renderComboDropdown(batchList, BATCH_OPTIONS, batchInp.value, batchHidden.value, selectBatch);
+        batchList.classList.add('open');
+      });
+
+      batchInp.addEventListener('blur', () => {
+        setTimeout(() => {
+          batchList.classList.remove('open');
+          batchInp.value = selectedBatchLabel;
+        }, 150);
+      });
+
+      subInp.addEventListener('focus', () => {
+        subInp.select();
+        renderComboDropdown(subList, getAllowedSubjectOptions(), '', subHidden.value, selectSubject);
+        subList.classList.add('open');
+      });
+
+      subInp.addEventListener('input', () => {
+        renderComboDropdown(subList, getAllowedSubjectOptions(), subInp.value, subHidden.value, selectSubject);
+        subList.classList.add('open');
+      });
+
+      subInp.addEventListener('blur', () => {
+        setTimeout(() => {
+          subList.classList.remove('open');
+          subInp.value = selectedSubjectLabel;
+        }, 150);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
       const now = new Date();
       document.getElementById('filterMonth').value = now.getMonth() + 1;
       document.getElementById('filterYear').value = now.getFullYear();
       document.getElementById('filterDate').value = now.toISOString().split('T')[0];
 
-      const batchSelect = document.getElementById('filterBatch');
-      const subjectSelect = document.getElementById('filterSubject');
-
-      if (batchSelect && subjectSelect) {
-        batchSelect.addEventListener('change', () => {
-          const selectedBatch = String(batchSelect.value || '').trim();
-          let firstVisibleVal = '';
-
-          subjectSelect.querySelectorAll('option').forEach(opt => {
-            if (!opt.value || opt.value === 'all') {
-              // 'All Classes' തിരഞ്ഞെടുത്താൽ മാത്രം 'All Subjects' കാണിക്കും; 
-              // പ്രത്യേക ബാച്ച് തിരഞ്ഞെടുത്താൽ 'All Subjects' മറയ്ക്കും.
-              const showAllOpt = (selectedBatch === 'all');
-              opt.hidden = !showAllOpt;
-              opt.disabled = !showAllOpt;
-              if (showAllOpt && !firstVisibleVal) firstVisibleVal = opt.value;
-              return;
-            }
-
-            const optBatchId = String(opt.getAttribute('data-batch-id') || '').trim();
-            const show = (optBatchId === selectedBatch);
-            opt.hidden = !show;
-            opt.disabled = !show;
-
-            if (show && !firstVisibleVal) {
-              firstVisibleVal = opt.value;
-            }
-          });
-
-          // ലഭ്യമായ ആദ്യത്തെ ഓപ്ഷൻ ഓട്ടോമാറ്റിക്കായി സെലക്ട് ചെയ്യുന്നു
-          subjectSelect.value = firstVisibleVal || 'all';
-        });
-      }
+      setupSearchableCombos();
     });
 
     function closeStudentDetail() {
@@ -232,7 +438,7 @@
     async function loadAttendance() {
       const mode = document.getElementById('viewMode').value;
       const batch_id = document.getElementById('filterBatch').value;
-      const subject_id = document.getElementById('filterSubject').value;
+      const subject_id = document.getElementById('filterSubject').value || 'all';
       const downloadBtn = document.getElementById('btnDownload');
 
       downloadBtn.style.display = 'none';
@@ -255,7 +461,7 @@
       printArea.innerHTML = '<div style="padding: 20px; text-align: center; color: #475569;">Loading report data...</div>';
 
       try {
-        const res = await fetch(`/api/monthly-matrix?batch_id=${batch_id}&subject_id=${subject_id}&month=${month}&year=${year}`);
+        const res = await fetch(`/api/monthly-matrix?batch_id=${encodeURIComponent(batch_id)}&subject_id=${encodeURIComponent(subject_id)}&month=${month}&year=${year}`);
         if (!res.ok) throw new Error('Server error');
         const data = await res.json();
 
@@ -281,8 +487,8 @@
     function renderDailyReport(data, batch_id, subject_id, selectedDate) {
       const printArea = document.getElementById('printArea');
       const isAllBatch = batch_id === 'all';
-      const batchText = document.getElementById('filterBatch').options[document.getElementById('filterBatch').selectedIndex].text;
-      const subjectText = document.getElementById('filterSubject').options[document.getElementById('filterSubject').selectedIndex].text;
+      const batchText = selectedBatchLabel || 'All Classes';
+      const subjectText = selectedSubjectLabel || 'All Subjects';
       const statusFilter = currentDailyStatus;
       const dayNum = parseInt(selectedDate.split('-')[2], 10);
       const markedTeacherName = data.markedTeachers || '-';
@@ -420,8 +626,8 @@
     function renderPaginatedMatrix(data, batch_id, subject_id, month, year) {
       const printArea = document.getElementById('printArea');
       const isAllBatch = batch_id === 'all';
-      const batchText = document.getElementById('filterBatch').options[document.getElementById('filterBatch').selectedIndex].text;
-      const subjectText = document.getElementById('filterSubject').options[document.getElementById('filterSubject').selectedIndex].text;
+      const batchText = selectedBatchLabel || 'All Classes';
+      const subjectText = selectedSubjectLabel || 'All Subjects';
       const monthText = document.getElementById('filterMonth').options[document.getElementById('filterMonth').selectedIndex].text;
       const markedTeacherName = data.markedTeachers || '-';
       const printedOn = new Date().toLocaleDateString('en-GB');

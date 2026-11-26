@@ -24,7 +24,10 @@ async function verifyPassword(inputPassword, storedPassword) {
 function requireStaffOrOwnStudent(req, res, next) {
   // 1. Staff / Admin logged in
   if (req.session && req.session.user) {
-    return next();
+    if (req.session.user.can_admission == 1 || req.session.user.can_studet == 1 || req.session.user.can_manage == 1) {
+      return next();
+    }
+    return res.status(403).send('Access Denied: You do not have permission to view ID Cards.');
   }
 
   // 2. Student logged in
@@ -38,7 +41,8 @@ function requireStaffOrOwnStudent(req, res, next) {
     return res.status(403).send('Access Denied: You can only view your own documents.');
   }
 
-  return res.redirect('/student-login');
+  // 3. Not logged in
+  return res.redirect('/login');
 }
 
 function requireAuth(req, res, next) {
