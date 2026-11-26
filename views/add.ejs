@@ -5,6 +5,90 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settings & Management</title>
   <link rel="stylesheet" href="/add.css">
+  <style>
+    .mgmt-table-wrap {
+      margin-top: 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow-x: auto;
+      background: #fff;
+    }
+    .mgmt-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      text-align: left;
+    }
+    .mgmt-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+      padding: 8px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    .mgmt-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #1e293b;
+      vertical-align: middle;
+    }
+    .mgmt-table tr:last-child td { border-bottom: none; }
+    .mgmt-table tr:hover { background: #f8fafc; }
+
+    .mini-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      margin: 1px 2px;
+    }
+    .mini-pill.green { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .mini-pill.amber { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+    .mini-pill.gray { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+
+    .tbl-act-group { display: flex; gap: 5px; align-items: center; }
+    .btn-xs {
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-xs-edit { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+    .btn-xs-edit:hover { background: #dbeafe; }
+    .btn-xs-del { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+    .btn-xs-del:hover { background: #fee2e2; }
+    .btn-xs-info { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+    .btn-xs-info:hover { background: #dcfce7; }
+
+    .edit-modal-box {
+      background: #fff;
+      width: 95%;
+      max-width: 480px;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .edit-modal-box h3 { margin: 0 0 12px; font-size: 16px; color: #0f172a; }
+    .edit-field { margin-bottom: 10px; }
+    .edit-field label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; }
+    .edit-field input, .edit-field select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font-size: 13px;
+    }
+  </style>
 </head>
 <body>
 
@@ -22,11 +106,11 @@
 
     <div class="settings-grid">
       
-      <!-- 1. Batch Management Card (Collapsible with Arrow) -->
+      <!-- 1. Batch Management Card -->
       <div class="settings-card collapsed" id="cardBatch">
         <div class="acc-header" onclick="toggleCardAccordion('cardBatch')">
           <div class="acc-title-wrap">
-            <h3>Manage Batches</h3>
+            <h3>Manage Batches (<%= (batches || []).length %>)</h3>
           </div>
           <button type="button" class="acc-arrow-btn" aria-label="Toggle Batches">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -35,27 +119,51 @@
 
         <div class="acc-body">
           <div class="input-action-row">
-            <input type="text" id="batchInput" placeholder="Enter Batch Name">
-            
-            <button type="button" class="btn btn-add" onclick="addBatch()">Add</button>
+            <input type="text" id="batchInput" placeholder="Enter New Batch Name">
+            <button type="button" id="btnAddBatch" class="btn btn-add" onclick="addBatch(this)">Add</button>
           </div>
-          <div class="select-action-row">
-            <select id="batchSelect">
-              <option value="" disabled selected>Select Batch</option>
-              <% (batches || []).forEach(b => { %>
-                <option value="<%= b.id %>"><%= b.name %></option>
-              <% }) %>
-            </select>
-            <button type="button" class="btn btn-delete" onclick="deleteBatch()">Delete</button>
+
+          <!-- Batches Overview & Edit Table -->
+          <div class="mgmt-table-wrap">
+            <table class="mgmt-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Batch Name</th>
+                  <th style="text-align:center;">Subjects</th>
+                  <th style="text-align:center;">Sessions Taken</th>
+                  <th style="text-align:center;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (!batches || batches.length === 0) { %>
+                  <tr><td colspan="5" style="text-align:center; color:#64748b; padding:14px;">No batches added yet.</td></tr>
+                <% } %>
+                <% (batches || []).forEach((b, idx) => { %>
+                  <tr>
+                    <td><%= idx + 1 %></td>
+                    <td><strong><%= b.name %></strong></td>
+                    <td style="text-align:center;"><span class="mini-pill"><%= b.subject_count || 0 %></span></td>
+                    <td style="text-align:center;"><span class="mini-pill green"><%= b.total_sessions || 0 %></span></td>
+                    <td>
+                      <div class="tbl-act-group" style="justify-content:center;">
+                        <button type="button" class="btn-xs btn-xs-edit" onclick="openEditBatchModal('<%= b.id %>')">Edit</button>
+                        <button type="button" class="btn-xs btn-xs-del" onclick="deleteBatchById('<%= b.id %>', '<%= b.name %>')">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <!-- 2. Subject Management Card (Collapsible with Arrow) -->
+      <!-- 2. Subject Management Card (With Attendance Count & Daily Breakdown) -->
       <div class="settings-card collapsed" id="cardSubject">
         <div class="acc-header" onclick="toggleCardAccordion('cardSubject')">
           <div class="acc-title-wrap">
-            <h3>Manage Subjects</h3>
+            <h3>Manage Subjects & Attendance Count (<%= (subjects || []).length %>)</h3>
           </div>
           <button type="button" class="acc-arrow-btn" aria-label="Toggle Subjects">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -72,25 +180,67 @@
               <% }) %>
             </select>
             <input type="text" id="subjectInput" placeholder="Subject Name">
-            <button type="button" class="btn btn-add" onclick="addSubject()">Add Subject</button>
+            <button type="button" id="btnAddSubject" class="btn btn-add" onclick="addSubject(this)">Add Subject</button>
           </div>
-          <div class="select-action-row">
-            <select id="subjectSelect">
-              <option value="" disabled selected>Select Subject</option>
-              <% (subjects || []).forEach(s => { %>
-                <option value="<%= s.id %>"><%= s.name %></option>
+
+          <!-- Filter Subjects by Batch -->
+          <div style="margin-top: 10px; display:flex; gap:8px; align-items:center;">
+            <select id="filterSubTableBatch" onchange="filterSubjectsTable()" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:12.5px;">
+              <option value="all_view" selected>Filter by Batch: Show All</option>
+              <option value="all">All Batches Subjects</option>
+              <% (batches || []).forEach(b => { %>
+                <option value="<%= b.id %>"><%= b.name %></option>
               <% }) %>
             </select>
-            <button type="button" class="btn btn-delete" onclick="deleteSubject()">Delete</button>
+          </div>
+
+          <!-- Subjects Overview, Total & Daily Attendance Count Table -->
+          <div class="mgmt-table-wrap">
+            <table class="mgmt-table" id="subjectsMgmtTable">
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Subject Name</th>
+                  <th style="text-align:center;">Total Attendance</th>
+                  <th style="text-align:center;">Daily Count</th>
+                  <th style="text-align:center;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (!subjects || subjects.length === 0) { %>
+                  <tr><td colspan="5" style="text-align:center; color:#64748b; padding:14px;">No subjects added yet.</td></tr>
+                <% } %>
+                <% (subjects || []).forEach(s => { %>
+                  <tr class="sub-mgmt-row" data-batch-id="<%= s.batch_id %>">
+                    <td><span class="mini-pill gray"><%= s.batch_name %></span></td>
+                    <td><strong><%= s.name %></strong></td>
+                    <td style="text-align:center;">
+                      <span class="mini-pill green"><%= s.total_sessions || 0 %> Times</span>
+                    </td>
+                    <td style="text-align:center;">
+                      <button type="button" class="btn-xs btn-xs-info" onclick="openDailySubModal('<%= s.id %>')">
+                        View Days (<%= (s.daily_sessions || []).length %>)
+                      </button>
+                    </td>
+                    <td>
+                      <div class="tbl-act-group" style="justify-content:center;">
+                        <button type="button" class="btn-xs btn-xs-edit" onclick="openEditSubjectModal('<%= s.id %>')">Edit</button>
+                        <button type="button" class="btn-xs btn-xs-del" onclick="deleteSubjectById('<%= s.id %>', '<%= s.name %>')">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <!-- 3. User Management Card (Collapsible with Arrow) -->
+      <!-- 3. User Management Card (Full Details, Permissions & Edit) -->
       <div class="settings-card settings-card1 collapsed" id="cardUser">
         <div class="acc-header" onclick="toggleCardAccordion('cardUser')">
           <div class="acc-title-wrap">
-            <h3>Manage Users</h3>
+            <h3>Manage Users & Permissions (<%= (users || []).length %>)</h3>
           </div>
           <button type="button" class="acc-arrow-btn" aria-label="Toggle Users">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -124,34 +274,78 @@
               <% }) %>
             </select>
 
-          <div class="checkbox-group">
-  <label><input type="checkbox" id="userAtt" checked> Attendance</label>
-  <label><input type="checkbox" id="userUpdate" checked> Can Update</label>
-  <label><input type="checkbox" id="userManage"> Add / Manage</label>
-  <label><input type="checkbox" id="userview"> Attendance View</label>
-  <label><input type="checkbox" id="userstudet"> Student Manage</label>
-  <label><input type="checkbox" id="userAdmission"> Admission Access</label>
-  <label><input type="checkbox" id="userStudio"> Design Studio</label>
-</div>
+            <div class="checkbox-group">
+              <label><input type="checkbox" id="userAtt" checked> Attendance</label>
+              <label><input type="checkbox" id="userUpdate" checked> Can Update</label>
+              <label><input type="checkbox" id="userManage"> Add / Manage</label>
+              <label><input type="checkbox" id="userview"> Attendance View</label>
+              <label><input type="checkbox" id="userstudet"> Student Manage</label>
+              <label><input type="checkbox" id="userAdmission"> Admission Access</label>
+              <label><input type="checkbox" id="userStudio"> Design Studio</label>
+            </div>
             
-            <button type="button" class="btn btn-add" onclick="addUser()">Add User</button>
+            <button type="button" id="btnAddUser" class="btn btn-add" onclick="addUser(this)">Add User</button>
           </div>
 
-          <div class="select-action-row" style="margin-top: 15px;">
-            <select id="userSelect">
-              <option value="" disabled selected>Select User</option>
-              <% (users || []).forEach(u => { %>
-                <option value="<%= u.id %>">
-                  <%= u.name ? `${u.name} (@${u.username})` : u.username %> — <%= u.phone || 'No Phone' %> (<%= u.role || 'sub_admin' %>)
-                </option>
-              <% }) %>
-            </select>
-            <button type="button" class="btn btn-delete" onclick="deleteUser()">Delete</button>
+          <!-- Users Full Details & Permissions Table -->
+          <div class="mgmt-table-wrap">
+            <table class="mgmt-table">
+              <thead>
+                <tr>
+                  <th>Name & Phone</th>
+                  <th>User ID & Role</th>
+                  <th>Assigned Scope</th>
+                  <th>Permissions Granted</th>
+                  <th style="text-align:center;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (!users || users.length === 0) { %>
+                  <tr><td colspan="5" style="text-align:center; color:#64748b; padding:14px;">No users created yet.</td></tr>
+                <% } %>
+                <% (users || []).forEach(u => { %>
+                  <tr>
+                    <td>
+                      <strong><%= u.name || u.username %></strong><br>
+                      <span style="font-size:11px; color:#64748b;">📞 <%= u.phone || 'No Phone' %></span>
+                    </td>
+                    <td>
+                      <span class="mini-pill">@<%= u.username %></span><br>
+                      <span style="font-size:11px; color:#475569; text-transform:capitalize;"><%= (u.role || 'sub_admin').replace('_', ' ') %></span>
+                    </td>
+                    <td>
+                      <div style="font-size:11.5px;">Batch: <strong><%= u.allowed_batch_name %></strong></div>
+                      <% if (u.role === 'subject_leader') { %>
+                        <div style="font-size:11px; color:#475569;">Sub: <strong><%= u.allowed_subject_name %></strong></div>
+                      <% } %>
+                    </td>
+                    <td>
+                      <% if (u.can_attendance) { %><span class="mini-pill green">Attendance</span><% } %>
+                      <% if (u.can_update) { %><span class="mini-pill">Update</span><% } %>
+                      <% if (u.can_manage) { %><span class="mini-pill amber">Settings</span><% } %>
+                      <% if (u.can_attendanceveiw) { %><span class="mini-pill">Report</span><% } %>
+                      <% if (u.can_studet) { %><span class="mini-pill">Students</span><% } %>
+                      <% if (u.can_admission) { %><span class="mini-pill">Admission</span><% } %>
+                      <% if (u.can_studio) { %><span class="mini-pill amber">Studio</span><% } %>
+                      <% if (!u.can_attendance && !u.can_update && !u.can_manage && !u.can_attendanceveiw && !u.can_studet && !u.can_admission && !u.can_studio) { %>
+                        <span style="font-size:11px; color:#94a3b8;">No Permissions</span>
+                      <% } %>
+                    </td>
+                    <td>
+                      <div class="tbl-act-group" style="justify-content:center;">
+                        <button type="button" class="btn-xs btn-xs-edit" onclick="openEditUserModal('<%= u.id %>')">Edit</button>
+                        <button type="button" class="btn-xs btn-xs-del" onclick="deleteUserById('<%= u.id %>', '<%= u.name || u.username %>')">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <!-- 4. Student Portal Control Card (Collapsible with Arrow + Row Hide) -->
+      <!-- 4. Student Portal Control Card -->
       <div class="portal-card collapsed" id="cardPortal">
         <div class="acc-header" onclick="toggleCardAccordion('cardPortal')">
           <div class="acc-title-wrap">
@@ -171,7 +365,6 @@
         </div>
 
         <div class="acc-body">
-          <!-- Full-Width Expandable Menu Drawer -->
           <div class="full-menu-drawer" id="fullMenuDrawer">
             <div class="menu-top-actions">
               <span class="menu-top-title">Global Portal Settings & Bulk Range Actions</span>
@@ -181,7 +374,6 @@
               </div>
             </div>
 
-            <!-- 1 & 2: Default Global Permissions & Editable Fields -->
             <div class="ctrl-grid">
               <div class="sub-box">
                 <h4>1. Default Portal Permissions (All Students)</h4>
@@ -229,7 +421,6 @@
               </div>
             </div>
 
-            <!-- 3: Range Selection & Red/Green Bulk Buttons -->
             <div class="bulk-box">
               <div class="bulk-box-title">
                 3. Bulk Range Actions (<span id="menuSelCount">0</span> Selected)
@@ -254,7 +445,6 @@
             </div>
           </div>
 
-          <!-- Toolbar & Student Permission Table -->
           <div class="portal-toolbar">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="portal-sel-info">Student Permissions (<span id="selectedStuCount">0</span> Selected)</span>
@@ -287,7 +477,7 @@
         </div>
       </div>
 
-      <!-- 5. Full Width Clear All Data Card (Collapsible with Arrow) -->
+      <!-- 5. Full Width Clear All Data Card -->
       <div class="settings-card danger-zone collapsed" id="cardDanger">
         <div class="acc-header" onclick="toggleCardAccordion('cardDanger')">
           <div class="acc-title-wrap">
@@ -315,7 +505,136 @@
     </div>
   </div>
 
-  <!-- Main Admin Password Verification Modal (Used for Both Single Delete & Clear All) -->
+  <!-- ================= EDIT BATCH MODAL ================= -->
+  <div id="editBatchModal" class="auth-modal" onclick="if(event.target === this) closeModalById('editBatchModal')">
+    <div class="edit-modal-box" style="max-width:380px;">
+      <h3>Edit Batch Name</h3>
+      <input type="hidden" id="editBatchId">
+      <div class="edit-field">
+        <label>Batch Name:</label>
+        <input type="text" id="editBatchNameInput" placeholder="Enter Batch Name">
+      </div>
+      <div class="auth-modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModalById('editBatchModal')">Cancel</button>
+        <button type="button" id="btnSaveBatchEdit" class="btn btn-add" onclick="saveBatchEdit(this)">Update Batch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= EDIT SUBJECT MODAL ================= -->
+  <div id="editSubjectModal" class="auth-modal" onclick="if(event.target === this) closeModalById('editSubjectModal')">
+    <div class="edit-modal-box" style="max-width:400px;">
+      <h3>Edit Subject</h3>
+      <input type="hidden" id="editSubId">
+      <div class="edit-field">
+        <label>Assigned Batch:</label>
+        <select id="editSubBatchSelect">
+          <option value="all">All Batches</option>
+          <% (batches || []).forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="edit-field">
+        <label>Subject Name:</label>
+        <input type="text" id="editSubNameInput" placeholder="Subject Name">
+      </div>
+      <div class="auth-modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModalById('editSubjectModal')">Cancel</button>
+        <button type="button" id="btnSaveSubEdit" class="btn btn-add" onclick="saveSubjectEdit(this)">Update Subject</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SUBJECT DAILY ATTENDANCE MODAL ================= -->
+  <div id="dailySubModal" class="auth-modal" onclick="if(event.target === this) closeModalById('dailySubModal')">
+    <div class="edit-modal-box" style="max-width:420px;">
+      <h3 id="dailySubModalTitle">Daily Attendance Breakdown</h3>
+      <p id="dailySubModalDesc" style="font-size:12px; color:#64748b; margin-bottom:10px;"></p>
+      <div class="mgmt-table-wrap" style="max-height:280px; overflow-y:auto;">
+        <table class="mgmt-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th style="text-align:center;">Sessions Taken</th>
+            </tr>
+          </thead>
+          <tbody id="dailySubModalBody"></tbody>
+        </table>
+      </div>
+      <div class="auth-modal-actions" style="margin-top:12px;">
+        <button type="button" class="btn btn-secondary" onclick="closeModalById('dailySubModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= EDIT USER MODAL ================= -->
+  <div id="editUserModal" class="auth-modal" onclick="if(event.target === this) closeModalById('editUserModal')">
+    <div class="edit-modal-box">
+      <h3>Edit User Details & Permissions</h3>
+      <input type="hidden" id="editUserId">
+      <div class="edit-field">
+        <label>Full Name:</label>
+        <input type="text" id="editUserName">
+      </div>
+      <div class="edit-field">
+        <label>Phone Number:</label>
+        <input type="text" id="editUserPhone">
+      </div>
+      <div class="edit-field">
+        <label>Username (Login ID):</label>
+        <input type="text" id="editUserUsername">
+      </div>
+      <div class="edit-field">
+        <label>New Password (Leave blank to keep existing):</label>
+        <input type="password" id="editUserPass" placeholder="Enter new password if changing">
+      </div>
+      <div class="edit-field">
+        <label>Role:</label>
+        <select id="editUserRole" onchange="handleEditUserRoleChange()">
+          <option value="sub_admin">Sub Admin / Staff Access</option>
+          <option value="batch_leader">Batch Leader (Single Batch)</option>
+          <option value="subject_leader">Subject Leader (Single Subject)</option>
+        </select>
+      </div>
+      <div class="edit-field" id="editUserBatchWrap" style="display:none;">
+        <label>Assigned Batch:</label>
+        <select id="editUserBatch" onchange="filterEditUserSubjects()">
+          <option value="" disabled selected>Select Batch</option>
+          <% (batches || []).forEach(b => { %>
+            <option value="<%= b.id %>"><%= b.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="edit-field" id="editUserSubWrap" style="display:none;">
+        <label>Assigned Subject:</label>
+        <select id="editUserSub">
+          <option value="" disabled selected>Select Subject</option>
+          <% (subjects || []).forEach(s => { %>
+            <option value="<%= s.id %>" data-batch-id="<%= s.batch_id %>"><%= s.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="edit-field">
+        <label>Permissions:</label>
+        <div class="checkbox-group" style="margin-top:4px;">
+          <label><input type="checkbox" id="editUserAtt"> Attendance</label>
+          <label><input type="checkbox" id="editUserUpdate"> Can Update</label>
+          <label><input type="checkbox" id="editUserManage"> Add / Manage</label>
+          <label><input type="checkbox" id="editUserView"> Attendance View</label>
+          <label><input type="checkbox" id="editUserStudet"> Student Manage</label>
+          <label><input type="checkbox" id="editUserAdm"> Admission Access</label>
+          <label><input type="checkbox" id="editUserStudio"> Design Studio</label>
+        </div>
+      </div>
+      <div class="auth-modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModalById('editUserModal')">Cancel</button>
+        <button type="button" id="btnSaveUserEdit" class="btn btn-add" onclick="saveUserEdit(this)">Update User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Admin Password Verification Modal -->
   <div id="clearAuthModal" class="auth-modal" onclick="if(event.target === this) closeClearModal()">
     <div class="auth-modal-box">
       <h3 id="clearModalTitle">Admin Verification Required</h3>
@@ -328,13 +647,23 @@
     </div>
   </div>
 
+  <!-- Safe JSON Data Stores -->
+  <script id="batchesDataJson" type="application/json"><%- JSON.stringify(typeof batches !== 'undefined' ? batches : []).replace(/</g, '\\u003c') %></script>
+  <script id="subjectsDataJson" type="application/json"><%- JSON.stringify(typeof subjects !== 'undefined' ? subjects : []).replace(/</g, '\\u003c') %></script>
+  <script id="usersDataJson" type="application/json"><%- JSON.stringify(typeof users !== 'undefined' ? users : []).replace(/</g, '\\u003c') %></script>
   <script id="studentsDataJson" type="application/json"><%- JSON.stringify(typeof students !== 'undefined' ? students : []).replace(/</g, '\\u003c') %></script>
   <script id="portalCfgJson" type="application/json"><%- JSON.stringify(typeof portalCfg !== 'undefined' ? portalCfg : {}).replace(/</g, '\\u003c') %></script>
 
   <script>
-    // ==========================================
-    // ACCORDION ARROW TOGGLE FOR ALL CARDS
-    // ==========================================
+    const BATCHES_LIST = JSON.parse(document.getElementById('batchesDataJson').textContent || '[]');
+    const SUBJECTS_LIST = JSON.parse(document.getElementById('subjectsDataJson').textContent || '[]');
+    const USERS_LIST = JSON.parse(document.getElementById('usersDataJson').textContent || '[]');
+
+    function closeModalById(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    }
+
     function toggleCardAccordion(cardId) {
       const card = document.getElementById(cardId);
       if (!card) return;
@@ -357,55 +686,169 @@
       toggleFullMenu();
     }
 
-    // ==========================================
-    // 1. BATCH, SUBJECT & USER MANAGEMENT SCRIPTS
-    // ==========================================
-    async function addBatch() {
+    // ================= 1. BATCH ADD / EDIT / DELETE =================
+    async function addBatch(btn) {
+      if (btn && btn.disabled) return;
       const name = document.getElementById('batchInput').value.trim();
       if (!name) return alert('Please enter a batch name!');
 
-      const res = await fetch('/api/batches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
-      });
-      const data = await res.json();
-      if (data.success) location.reload();
-      else alert('Error: ' + (data.error || 'Failed to add batch!'));
+      if (btn) { btn.disabled = true; btn.innerText = 'Adding...'; }
+      try {
+        const res = await fetch('/api/batches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else {
+          alert('Error: ' + (data.error || 'Failed to add batch!'));
+          if (btn) { btn.disabled = false; btn.innerText = 'Add'; }
+        }
+      } catch (e) {
+        alert('Server error!');
+        if (btn) { btn.disabled = false; btn.innerText = 'Add'; }
+      }
     }
 
-    function deleteBatch() {
-      const sel = document.getElementById('batchSelect');
-      if (!sel.value) return alert('Please select a batch to delete!');
-      const label = sel.options[sel.selectedIndex].text;
-      openDeleteAuthModal('batch', sel.value, label);
+    function openEditBatchModal(batchId) {
+      const b = BATCHES_LIST.find(x => String(x.id) === String(batchId));
+      if (!b) return;
+      document.getElementById('editBatchId').value = b.id;
+      document.getElementById('editBatchNameInput').value = b.name;
+      document.getElementById('editBatchModal').style.display = 'flex';
     }
 
-    async function addSubject() {
+    async function saveBatchEdit(btn) {
+      if (btn && btn.disabled) return;
+      const id = document.getElementById('editBatchId').value;
+      const name = document.getElementById('editBatchNameInput').value.trim();
+      if (!name) return alert('Batch name is required!');
+
+      if (btn) { btn.disabled = true; btn.innerText = 'Updating...'; }
+      try {
+        const res = await fetch(`/api/batches/${encodeURIComponent(id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else {
+          alert('Error: ' + (data.error || 'Failed to update batch!'));
+          if (btn) { btn.disabled = false; btn.innerText = 'Update Batch'; }
+        }
+      } catch (e) {
+        alert('Server error!');
+        if (btn) { btn.disabled = false; btn.innerText = 'Update Batch'; }
+      }
+    }
+
+    function deleteBatchById(id, label) {
+      openDeleteAuthModal('batch', id, label);
+    }
+
+    // ================= 2. SUBJECT ADD / EDIT / DAILY VIEW / DELETE =================
+    async function addSubject(btn) {
+      if (btn && btn.disabled) return;
       const name = document.getElementById('subjectInput').value.trim();
       const batch_id = document.getElementById('subjectBatchSelect').value;
 
       if (!batch_id) return alert('Please select a batch!');
       if (!name) return alert('Please enter a subject name!');
 
-      const res = await fetch('/api/subjects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, batch_id })
+      if (btn) { btn.disabled = true; btn.innerText = 'Adding...'; }
+      try {
+        const res = await fetch('/api/subjects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, batch_id })
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else {
+          alert('Error: ' + (data.error || 'Failed to add subject!'));
+          if (btn) { btn.disabled = false; btn.innerText = 'Add Subject'; }
+        }
+      } catch (e) {
+        alert('Server error!');
+        if (btn) { btn.disabled = false; btn.innerText = 'Add Subject'; }
+      }
+    }
+
+    function filterSubjectsTable() {
+      const val = document.getElementById('filterSubTableBatch').value;
+      document.querySelectorAll('.sub-mgmt-row').forEach(row => {
+        if (val === 'all_view') {
+          row.style.display = '';
+        } else {
+          row.style.display = row.dataset.batchId === val ? '' : 'none';
+        }
       });
-
-      const data = await res.json();
-      if (data.success) location.reload();
-      else alert('Error: ' + (data.error || 'Failed to add subject!'));
     }
 
-    function deleteSubject() {
-      const sel = document.getElementById('subjectSelect');
-      if (!sel.value) return alert('Please select a subject to delete!');
-      const label = sel.options[sel.selectedIndex].text;
-      openDeleteAuthModal('subject', sel.value, label);
+    function openDailySubModal(subId) {
+      const sub = SUBJECTS_LIST.find(x => String(x.id) === String(subId));
+      if (!sub) return;
+
+      document.getElementById('dailySubModalTitle').innerText = `${sub.name} (${sub.batch_name})`;
+      document.getElementById('dailySubModalDesc').innerText = `Total Attendance Sessions Taken: ${sub.total_sessions || 0}`;
+
+      const tbody = document.getElementById('dailySubModalBody');
+      const days = sub.daily_sessions || [];
+      if (days.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#64748b; padding:14px;">No attendance recorded for this subject yet.</td></tr>';
+      } else {
+        tbody.innerHTML = days.map(d => `
+          <tr>
+            <td><strong>${d.date}</strong></td>
+            <td style="text-align:center;"><span class="mini-pill green">${d.count} Session(s)</span></td>
+          </tr>
+        `).join('');
+      }
+      document.getElementById('dailySubModal').style.display = 'flex';
     }
 
+    function openEditSubjectModal(subId) {
+      const sub = SUBJECTS_LIST.find(x => String(x.id) === String(subId));
+      if (!sub) return;
+      document.getElementById('editSubId').value = sub.id;
+      document.getElementById('editSubBatchSelect').value = sub.batch_id || 'all';
+      document.getElementById('editSubNameInput').value = sub.name;
+      document.getElementById('editSubjectModal').style.display = 'flex';
+    }
+
+    async function saveSubjectEdit(btn) {
+      if (btn && btn.disabled) return;
+      const id = document.getElementById('editSubId').value;
+      const batch_id = document.getElementById('editSubBatchSelect').value;
+      const name = document.getElementById('editSubNameInput').value.trim();
+      if (!name) return alert('Subject name is required!');
+
+      if (btn) { btn.disabled = true; btn.innerText = 'Updating...'; }
+      try {
+        const res = await fetch(`/api/subjects/${encodeURIComponent(id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, batch_id })
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else {
+          alert('Error: ' + (data.error || 'Failed to update subject!'));
+          if (btn) { btn.disabled = false; btn.innerText = 'Update Subject'; }
+        }
+      } catch (e) {
+        alert('Server error!');
+        if (btn) { btn.disabled = false; btn.innerText = 'Update Subject'; }
+      }
+    }
+
+    function deleteSubjectById(id, label) {
+      openDeleteAuthModal('subject', id, label);
+    }
+
+    // ================= 3. USER ADD / EDIT / DELETE =================
     function handleRoleChange() {
       const role = document.getElementById('userRole').value;
       const batchSelect = document.getElementById('userBatchSelect');
@@ -443,53 +886,153 @@
         opt.disabled = !match;
       });
     }
-async function addUser() {
-  const name = document.getElementById('userFullName').value.trim();
-  const phone = document.getElementById('userPhone').value.trim();
-  const username = document.getElementById('userInput').value.trim();
-  const password = document.getElementById('userPass').value.trim();
-  const role = document.getElementById('userRole').value;
-  const allowed_batch = document.getElementById('userBatchSelect').value;
-  const allowed_subject = document.getElementById('userSubjectSelect').value;
 
-  const can_attendance = document.getElementById('userAtt').checked;
-  const can_update = document.getElementById('userUpdate').checked;
-  const can_manage = document.getElementById('userManage').checked;
-  const can_attendanceveiw = document.getElementById('userview').checked;
-  const can_studet = document.getElementById('userstudet').checked;
-  const can_admission = document.getElementById('userAdmission').checked;
-  const can_studio = document.getElementById('userStudio').checked; // പുതിയ ചെക്ക്ബോക്സ്
+    async function addUser(btn) {
+      if (btn && btn.disabled) return;
+      const name = document.getElementById('userFullName').value.trim();
+      const phone = document.getElementById('userPhone').value.trim();
+      const username = document.getElementById('userInput').value.trim();
+      const password = document.getElementById('userPass').value.trim();
+      const role = document.getElementById('userRole').value;
+      const allowed_batch = document.getElementById('userBatchSelect').value;
+      const allowed_subject = document.getElementById('userSubjectSelect').value;
 
-  if (!name || !username || !password) return alert('Full Name, Username, and Password are required!');
-  if (role === 'batch_leader' && !allowed_batch) return alert('Please select an assigned batch for Batch Leader!');
-  if (role === 'subject_leader' && (!allowed_batch || !allowed_subject)) {
-    return alert('Please select both batch and subject for Subject Leader!');
-  }
+      const can_attendance = document.getElementById('userAtt').checked;
+      const can_update = document.getElementById('userUpdate').checked;
+      const can_manage = document.getElementById('userManage').checked;
+      const can_attendanceveiw = document.getElementById('userview').checked;
+      const can_studet = document.getElementById('userstudet').checked;
+      const can_admission = document.getElementById('userAdmission').checked;
+      const can_studio = document.getElementById('userStudio').checked;
 
-  const res = await fetch('/api/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      name,
-      phone,
-      username, 
-      password, 
-      role,
-      allowed_batch: role === 'sub_admin' ? 'all' : allowed_batch,
-      allowed_subject: role === 'subject_leader' ? allowed_subject : 'all',
-      can_attendance, 
-      can_admission,
-      can_update,
-      can_manage, 
-      can_attendanceveiw, 
-      can_studet,
-      can_studio // Backend-ലേക്ക് അയക്കുന്നു
-    })
-  });
-  const data = await res.json();
-  if (data.success) location.reload();
-  else alert('Error: ' + (data.error || 'Failed to add user!'));
-}
+      if (!name || !username || !password) return alert('Full Name, Username, and Password are required!');
+      if (role === 'batch_leader' && !allowed_batch) return alert('Please select an assigned batch for Batch Leader!');
+      if (role === 'subject_leader' && (!allowed_batch || !allowed_subject)) {
+        return alert('Please select both batch and subject for Subject Leader!');
+      }
+
+      if (btn) { btn.disabled = true; btn.innerText = 'Adding...'; }
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            name, phone, username, password, role,
+            allowed_batch: role === 'sub_admin' ? 'all' : allowed_batch,
+            allowed_subject: role === 'subject_leader' ? allowed_subject : 'all',
+            can_attendance, can_admission, can_update,
+            can_manage, can_attendanceveiw, can_studet, can_studio
+          })
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else {
+          alert('Error: ' + (data.error || 'Failed to add user!'));
+          if (btn) { btn.disabled = false; btn.innerText = 'Add User'; }
+        }
+      } catch (e) {
+        alert('Server error!');
+        if (btn) { btn.disabled = false; btn.innerText = 'Add User'; }
+      }
+    }
+
+    function openEditUserModal(userId) {
+      const u = USERS_LIST.find(x => String(x.id) === String(userId));
+      if (!u) return;
+
+      document.getElementById('editUserId').value = u.id;
+      document.getElementById('editUserName').value = u.name || '';
+      document.getElementById('editUserPhone').value = u.phone || '';
+      document.getElementById('editUserUsername').value = u.username || '';
+      document.getElementById('editUserPass').value = '';
+      document.getElementById('editUserRole').value = u.role || 'sub_admin';
+
+      handleEditUserRoleChange();
+      if (u.allowed_batch && u.allowed_batch !== 'all') {
+        document.getElementById('editUserBatch').value = u.allowed_batch;
+        filterEditUserSubjects();
+      }
+      if (u.allowed_subject && u.allowed_subject !== 'all') {
+        document.getElementById('editUserSub').value = u.allowed_subject;
+      }
+
+      document.getElementById('editUserAtt').checked = Boolean(u.can_attendance);
+      document.getElementById('editUserUpdate').checked = Boolean(u.can_update);
+      document.getElementById('editUserManage').checked = Boolean(u.can_manage);
+      document.getElementById('editUserView').checked = Boolean(u.can_attendanceveiw);
+      document.getElementById('editUserStudet').checked = Boolean(u.can_studet);
+      document.getElementById('editUserAdm').checked = Boolean(u.can_admission);
+      document.getElementById('editUserStudio').checked = Boolean(u.can_studio);
+
+      document.getElementById('editUserModal').style.display = 'flex';
+    }
+
+    function handleEditUserRoleChange() {
+      const role = document.getElementById('editUserRole').value;
+      document.getElementById('editUserBatchWrap').style.display = (role === 'batch_leader' || role === 'subject_leader') ? 'block' : 'none';
+      document.getElementById('editUserSubWrap').style.display = (role === 'subject_leader') ? 'block' : 'none';
+      if (role === 'subject_leader') filterEditUserSubjects();
+    }
+
+    function filterEditUserSubjects() {
+      const selectedBatch = document.getElementById('editUserBatch').value;
+      const subSel = document.getElementById('editUserSub');
+      subSel.querySelectorAll('option').forEach(opt => {
+        if (!opt.value) return;
+        const match = opt.getAttribute('data-batch-id') === selectedBatch;
+        opt.hidden = !match;
+        opt.disabled = !match;
+      });
+    }
+
+    async function saveUserEdit(btn) {
+      if (btn && btn.disabled) return;
+      const id = document.getElementById('editUserId').value;
+      const name = document.getElementById('editUserName').value.trim();
+      const phone = document.getElementById('editUserPhone').value.trim();
+      const username = document.getElementById('editUserUsername').value.trim();
+      const password = document.getElementById('editUserPass').value.trim();
+      const role = document.getElementById('editUserRole').value;
+      const allowed_batch = document.getElementById('editUserBatch').value;
+      const allowed_subject = document.getElementById('editUserSub').value;
+
+      if (!name || !username) return alert('Name and Username are required!');
+      if (role === 'batch_leader' && !allowed_batch) return alert('Please select assigned batch!');
+      if (role === 'subject_leader' && (!allowed_batch || !allowed_subject)) return alert('Please select batch and subject!');
+
+      if (btn) { btn.disabled = true; btn.innerText = 'Updating...'; }
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name, phone, username, password, role,
+            allowed_batch: role === 'sub_admin' ? 'all' : allowed_batch,
+            allowed_subject: role === 'subject_leader' ? allowed_subject : 'all',
+            can_attendance: document.getElementById('editUserAtt').checked,
+            can_update: document.getElementById('editUserUpdate').checked,
+            can_manage: document.getElementById('editUserManage').checked,
+            can_attendanceveiw: document.getElementById('editUserView').checked,
+            can_studet: document.getElementById('editUserStudet').checked,
+            can_admission: document.getElementById('editUserAdm').checked,
+            can_studio: document.getElementById('editUserStudio').checked
+          })
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else {
+          alert('Error: ' + (data.error || 'Failed to update user!'));
+          if (btn) { btn.disabled = false; btn.innerText = 'Update User'; }
+        }
+      } catch (e) {
+        alert('Server error!');
+        if (btn) { btn.disabled = false; btn.innerText = 'Update User'; }
+      }
+    }
+
+    function deleteUserById(id, label) {
+      openDeleteAuthModal('user', id, label);
+    }
 
     // ==========================================
     // UNIFIED ADMIN PASSWORD VERIFICATION MODAL
@@ -562,7 +1105,7 @@ async function addUser() {
     }
 
     // ==========================================
-    // 2. STUDENT PORTAL CONTROL & ROW HIDE SCRIPTS
+    // 4. STUDENT PORTAL CONTROL & ROW HIDE SCRIPTS
     // ==========================================
     const STUDENTS = JSON.parse(document.getElementById('studentsDataJson').textContent || '[]');
     let CFG = JSON.parse(document.getElementById('portalCfgJson').textContent || '{}');

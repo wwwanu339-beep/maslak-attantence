@@ -33,41 +33,111 @@ async function verifyMainAdminPassword(adminPassword) {
 
 router.get('/settings', requireAuth, checkManage, async (req, res) => {
   try {
-    const [batchSheet, subjectSheet, userSheet, admSheet, cfgSheet] = await Promise.all([
+    const [batchSheet, subjectSheet, userSheet, admSheet, cfgSheet, attSheet] = await Promise.all([
       getSheet('batches'),
       getSheet('subjects'),
       getSheet('users'),
       getSheet('admissions'),
-      getSheet('portal_config')
+      getSheet('portal_config'),
+      getSheet('attendance')
     ]);
 
-    const [bRows, sRows, uRows, aRows, cRows] = await Promise.all([
+    const [bRows, sRows, uRows, aRows, cRows, attRows] = await Promise.all([
       batchSheet.getRows(),
       subjectSheet.getRows(),
       userSheet.getRows(),
       admSheet ? admSheet.getRows() : [],
-      cfgSheet ? cfgSheet.getRows() : []
+      cfgSheet ? cfgSheet.getRows() : [],
+      attSheet ? attSheet.getRows() : []
     ]);
 
-    const batches = bRows.map(r => ({ id: r.get('id'), name: r.get('name') })).reverse();
-    const subjects = sRows.map(r => ({ id: r.get('id'), name: r.get('name'), batch_id: r.get('batch_id') })).reverse();
-
-    const users = uRows
-      .filter(r => !isProtectedAdmin(r))
-      .map(r => ({
-        id: r.get('id'),
-        name: r.get('name') || '',
-        phone: r.get('phone') || '',
-        username: r.get('username'),
-        role: r.get('role') || 'sub_admin'
-      }))
-      .reverse();
-
-    // Map Batch ID -> Name for Student Portal Control Table
     const batchMap = {};
     bRows.forEach(r => {
       batchMap[String(r.get('id') || '').trim()] = r.get('name');
     });
+
+    // Compute unique sessions per subject & per batch, plus daily session breakdown
+    const uniqueSessionKeys = new Set(); // date_batchId_subjectId
+    const subTotalSessions = {};         // subject_id -> count
+    const batchTotalSessions = {};       // batch_id -> count
+    const subDailySessions = {};         // subject_id -> { date: count }
+
+    attRows.forEach(r => {
+      const d = String(r.get('date') || '').trim();
+      const b = String(r.get('batch_id') || '').trim();
+      const s = String(r.get('subject_id') || '').trim();
+      if (!d || !s) return;
+
+      const sessKey = `${d}_${b}_${s}`;
+      if (!uniqueSessionKeys.has(sessKey)) {
+        uniqueSessionKeys.add(sessKey);
+        subTotalSessions[s] = (subTotalSessions[s] || 0) + 1;
+        if (b) batchTotalSessions[b] = (batchTotalSessions[b] || 0) + 1;
+
+        if (!subDailySessions[s]) subDailySessions[s] = {};
+        subDailySessions[s][d] = (subDailySessions[s][d] || 0) + 1;
+      }
+    });
+
+    // Enrich Subjects with Batch Name, Total Sessions, and Daily Breakdown
+    const subjects = sRows.map(r => {
+      const id = String(r.get('id') || '').trim();
+      const bId = String(r.get('batch_id') || '').trim();
+      const dailyMap = subDailySessions[id] || {};
+      const dailyList = Object.keys(dailyMap)
+        .sort((a, b) => b.localeCompare(a))
+        .map(date => ({ date, count: dailyMap[date] }));
+
+      return {
+        id,
+        name: r.get('name') || '',
+        batch_id: bId,
+        batch_name: bId === 'all' ? 'All Batches' : (batchMap[bId] || 'Unassigned'),
+        total_sessions: subTotalSessions[id] || 0,
+        daily_sessions: dailyList
+      };
+    }).reverse();
+
+    // Enrich Batches with Subject Count & Total Sessions
+    const batches = bRows.map(r => {
+      const id = String(r.get('id') || '').trim();
+      const subCount = subjects.filter(s => s.batch_id === id).length;
+      return {
+        id,
+        name: r.get('name') || '',
+        subject_count: subCount,
+        total_sessions: batchTotalSessions[id] || 0
+      };
+    }).reverse();
+
+    // Enrich Users with Full Details & Permissions
+    const users = uRows
+      .filter(r => !isProtectedAdmin(r))
+      .map(r => {
+        const bId = String(r.get('allowed_batch') || 'all').trim();
+        const sId = String(r.get('allowed_subject') || 'all').trim();
+        const matchedSub = subjects.find(s => s.id === sId);
+
+        return {
+          id: String(r.get('id') || '').trim(),
+          name: r.get('name') || '',
+          phone: r.get('phone') || '',
+          username: r.get('username') || '',
+          role: String(r.get('role') || 'sub_admin').trim(),
+          allowed_batch: bId,
+          allowed_batch_name: bId === 'all' ? 'All Batches' : (batchMap[bId] || bId),
+          allowed_subject: sId,
+          allowed_subject_name: sId === 'all' ? 'All Subjects' : (matchedSub ? matchedSub.name : sId),
+          can_attendance: r.get('can_attendance') == '1',
+          can_update: r.get('can_update') == '1',
+          can_manage: r.get('can_manage') == '1',
+          can_attendanceveiw: r.get('can_attendanceveiw') == '1',
+          can_studet: r.get('can_studet') == '1',
+          can_admission: r.get('can_admission') == '1',
+          can_studio: r.get('can_studio') == '1'
+        };
+      })
+      .reverse();
 
     const students = aRows
       .filter(r => (r.get('full_name') || '').trim() !== '')
@@ -95,12 +165,31 @@ router.get('/settings', requireAuth, checkManage, async (req, res) => {
   }
 });
 
+// ================= BATCH ROUTES =================
 router.post('/api/batches', requireAuth, checkManage, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'Batch name is required!' });
     const sheet = await getSheet('batches');
     await sheet.addRow({ id: Date.now().toString(), name: name.trim() });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/api/batches/:id', requireAuth, checkManage, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ success: false, error: 'Batch name is required!' });
+
+    const sheet = await getSheet('batches');
+    const rows = await sheet.getRows();
+    const row = rows.find(r => String(r.get('id')).trim() === String(req.params.id).trim());
+    if (!row) return res.status(404).json({ success: false, error: 'Batch not found!' });
+
+    row.set('name', name.trim());
+    await row.save();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -114,7 +203,7 @@ router.delete('/api/batches/:id', requireAuth, checkManage, async (req, res) => 
 
     const sheet = await getSheet('batches');
     const rows = await sheet.getRows();
-    const row = rows.find(r => String(r.get('id')) === String(req.params.id));
+    const row = rows.find(r => String(r.get('id')).trim() === String(req.params.id).trim());
     if (row) await row.delete();
     res.json({ success: true });
   } catch (err) {
@@ -122,12 +211,34 @@ router.delete('/api/batches/:id', requireAuth, checkManage, async (req, res) => 
   }
 });
 
+// ================= SUBJECT ROUTES =================
 router.post('/api/subjects', requireAuth, checkManage, async (req, res) => {
   try {
     const { name, batch_id } = req.body;
     if (!name || !batch_id) return res.status(400).json({ success: false, error: 'Subject name and batch are required!' });
     const sheet = await getSheet('subjects');
     await sheet.addRow({ id: Date.now().toString(), name: name.trim(), batch_id: String(batch_id).trim() });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/api/subjects/:id', requireAuth, checkManage, async (req, res) => {
+  try {
+    const { name, batch_id } = req.body;
+    if (!name || !name.trim() || !batch_id) {
+      return res.status(400).json({ success: false, error: 'Subject name and batch are required!' });
+    }
+
+    const sheet = await getSheet('subjects');
+    const rows = await sheet.getRows();
+    const row = rows.find(r => String(r.get('id')).trim() === String(req.params.id).trim());
+    if (!row) return res.status(404).json({ success: false, error: 'Subject not found!' });
+
+    row.set('name', name.trim());
+    row.set('batch_id', String(batch_id).trim());
+    await row.save();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -141,7 +252,7 @@ router.delete('/api/subjects/:id', requireAuth, checkManage, async (req, res) =>
 
     const sheet = await getSheet('subjects');
     const rows = await sheet.getRows();
-    const row = rows.find(r => String(r.get('id')) === String(req.params.id));
+    const row = rows.find(r => String(r.get('id')).trim() === String(req.params.id).trim());
     if (row) await row.delete();
     res.json({ success: true });
   } catch (err) {
@@ -149,10 +260,11 @@ router.delete('/api/subjects/:id', requireAuth, checkManage, async (req, res) =>
   }
 });
 
+// ================= USER ROUTES =================
 router.post('/api/users', requireAuth, checkManage, async (req, res) => {
   const {
     name, phone, username, password, role, allowed_batch, allowed_subject,
-    can_attendance, can_update, can_manage, can_attendanceveiw, can_studet, can_admission
+    can_attendance, can_update, can_manage, can_attendanceveiw, can_studet, can_admission, can_studio
   } = req.body;
 
   if (!username || !password) return res.status(400).json({ success: false, error: 'Username and password are required!' });
@@ -198,6 +310,69 @@ router.post('/api/users', requireAuth, checkManage, async (req, res) => {
       can_admission: can_admission ? '1' : '0',
       can_studio: can_studio ? '1' : '0'
     });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/api/users/:id', requireAuth, checkManage, async (req, res) => {
+  const targetId = String(req.params.id).trim();
+  const {
+    name, phone, username, password, role, allowed_batch, allowed_subject,
+    can_attendance, can_update, can_manage, can_attendanceveiw, can_studet, can_admission, can_studio
+  } = req.body;
+
+  if (!name || !username) {
+    return res.status(400).json({ success: false, error: 'Name and Username are required!' });
+  }
+
+  let finalRole = String(role || 'sub_admin').trim().toLowerCase();
+  if (finalRole === 'super_admin' || finalRole === 'admin') {
+    finalRole = 'sub_admin';
+  }
+
+  let finalBatch = 'all';
+  let finalSubject = 'all';
+
+  if (finalRole === 'batch_leader' && allowed_batch) finalBatch = String(allowed_batch).trim();
+  else if (finalRole === 'subject_leader' && allowed_batch && allowed_subject) {
+    finalBatch = String(allowed_batch).trim();
+    finalSubject = String(allowed_subject).trim();
+  }
+
+  try {
+    const sheet = await getSheet('users');
+    const rows = await sheet.getRows();
+
+    const row = rows.find(r => String(r.get('id')).trim() === targetId);
+    if (!row) return res.status(404).json({ success: false, error: 'User not found!' });
+    if (isProtectedAdmin(row)) return res.status(403).json({ success: false, error: 'Protected Admin account cannot be edited here!' });
+
+    const duplicate = rows.some(r =>
+      String(r.get('id')).trim() !== targetId &&
+      String(r.get('username')).trim().toLowerCase() === username.trim().toLowerCase()
+    );
+    if (duplicate) return res.status(400).json({ success: false, error: 'Username already taken by another user!' });
+
+    row.set('name', name.trim());
+    row.set('phone', (phone || '').trim());
+    row.set('username', username.trim());
+    if (password && password.trim() !== '') {
+      row.set('password', await hashPassword(password.trim()));
+    }
+    row.set('role', finalRole);
+    row.set('allowed_batch', finalBatch);
+    row.set('allowed_subject', finalSubject);
+    row.set('can_attendance', can_attendance ? '1' : '0');
+    row.set('can_update', can_update ? '1' : '0');
+    row.set('can_manage', can_manage ? '1' : '0');
+    row.set('can_attendanceveiw', can_attendanceveiw ? '1' : '0');
+    row.set('can_studet', can_studet ? '1' : '0');
+    row.set('can_admission', can_admission ? '1' : '0');
+    row.set('can_studio', can_studio ? '1' : '0');
+
+    await row.save();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
